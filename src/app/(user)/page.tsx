@@ -84,11 +84,11 @@ export default function LandingPage() {
               Liquidity for <em>illiquid</em> digital assets.
             </h1>
             <p className="lede" style={{ margin: "28px 0 32px" }}>
-              One venue for NFT-backed loans, mini-app sales, X handle transfers, and Farcaster FID escrow — all settled through audited escrow.
+              One venue for NFT-backed loans, mini-app sales, X handles, and Farcaster FIDs — all settled through audited escrow.
             </p>
             <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
-              <Link href="/market" className="btn primary lg">Explore deals <Icon.arrow /></Link>
-              <Link href="/market" className="btn lg ghost">List collateral</Link>
+              <Link href="/market" className="btn primary lg">Lend & borrow <Icon.arrow /></Link>
+              <Link href="/market" className="btn lg ghost">List your NFT</Link>
             </div>
             <div className="row" style={{ marginTop: 56, gap: 48, flexWrap: "wrap" }}>
               {[["Total volume", "184,290 Ξ"], ["Active loans", "1,284"], ["Default rate", "1.4%"]].map(([k, v]) => (
@@ -109,10 +109,10 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-4" style={{ gap: 1, background: "var(--line)", border: "1px solid var(--line)", borderRadius: "var(--radius)", overflow: "hidden" }}>
             {[
-              { n: "01", t: "NFT-backed loans",   d: "Borrow against blue-chip and long-tail NFTs. Lenders set their own terms; borrowers counter-offer.", k: "/market" },
-              { n: "02", t: "Mini Apps",          d: "Sell shipped Frame v2 apps, on-chain projects, and full-bundle takeovers. Source code escrow included.", k: "/miniapps" },
-              { n: "03", t: "X Accounts",         d: "Transfer X handles with verified follower history. OAuth pre-checks, 2FA handover during escrow.", k: "/x" },
-              { n: "04", t: "Farcaster FIDs",     d: "FIDs are NFTs on Optimism — transfer is one signed tx. Channel ownership transfers cleanly.", k: "/farcaster" },
+              { n: "01", t: "NFT-backed loans",   d: "Lend & borrow against your NFTs. Set your own terms, counter-offer, lock in escrow.", k: "/market" },
+              { n: "02", t: "Mini Apps",          d: "Buy & sell shipped Frame v2 apps, on-chain projects, and full-bundle takeovers.", k: "/miniapps" },
+              { n: "03", t: "X Accounts",         d: "Buy & sell X handles with verified follower history. OAuth pre-checks, 2FA handover.", k: "/x" },
+              { n: "04", t: "Farcaster FIDs",     d: "Buy & sell FIDs on-chain. One signed tx. Channel ownership transfers cleanly.", k: "/farcaster" },
             ].map((x) => (
               <Link key={x.t} href={x.k} style={{ padding: 28, background: "var(--bg)", border: 0, color: "inherit", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 0 }}>
                 <span className="mono muted-2" style={{ fontSize: 11, letterSpacing: "0.1em" }}>{x.n}</span>
@@ -126,7 +126,7 @@ export default function LandingPage() {
 
         <section style={{ padding: "32px 0 24px" }}>
           <div className="eyebrow">Live on BSH</div>
-          <h2 className="h2" style={{ margin: "8px 0 22px" }}>Trending collateral.</h2>
+          <h2 className="h2" style={{ margin: "8px 0 22px" }}>Lend & borrow against trending NFTs.</h2>
           <div className="grid grid-4">
             {LOANS.slice(0, 4).map((l) => <LoanCard key={l.id} l={l} />)}
           </div>
@@ -163,11 +163,11 @@ export default function LandingPage() {
             The Berkshire Hathaway<br />of <em>on-chain</em> assets.
           </h1>
           <p className="lede">
-            Lend against NFTs, buy and sell mini-apps, X accounts, and Farcaster FIDs.
+            Lend & borrow against NFTs. Buy & sell mini-apps, X handles, and Farcaster FIDs.
           </p>
           <div className="row" style={{ gap: 10, flexWrap: "wrap", marginTop: 4 }}>
-            <Link href="/market" className="btn primary lg">Start lending <Icon.arrow /></Link>
-            <Link href="/miniapps" className="btn lg ghost">Explore <Icon.arrow /></Link>
+            <Link href="/market" className="btn primary lg">Lend & borrow <Icon.arrow /></Link>
+            <Link href="/miniapps" className="btn lg ghost">Buy & sell <Icon.arrow /></Link>
           </div>
           <div className="row" style={{ marginTop: 32, gap: 32, flexWrap: "wrap" }}>
             {[["$184k+", "Volume"], ["1,284", "Active loans"], ["1.4%", "Default rate"]].map(([v, k]) => (
@@ -181,10 +181,10 @@ export default function LandingPage() {
 
         <div className="grid grid-2" style={{ gap: 10 }}>
           {[
-            { t: "NFT Loans", d: "Borrow against NFTs", k: "/market" },
-            { t: "Mini Apps", d: "Buy & sell apps", k: "/miniapps" },
-            { t: "X Accounts", d: "Transfer handles", k: "/x" },
-            { t: "Farcaster", d: "Buy & sell FIDs", k: "/farcaster" },
+            { t: "NFT Loans", d: "Lend & borrow against NFTs", k: "/market" },
+            { t: "Mini Apps", d: "Buy & sell shipped apps", k: "/miniapps" },
+            { t: "X Accounts", d: "Buy & sell X handles", k: "/x" },
+            { t: "Farcaster", d: "Buy & sell FIDs on-chain", k: "/farcaster" },
           ].map((x) => (
             <Link key={x.t} href={x.k} className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 6 }}>
               <h3 className="serif" style={{ fontSize: 17, margin: 0 }}>{x.t}</h3>

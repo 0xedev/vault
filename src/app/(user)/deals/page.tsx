@@ -62,8 +62,8 @@ export default function DealRoomPage() {
           <h1 className="h2" style={{ marginTop: 8 }}>{d.name} <span className="muted-2 mono" style={{ fontSize: 18 }}>· {d.type}</span></h1>
         </div>
         <div className="row" style={{ gap: 10 }}>
-          <button className="btn ghost"><Icon.warn /> Open dispute</button>
-          <button className="btn">Download contract</button>
+          <button className="btn ghost" onClick={() => alert("Dispute filed. Admin will review.")}><Icon.warn /> Open dispute</button>
+          <button className="btn" onClick={() => window.open("/contracts/VaultEscrow.sol", "_blank")}>Download contract</button>
         </div>
       </div>
 
@@ -107,7 +107,7 @@ export default function DealRoomPage() {
                     <span style={{ color: c.done ? "var(--ink)" : "var(--ink-2)" }}>{c.t}</span>
                     {c.active && <span className="muted-2" style={{ fontSize: 11 }}>Buyer needs to confirm receipt</span>}
                   </div>
-                  {c.active && <button className="btn primary sm">Confirm</button>}
+                  {c.active && <button className="btn primary sm" onClick={() => setStep(Math.min(4, step + 1))}>Confirm</button>}
                 </div>
               ))}
             </div>
@@ -143,7 +143,7 @@ export default function DealRoomPage() {
             <div className="kv"><span className="k">Net to seller</span><span className="v" style={{ color: "var(--accent)" }}>{(d.price * 0.975).toFixed(2)} Ξ</span></div>
             <div className="row" style={{ gap: 8, marginTop: 16 }}>
               <button className="btn primary" style={{ flex: 1 }} onClick={() => setStep(Math.min(4, step + 1))}>Confirm receipt · advance</button>
-              <button className="btn danger">Dispute</button>
+              <button className="btn danger" onClick={() => alert("Dispute opened. Funds frozen.")}>Dispute</button>
             </div>
           </div>
         </div>

@@ -34,8 +34,13 @@ export default function EscrowCenterPage() {
           <h1 className="h2" style={{ marginTop: 8 }}>{escrows.length} active escrows · <span className="nowrap">287.4 Ξ</span> locked.</h1>
         </div>
         <div className="row" style={{ gap: 10 }}>
-          <button className="btn">Export CSV</button>
-          <button className="btn primary">New escrow</button>
+          <button className="btn" onClick={() => {
+            const csv = "id,kind,party,asset,amount,stage,deadline\n" + escrows.map(e => `${e.id},${e.kind},${e.party},${e.asset},${e.amount},${e.stage},${e.deadline}`).join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a"); a.href = url; a.download = "escrows.csv"; a.click();
+          }}>Export CSV</button>
+          <Link href="/deals" className="btn primary">New escrow</Link>
         </div>
       </div>
 

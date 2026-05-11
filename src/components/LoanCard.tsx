@@ -5,12 +5,12 @@ import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
 import type { Loan } from "@/lib/data";
 
-export default function LoanCard({ l, href = "/detail" }: { l: Loan; href?: string }) {
+export default function LoanCard({ l }: { l: Loan }) {
   return (
-    <Link href={href} className="loan-card">
+    <Link href={`/detail?id=${l.id}`} className="loan-card">
       <div style={{ position: "relative" }}>
         <NFTArt seed={l.coll} label={l.token} />
-        <span className="pill" style={{ position: "absolute", top: 8, right: 8, background: "rgba(0,0,0,0.5)", borderColor: "transparent" }}>
+        <span className="pill floor-pill" style={{ position: "absolute", top: 8, right: 8 }}>
           <span className="pdot" style={{ background: "var(--gold)" }} />
           <span className="nowrap">{fmtETH(l.value)} Ξ floor</span>
         </span>
