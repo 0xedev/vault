@@ -1,29 +1,42 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
 import LoanCard from "@/components/LoanCard";
-import { LOANS, COLLECTIONS } from "@/lib/data";
+import { COLLECTIONS } from "@/lib/data";
+import type { Loan } from "@/lib/data";
 
 export default function MarketplacePage() {
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("apr");
 
+  useEffect(() => {
+    fetch("/api/listings")
+      .then((r) => r.json())
+      .then((json) => {
+        setLoans(json.data || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
   const filtered = useMemo(() => {
-    let r = LOANS.filter((l) => filter === "all" || l.status === filter);
+    let r = loans.filter((l) => filter === "all" || l.status === filter);
     if (sort === "apr") r = [...r].sort((a, b) => b.apr - a.apr);
     if (sort === "amt") r = [...r].sort((a, b) => b.amt - a.amt);
     if (sort === "ltv") r = [...r].sort((a, b) => a.ltv - b.ltv);
     return r;
-  }, [filter, sort]);
+  }, [filter, sort, loans]);
 
   const chipData: [string, string, number][] = [
-    ["all", "All", LOANS.length],
-    ["open", "Open", LOANS.filter((l) => l.status === "open").length],
-    ["funded", "Funded", LOANS.filter((l) => l.status === "funded").length],
-    ["warn", "At risk", LOANS.filter((l) => l.status === "warn").length],
-    ["default", "Defaulted", LOANS.filter((l) => l.status === "default").length],
+    ["all", "All", loans.length],
+    ["open", "Open", loans.filter((l) => l.status === "open").length],
+    ["funded", "Funded", loans.filter((l) => l.status === "funded").length],
+    ["warn", "At risk", loans.filter((l) => l.status === "warn").length],
+    ["default", "Defaulted", loans.filter((l) => l.status === "default").length],
   ];
 
   return (
@@ -31,7 +44,7 @@ export default function MarketplacePage() {
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22 }}>
         <div>
           <div className="eyebrow">Loan Marketplace</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>Lend against {LOANS.length} listed NFTs.</h1>
+          <h1 className="h2" style={{ marginTop: 8 }}>Lend against {loans.length} listed NFTs.</h1>
         </div>
         <div className="row" style={{ gap: 10 }}>
           <Link href="/market" className="btn">List collateral</Link>
@@ -76,12 +89,14 @@ export default function MarketplacePage() {
         </div>
       </div>
 
-      <div className="grid grid-4">
-        {filtered.map((l) => <LoanCard key={l.id} l={l} />)}
-      </div>
-
-      {filtered.length === 0 && (
+      {loading ? (
+        <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading listings…</div>
+      ) : filtered.length === 0 ? (
         <div className="muted" style={{ padding: 80, textAlign: "center" }}>No loans match this filter.</div>
+      ) : (
+        <div className="grid grid-4">
+          {filtered.map((l) => <LoanCard key={l.id} l={l} />)}
+        </div>
       )}
     </main>
   );

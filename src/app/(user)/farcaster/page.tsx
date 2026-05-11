@@ -1,29 +1,37 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
-import { FARCASTER } from "@/lib/data";
+import type { FarcasterAccount } from "@/lib/data";
 import { fmtCompact, appColor } from "@/lib/utils";
 
 export default function FarcasterPage() {
+  const [accounts, setAccounts] = useState<FarcasterAccount[]>([]);
+  const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState("followers");
   const [filter, setFilter] = useState("all");
 
+  useEffect(() => {
+    fetch("/api/marketplace/farcaster")
+      .then((r) => r.json()).then((j) => { setAccounts(j.data || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
   const filt = useMemo(() => {
-    let r = FARCASTER;
+    let r = accounts;
     if (filter === "power") r = r.filter(a => a.power_badge);
     if (filter === "verified") r = r.filter(a => a.verified);
     if (sort === "followers") r = [...r].sort((a, b) => b.followers - a.followers);
     if (sort === "rev")       r = [...r].sort((a, b) => b.rev_30d - a.rev_30d);
     if (sort === "price")     r = [...r].sort((a, b) => a.price - b.price);
     return r;
-  }, [filter, sort]);
+  }, [filter, sort, accounts]);
 
   const chips: [string, string, number][] = [
-    ["all",      "All FIDs",     FARCASTER.length],
-    ["power",    "Power badge",  FARCASTER.filter(a => a.power_badge).length],
-    ["verified", "Verified",     FARCASTER.filter(a => a.verified).length],
+    ["all",      "All FIDs",     accounts.length],
+    ["power",    "Power badge",  accounts.filter(a => a.power_badge).length],
+    ["verified", "Verified",     accounts.filter(a => a.verified).length],
   ];
 
   return (
@@ -38,7 +46,7 @@ export default function FarcasterPage() {
         <div className="row" style={{ gap: 18, alignItems: "center" }}>
           <div className="col right" style={{ gap: 1 }}>
             <span className="smallcaps">Open listings</span>
-            <span className="mono" style={{ fontSize: 14 }}>{FARCASTER.length}</span>
+            <span className="mono" style={{ fontSize: 14 }}>{accounts.length}</span>
           </div>
         </div>
       </div>
@@ -67,6 +75,8 @@ export default function FarcasterPage() {
           </div>
         </div>
       </div>
+
+      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : <>
 
       <div className="card" style={{ overflow: "hidden" }}>
         <table className="tbl">
@@ -108,10 +118,11 @@ export default function FarcasterPage() {
       </div>
 
       <div className="grid grid-3" style={{ marginTop: 18 }}>
-        <div className="metric"><span className="lab">Avg sale price</span><span className="val">{(FARCASTER.reduce((a, b) => a + b.price, 0) / FARCASTER.length).toFixed(1)} Ξ</span><span className="delta">last 30 days</span></div>
+        <div className="metric"><span className="lab">Avg sale price</span><span className="val">{(accounts.reduce((a, b) => a + b.price, 0) / (accounts.length || 1)).toFixed(1)} Ξ</span><span className="delta">last 30 days</span></div>
         <div className="metric"><span className="lab">FIDs transferred</span><span className="val">142</span><span className="delta">+ 18 vs prior month</span></div>
         <div className="metric"><span className="lab">Median followers sold</span><span className="val">{fmtCompact(12400)}</span><span className="delta">3.4 follows / cast</span></div>
       </div>
+      </>}
     </main>
   );
 }

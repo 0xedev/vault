@@ -36,7 +36,7 @@ export default function AdminDashboardPage() {
               <span style={{ width: 8, height: 8, background: "var(--gold)", borderRadius: 2, display: "inline-block" }}/>NFT Loans
               <span style={{ width: 8, height: 8, background: "#A78BFA", borderRadius: 2, display: "inline-block", marginLeft: 8 }}/>Mini Apps
               <span style={{ width: 8, height: 8, background: "#8BB7FF", borderRadius: 2, display: "inline-block", marginLeft: 8 }}/>X · Farc.
-              <span style={{ width: 8, height: 8, background: "var(--accent)", borderRadius: 2, display: "inline-block", marginLeft: 8 }}/>OTC
+              <span style={{ width: 8, height: 8, background: "#E6C97C", borderRadius: 2, display: "inline-block", marginLeft: 8 }}/>Other
             </div>
           </div>
           <StackedBars/>

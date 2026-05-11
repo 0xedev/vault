@@ -10,10 +10,10 @@ export type ThemeSettings = {
 };
 
 const defaults: ThemeSettings = {
-  theme: "dark",
+  theme: "light",
   card: "solid",
   density: "regular",
-  accent: "#7CFFB2",
+  accent: "#7F9DC5",
 };
 
 const ThemeContext = createContext<{

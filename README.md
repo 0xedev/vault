@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vault
 
-## Getting Started
+NFT-backed lending & escrow platform — one venue for NFT loans, mini-app sales, X handle transfers, and Farcaster FID escrow.
 
-First, run the development server:
+Built from a [Claude Design](https://claude.ai/design) handoff bundle.
+
+## Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
+npm run build    # production build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Routes
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| User pages | Admin pages |
+|---|---|
+| `/` — Landing | `/admin/dash` — Dashboard |
+| `/market` — NFT Loans | `/admin/disputes` — Dispute queue |
+| `/detail` — Loan detail | `/admin/listings` — Listing moderation |
+| `/escrow` — Escrow center | `/admin/users` — User management |
+| `/deals` — Deal room | `/admin/admin-escrow` — Escrow ops |
+| `/miniapps` — Mini Apps | `/admin/verifications` — Verifications |
+| `/x` — X Accounts | `/admin/tickets` — Support inbox |
+| `/farcaster` — Farcaster | `/admin/audit` — Audit log |
+| `/otc` — OTC P2P | |
+| `/portfolio` — Portfolio | |
+| `/history` — History | |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Stack
 
-## Learn More
+- **Next.js 16** (App Router) with TypeScript
+- **CSS custom properties** for theming (dark/light, solid/glass, density)
+- Google Fonts: Geist, Instrument Serif, JetBrains Mono
+- Mock data layer — no external API
 
-To learn more about Next.js, take a look at the following resources:
+## Theme system
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Toggle via the **⚙ gear button** (bottom-right) or set `data-*` attributes on `<body>`:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Attribute | Values |
+|---|---|
+| `data-theme` | `dark`, `light` |
+| `data-card` | `solid`, `glass` |
+| `data-density` | `compact`, `regular`, `comfortable` |

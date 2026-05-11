@@ -7,8 +7,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Vault — NFT-backed lending & escrow",
-  description: "Liquidity for illiquid digital assets. NFT-backed loans, mini-app sales, X handle transfers, and Farcaster FID escrow.",
+  title: "Baseshire Hathaway — Crypto Conglomerate",
+  description: "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
 };
 
 export default function RootLayout({
@@ -26,7 +26,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body data-theme="dark" data-card="solid" data-density="regular">
+      <body data-theme="light" data-card="solid" data-density="regular">
         {children}
       </body>
     </html>

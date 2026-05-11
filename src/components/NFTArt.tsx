@@ -1,13 +1,13 @@
 export default function NFTArt({ seed = 0, label, size = "100%" }: { seed?: number; label?: string; size?: string }) {
   const palettes = [
-    ["#0E2848", "#7CFFB2", "#1B406E"],
-    ["#1A1240", "#A78BFA", "#3A2769"],
-    ["#0E2848", "#FFC56B", "#5C3F12"],
-    ["#10182E", "#8BB7FF", "#1F345C"],
-    ["#221017", "#FF7A45", "#5E2415"],
-    ["#0A2540", "#E6C97C", "#3D2F12"],
-    ["#152A2A", "#7CFFB2", "#1F4F4F"],
-    ["#190A2E", "#D4A0FF", "#3A1959"],
+    ["#013A90", "#ACC2DC", "#063D91"],
+    ["#023A8F", "#7F9DC5", "#184A95"],
+    ["#063D91", "#EAF2F7", "#013A90"],
+    ["#184A95", "#ACC2DC", "#023A8F"],
+    ["#013A90", "#7F9DC5", "#063D91"],
+    ["#033A8E", "#E6C97C", "#013A8E"],
+    ["#023A8F", "#ACC2DC", "#184A95"],
+    ["#013A8E", "#7F9DC5", "#063D91"],
   ];
   const p = palettes[seed % palettes.length];
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -31,6 +31,9 @@ export default function SideBar({ open, onClose }: { open: boolean; onClose: () 
 
   return (
     <aside className={"sidebar" + (open ? " open" : "")}>
+      <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
+        <Icon.x />
+      </button>
       {items.map((it, i) =>
         it.sec ? (
           <div className="side-h" key={"s"+i}>{it.sec}</div>
@@ -54,7 +57,7 @@ export default function SideBar({ open, onClose }: { open: boolean; onClose: () 
           <span className="smallcaps" style={{ color: "var(--ink-2)" }}>Protected</span>
         </div>
         <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.4 }}>
-          Funds + collateral held in audited multi-sig escrow. <a className="lnk" href="#">Read terms ↗</a>
+          Funds + collateral held in audited escrow. <a className="lnk" href="#">Read terms ↗</a>
         </div>
       </div>
     </aside>

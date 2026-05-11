@@ -142,7 +142,7 @@ export default function TweaksPanel() {
               <input type="color" className="twk-swatch" value={settings.accent} onChange={e => setSetting("accent", e.target.value)} />
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {["#7CFFB2", "#A78BFA", "#8BB7FF", "#FFC56B", "#FF7A45", "#E6C97C"].map(c => (
+              {["#7F9DC5", "#ACC2DC", "#184A95", "#E6C97C", "#FFC56B", "#EAF2F7"].map(c => (
                 <button key={c} onClick={() => setSetting("accent", c)}
                   style={{ width: 22, height: 22, borderRadius: 6, background: c, border: settings.accent === c ? "2px solid #29261b" : "1px solid rgba(0,0,0,.1)", cursor: "pointer" }}/>
               ))}

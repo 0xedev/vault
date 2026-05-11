@@ -9,14 +9,21 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@farcaster/frame-sdk": "^0.2.0",
+    "@neondatabase/serverless": "^1.1.0",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
     "next": "16.2.6",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "siwe": "^3.0.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "typescript": "^5"

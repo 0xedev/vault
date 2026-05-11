@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
-import { X_ACCOUNTS } from "@/lib/data";
-import { fmtCompact, appColor } from "@/lib/utils";
+import type { XAccount } from "@/lib/data";
+import { fmtCompact } from "@/lib/utils";
 
 function Stat({ lab, v, good }: { lab: string; v: string; good?: boolean }) {
   return (
@@ -27,11 +27,19 @@ function Bar({ label, pct, sub }: { label: string; pct: number; sub: string }) {
 }
 
 export default function XAccountsPage() {
+  const [accounts, setAccounts] = useState<XAccount[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("followers");
 
+  useEffect(() => {
+    fetch("/api/marketplace/x-accounts")
+      .then((r) => r.json()).then((j) => { setAccounts(j.data || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
   const filt = useMemo(() => {
-    let r = X_ACCOUNTS;
+    let r = accounts;
     if (filter === "verified") r = r.filter(a => a.verified);
     if (filter === "small")    r = r.filter(a => a.followers < 25000);
     if (filter === "mid")      r = r.filter(a => a.followers >= 25000 && a.followers < 100000);
@@ -40,14 +48,14 @@ export default function XAccountsPage() {
     if (sort === "engage")    r = [...r].sort((a, b) => b.engagement - a.engagement);
     if (sort === "price")     r = [...r].sort((a, b) => a.price - b.price);
     return r;
-  }, [filter, sort]);
+  }, [filter, sort, accounts]);
 
   const chips: [string, string, number][] = [
-    ["all",      "All",       X_ACCOUNTS.length],
-    ["verified", "Verified",  X_ACCOUNTS.filter(a => a.verified).length],
-    ["small",    "<25k",      X_ACCOUNTS.filter(a => a.followers < 25000).length],
-    ["mid",      "25k-100k",  X_ACCOUNTS.filter(a => a.followers >= 25000 && a.followers < 100000).length],
-    ["large",    "100k+",     X_ACCOUNTS.filter(a => a.followers >= 100000).length],
+    ["all",      "All",       accounts.length],
+    ["verified", "Verified",  accounts.filter(a => a.verified).length],
+    ["small",    "<25k",      accounts.filter(a => a.followers < 25000).length],
+    ["mid",      "25k-100k",  accounts.filter(a => a.followers >= 25000 && a.followers < 100000).length],
+    ["large",    "100k+",     accounts.filter(a => a.followers >= 100000).length],
   ];
 
   return (
@@ -62,7 +70,7 @@ export default function XAccountsPage() {
         <div className="row" style={{ gap: 18, alignItems: "center" }}>
           <div className="col right" style={{ gap: 1 }}>
             <span className="smallcaps">Open listings</span>
-            <span className="mono" style={{ fontSize: 14 }}>{X_ACCOUNTS.length}</span>
+            <span className="mono" style={{ fontSize: 14 }}>{accounts.length}</span>
           </div>
           <div className="col right" style={{ gap: 1 }}>
             <span className="smallcaps">In escrow</span>
@@ -96,6 +104,7 @@ export default function XAccountsPage() {
         </div>
       </div>
 
+      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : (
       <div className="grid grid-3">
         {filt.map(a => (
           <Link href="/deals" key={a.id} className="x-card">
@@ -123,6 +132,7 @@ export default function XAccountsPage() {
           </Link>
         ))}
       </div>
+      )}
     </main>
   );
 }

@@ -32,6 +32,9 @@ export default function AdminSideBar({ open, onClose }: { open: boolean; onClose
 
   return (
     <aside className={"sidebar admin-sidebar" + (open ? " open" : "")}>
+      <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
+        <Icon.x />
+      </button>
       {items.map((it, i) => it.sec
         ? <div className="side-h" key={"s"+i}>{it.sec}</div>
         : (

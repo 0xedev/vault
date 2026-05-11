@@ -1,23 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
-import { DIGITAL_DEALS } from "@/lib/data";
 import { fmtUSD } from "@/lib/utils";
-
-const checks = [
-  { t: "Token revenue rights — receiver address", done: true },
-  { t: "Tx-fee receiver contract role", done: true },
-  { t: "X account · 48k followers", done: true },
-  { t: "Farcaster FID 8210 transfer", done: true },
-  { t: "Domain · fed.fi · DNS update", done: false, active: true },
-  { t: "Telegram · 11k members", done: false },
-  { t: "Smart-contract owner role", done: false },
-];
+import type { DigitalDeal } from "@/lib/data";
 
 export default function DealRoomPage() {
-  const d = DIGITAL_DEALS[0];
+  const [deal, setDeal] = useState<DigitalDeal | null>(null);
+  const [loading, setLoading] = useState(true);
   const [step, setStep] = useState(2);
   const [draft, setDraft] = useState("");
   const [chat, setChat] = useState([
@@ -26,13 +17,37 @@ export default function DealRoomPage() {
     { who: "Seller · 0xfa12…0011", text: "Updating now — new NS records pushed. Should propagate in ~10m.", t: "14:13", me: false },
   ]);
 
+  useEffect(() => {
+    fetch("/api/deals")
+      .then((r) => r.json())
+      .then((json) => {
+        setDeal(json.data?.[0] || null);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
   const sendMsg = () => {
     if (!draft.trim()) return;
     setChat((c) => [...c, { who: "You", text: draft, t: "now", me: true }]);
     setDraft("");
   };
 
+  if (loading) return <main className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
+  if (!deal) return <main className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Deal not found.</div></main>;
+
+  const d = deal;
   const steps = ["Buyer deposits", "Seller transfers", "Buyer confirms", "Funds release", "Fee deducted"];
+
+  const checks = [
+    { t: "Token revenue rights — receiver address", done: true },
+    { t: "Tx-fee receiver contract role", done: true },
+    { t: "X account · 48k followers", done: true },
+    { t: "Farcaster FID 8210 transfer", done: true },
+    { t: "Domain · fed.fi · DNS update", done: false, active: true },
+    { t: "Telegram · 11k members", done: false },
+    { t: "Smart-contract owner role", done: false },
+  ];
 
   return (
     <main className="main">
@@ -44,7 +59,7 @@ export default function DealRoomPage() {
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 18 }}>
         <div>
           <div className="eyebrow">Deal Room · Asset Sale</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>{d.name} <span className="muted-2 mono" style={{ fontSize: 18 }}>· Full bundle</span></h1>
+          <h1 className="h2" style={{ marginTop: 8 }}>{d.name} <span className="muted-2 mono" style={{ fontSize: 18 }}>· {d.type}</span></h1>
         </div>
         <div className="row" style={{ gap: 10 }}>
           <button className="btn ghost"><Icon.warn /> Open dispute</button>
@@ -74,16 +89,13 @@ export default function DealRoomPage() {
         <div className="col" style={{ gap: 18 }}>
           <div className="card" style={{ padding: 22 }}>
             <div className="row between">
-              <div>
-                <div className="eyebrow">Asset Overview</div>
-                <h3 className="serif" style={{ fontSize: 22, margin: "8px 0" }}>$FED Chain · Full Project Takeover</h3>
-              </div>
+              <div><div className="eyebrow">Asset Overview</div><h3 className="serif" style={{ fontSize: 22, margin: "8px 0" }}>$FED Chain · Full Project Takeover</h3></div>
               <span className="pill gold"><span className="pdot" />Verified seller</span>
             </div>
             <div className="grid grid-3" style={{ marginTop: 12 }}>
               <div className="metric"><span className="lab">Asking</span><span className="val">{d.price} Ξ</span><span className="delta">≈ {fmtUSD(d.price * 3450)}</span></div>
               <div className="metric"><span className="lab">Monthly fees</span><span className="val">{d.mrr} Ξ</span><span className="delta">last 30d, on-chain verified</span></div>
-              <div className="metric"><span className="lab">Chain</span><span className="val" style={{ fontSize: 16 }}>Base</span><span className="delta">contract verified</span></div>
+              <div className="metric"><span className="lab">Chain</span><span className="val" style={{ fontSize: 16 }}>{d.chain}</span><span className="delta">contract verified</span></div>
             </div>
             <hr className="hr" style={{ margin: "18px 0" }} />
             <div className="eyebrow" style={{ marginBottom: 10 }}>Deliverables checklist</div>
@@ -96,23 +108,6 @@ export default function DealRoomPage() {
                     {c.active && <span className="muted-2" style={{ fontSize: 11 }}>Buyer needs to confirm receipt</span>}
                   </div>
                   {c.active && <button className="btn primary sm">Confirm</button>}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: 22 }}>
-            <div className="eyebrow" style={{ marginBottom: 10 }}>Ownership proof</div>
-            <div className="grid grid-2">
-              {[
-                ["Twitter · @fedchain", "Signed message · ✓"],
-                ["Farcaster · FID 8210", "Cast signature · ✓"],
-                ["Domain fed.fi", "DNS TXT record · ✓"],
-                ["Smart contract", "0x4f3a…b210 · owner() · ✓"],
-              ].map(([k, v]) => (
-                <div key={k} className="row between" style={{ padding: "10px 0", borderBottom: "1px dashed var(--line)" }}>
-                  <span style={{ fontSize: 13 }}>{k}</span>
-                  <span className="mono muted" style={{ fontSize: 12 }}>{v}</span>
                 </div>
               ))}
             </div>
