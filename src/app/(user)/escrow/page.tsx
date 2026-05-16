@@ -7,31 +7,41 @@ import StatusPill from "@/components/StatusPill";
 import { fmtETH } from "@/lib/utils";
 import type { Escrow } from "@/lib/data";
 
-const stages = ["all", "Active", "Transfer", "Funds locked", "At risk", "Released"];
+const stages = ["all", "Awaiting deposit", "Funds locked", "Transfer", "Awaiting confirmation", "Released", "Disputed", "Refunded"];
 
 export default function EscrowCenterPage() {
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [tab, setTab] = useState("all");
 
   useEffect(() => {
     fetch("/api/escrows")
-      .then((r) => r.json())
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load escrows");
+        return json;
+      })
       .then((json) => {
         setEscrows(json.data || []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Unable to load escrows");
+        setLoading(false);
+      });
   }, []);
 
   const filt = escrows.filter((e) => tab === "all" || e.stage === tab);
+  const totalLocked = escrows.reduce((sum, escrow) => sum + escrow.amount, 0);
+  const atRiskCount = escrows.filter((e) => e.stage === "Disputed" || e.stage === "Awaiting confirmation").length;
 
   return (
     <main className="main">
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22 }}>
         <div>
           <div className="eyebrow">Escrow Center</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>{escrows.length} active escrows · <span className="nowrap">287.4 Ξ</span> locked.</h1>
+          <h1 className="h2" style={{ marginTop: 8 }}>{escrows.length} active escrows · <span className="nowrap">{fmtETH(totalLocked)} Ξ</span> locked.</h1>
         </div>
         <div className="row" style={{ gap: 10 }}>
           <button className="btn" onClick={() => {
@@ -45,10 +55,10 @@ export default function EscrowCenterPage() {
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 24 }}>
-        <div className="metric"><span className="lab">Funds locked</span><span className="val">287.4 Ξ</span><span className="delta">across {escrows.length} deals</span></div>
-        <div className="metric"><span className="lab">Assets locked</span><span className="val">14</span><span className="delta">8 NFTs · 6 bundles</span></div>
-        <div className="metric"><span className="lab">At risk</span><span className="val" style={{ color: "var(--warn)" }}>{escrows.filter(e => e.stage === "At risk").length}</span><span className="delta down">action required</span></div>
-        <div className="metric"><span className="lab">Platform fees · MTD</span><span className="val">3.241 Ξ</span><span className="delta">0.8% take rate</span></div>
+        <div className="metric"><span className="lab">Funds locked</span><span className="val">{fmtETH(totalLocked)} Ξ</span><span className="delta">across {escrows.length} deals</span></div>
+        <div className="metric"><span className="lab">Assets locked</span><span className="val">{escrows.length}</span><span className="delta">from live escrows</span></div>
+        <div className="metric"><span className="lab">Needs action</span><span className="val" style={{ color: "var(--warn)" }}>{atRiskCount}</span><span className="delta down">confirmation or dispute</span></div>
+        <div className="metric"><span className="lab">Platform fees · est.</span><span className="val">{fmtETH(totalLocked * 0.015)} Ξ</span><span className="delta">1.5% origination</span></div>
       </div>
 
       <div className="card">
@@ -66,6 +76,8 @@ export default function EscrowCenterPage() {
         </div>
         {loading ? (
           <div className="muted" style={{ padding: 40, textAlign: "center" }}>Loading escrows…</div>
+        ) : error ? (
+          <div className="warn-banner" style={{ margin: 18 }}>{error}</div>
         ) : (
           <table className="tbl">
             <thead><tr>

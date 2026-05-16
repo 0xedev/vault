@@ -49,6 +49,7 @@ export default function TweaksPanel() {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef({ x: 16, y: 16 });
+  const [offset, setOffset] = useState({ x: 16, y: 16 });
 
   const clampToViewport = useCallback(() => {
     const panel = panelRef.current;
@@ -58,6 +59,7 @@ export default function TweaksPanel() {
       x: Math.min(window.innerWidth - w - 16, Math.max(16, offsetRef.current.x)),
       y: Math.min(window.innerHeight - h - 16, Math.max(16, offsetRef.current.y)),
     };
+    setOffset(offsetRef.current);
     panel.style.right = offsetRef.current.x + "px";
     panel.style.bottom = offsetRef.current.y + "px";
   }, []);
@@ -109,7 +111,7 @@ export default function TweaksPanel() {
         </svg>
       </button>
       {open && (
-        <div ref={panelRef} className="twk-panel" style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div ref={panelRef} className="twk-panel" style={{ right: offset.x, bottom: offset.y }}>
           <div className="twk-hd" onMouseDown={onDragStart}>
             <b>Tweaks</b>
             <button className="twk-x-btn" onMouseDown={e => e.stopPropagation()} onClick={() => setOpen(false)}>✕</button>

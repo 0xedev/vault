@@ -9,13 +9,18 @@ import type { MiniApp } from "@/lib/data";
 export default function MiniAppsPage() {
   const [apps, setApps] = useState<MiniApp[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("dau");
 
   useEffect(() => {
     fetch("/api/marketplace/mini-apps")
-      .then((r) => r.json()).then((j) => { setApps(j.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load mini apps");
+        return json;
+      }).then((j) => { setApps(j.data || []); setLoading(false); })
+      .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load mini apps"); setLoading(false); });
   }, []);
 
   const kinds = ["all", ...new Set(apps.map(a => a.kind))];
@@ -39,7 +44,7 @@ export default function MiniAppsPage() {
         </div>
         <div className="row" style={{ gap: 18, alignItems: "center", flex: "0 0 auto", flexWrap: "wrap" }}>
           <div className="col right" style={{ gap: 1 }}><span className="smallcaps">Open listings</span><span className="mono" style={{ fontSize: 14 }}>{apps.length}</span></div>
-          <div className="col right" style={{ gap: 1 }}><span className="smallcaps">In escrow</span><span className="mono" style={{ fontSize: 14 }}>226.0 Ξ</span></div>
+          <div className="col right" style={{ gap: 1 }}><span className="smallcaps">Verified</span><span className="mono" style={{ fontSize: 14 }}>{apps.filter((app) => app.verified).length}</span></div>
         </div>
       </div>
 
@@ -64,7 +69,7 @@ export default function MiniAppsPage() {
         </div>
       </div>
 
-      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : (
+      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : (
         <div className="grid grid-3">
           {filt.map(a => (
             <Link href="/deals" key={a.id} className="loan-card">

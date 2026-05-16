@@ -1,11 +1,53 @@
 "use client";
 
-import React, { useState } from "react";
-import { ADMIN_LISTINGS } from "@/lib/admin-data";
+import React, { useEffect, useMemo, useState } from "react";
+
+type AdminListing = {
+  id: string;
+  market: string;
+  title: string;
+  seller: string;
+  price: string;
+  flagged: number;
+  risk: number;
+  filed: string;
+  status: string;
+};
 
 export default function AdminListingsPage() {
   const [tab, setTab] = useState("pending");
-  const list = ADMIN_LISTINGS.filter(l => tab === "all" || l.status === tab);
+  const [listings, setListings] = useState<AdminListing[]>([]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
+
+  const load = () => {
+    fetch("/api/admin/listings")
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Unable to load listings");
+        return json;
+      })
+      .then((json) => setListings(json.data || []))
+      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load listings"));
+  };
+
+  useEffect(load, []);
+
+  const list = useMemo(() => listings.filter((l) => tab === "all" || l.status === tab), [listings, tab]);
+  const updateListing = async (id: string, moderationStatus: "approved" | "rejected") => {
+    setBusy(id);
+    try {
+      const res = await fetch("/api/admin/listings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, moderationStatus }),
+      });
+      if (!res.ok) throw new Error("Moderation update failed");
+      load();
+    } finally {
+      setBusy("");
+    }
+  };
 
   return (
     <main className="main">
@@ -17,9 +59,9 @@ export default function AdminListingsPage() {
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 22 }}>
-        <div className="metric"><span className="lab">Pending</span><span className="val">{ADMIN_LISTINGS.filter(l => l.status === "pending").length}</span></div>
-        <div className="metric"><span className="lab">Approved (24h)</span><span className="val">28</span></div>
-        <div className="metric"><span className="lab">Rejected (24h)</span><span className="val">4</span></div>
+        <div className="metric"><span className="lab">Pending</span><span className="val">{listings.filter(l => l.status === "pending").length}</span></div>
+        <div className="metric"><span className="lab">Approved</span><span className="val">{listings.filter(l => l.status === "approved").length}</span></div>
+        <div className="metric"><span className="lab">Rejected</span><span className="val">{listings.filter(l => l.status === "rejected").length}</span></div>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -27,7 +69,7 @@ export default function AdminListingsPage() {
           <div className="chips">
             {[["pending", "Pending"], ["approved", "Approved"], ["rejected", "Rejected"], ["all", "All"]].map(([k, t]) => (
               <button key={k} className={"chip" + (tab === k ? " active" : "")} onClick={() => setTab(k)}>
-                {t} <span className="count">{ADMIN_LISTINGS.filter(l => k === "all" || l.status === k).length}</span>
+                {t} <span className="count">{listings.filter(l => k === "all" || l.status === k).length}</span>
               </button>
             ))}
           </div>
@@ -35,7 +77,11 @@ export default function AdminListingsPage() {
         <table className="tbl">
           <thead><tr><th>Listing</th><th>Market</th><th>Seller</th><th className="right">Price</th><th>Risk</th><th>Flags</th><th>Filed</th><th></th></tr></thead>
           <tbody>
-            {list.map(l => (
+            {error ? (
+              <tr><td colSpan={8} className="muted" style={{ textAlign: "center", padding: 24 }}>{error}</td></tr>
+            ) : list.length === 0 ? (
+              <tr><td colSpan={8} className="muted" style={{ textAlign: "center", padding: 24 }}>No live listings match this filter.</td></tr>
+            ) : list.map(l => (
               <tr key={l.id}>
                 <td><div style={{ fontSize: 13 }}>{l.title}</div><div className="muted-2 mono" style={{ fontSize: 11 }}>{l.id}</div></td>
                 <td>{l.market}</td>
@@ -49,13 +95,13 @@ export default function AdminListingsPage() {
                     <span className="mono" style={{ fontSize: 12, color: l.risk > 70 ? "var(--risk)" : l.risk > 40 ? "var(--warn)" : "var(--ink-3)" }}>{l.risk}</span>
                   </div>
                 </td>
-                <td>{l.flagged > 0 ? <span className="pill warn"><span className="pdot"/>{l.flagged}</span> : <span className="muted-2">—</span>}</td>
-                <td className="muted">{l.age}</td>
+                <td>{l.flagged > 0 ? <span className="pill warn"><span className="pdot"/>{l.flagged}</span> : <span className="muted-2">-</span>}</td>
+                <td className="muted">{new Date(l.filed).toLocaleString()}</td>
                 <td className="right">
                   {l.status === "pending" ? (
                     <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
-                      <button className="btn sm danger">Reject</button>
-                      <button className="btn sm primary">Approve</button>
+                      <button className="btn sm danger" disabled={busy === l.id} onClick={() => updateListing(l.id, "rejected")}>Reject</button>
+                      <button className="btn sm primary" disabled={busy === l.id} onClick={() => updateListing(l.id, "approved")}>Approve</button>
                     </div>
                   ) : (
                     <span className="muted-2" style={{ fontSize: 12, textTransform: "capitalize" }}>{l.status}</span>

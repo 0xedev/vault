@@ -1,11 +1,53 @@
 "use client";
 
-import React, { useState } from "react";
-import { ADMIN_USERS } from "@/lib/admin-data";
+import React, { useEffect, useMemo, useState } from "react";
+
+type AdminUser = {
+  addr: string;
+  address: string;
+  handle: string;
+  joined: string;
+  trades: number;
+  kyc: string;
+  flags: number;
+  locked: number;
+  status: string;
+};
 
 export default function AdminUsersPage() {
   const [tab, setTab] = useState("all");
-  const list = ADMIN_USERS.filter(u => tab === "all" || u.status === tab);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
+
+  const load = () => {
+    fetch("/api/admin/users")
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Unable to load users");
+        return json;
+      })
+      .then((json) => setUsers(json.data || []))
+      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load users"));
+  };
+
+  useEffect(load, []);
+
+  const list = useMemo(() => users.filter(u => tab === "all" || u.status === tab), [users, tab]);
+  const updateStatus = async (address: string, status: "active" | "frozen" | "banned") => {
+    setBusy(address);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, status }),
+      });
+      if (!res.ok) throw new Error("User update failed");
+      load();
+    } finally {
+      setBusy("");
+    }
+  };
 
   return (
     <main className="main">
@@ -17,10 +59,10 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 22 }}>
-        <div className="metric"><span className="lab">Total accounts</span><span className="val">12,840</span></div>
-        <div className="metric"><span className="lab">Tier-2 KYC</span><span className="val">8,124</span></div>
-        <div className="metric"><span className="lab">Frozen</span><span className="val" style={{ color: "var(--warn)" }}>{ADMIN_USERS.filter(u => u.status === "frozen").length}</span></div>
-        <div className="metric"><span className="lab">Banned</span><span className="val" style={{ color: "var(--risk)" }}>{ADMIN_USERS.filter(u => u.status === "banned").length}</span></div>
+        <div className="metric"><span className="lab">Total accounts</span><span className="val">{users.length}</span></div>
+        <div className="metric"><span className="lab">KYC complete</span><span className="val">{users.filter(u => u.kyc !== "none").length}</span></div>
+        <div className="metric"><span className="lab">Frozen</span><span className="val" style={{ color: "var(--warn)" }}>{users.filter(u => u.status === "frozen").length}</span></div>
+        <div className="metric"><span className="lab">Banned</span><span className="val" style={{ color: "var(--risk)" }}>{users.filter(u => u.status === "banned").length}</span></div>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -28,7 +70,7 @@ export default function AdminUsersPage() {
           <div className="chips">
             {[["all", "All"], ["active", "Active"], ["frozen", "Frozen"], ["banned", "Banned"]].map(([k, t]) => (
               <button key={k} className={"chip" + (tab === k ? " active" : "")} onClick={() => setTab(k)}>
-                {t} <span className="count">{ADMIN_USERS.filter(u => k === "all" || u.status === k).length}</span>
+                {t} <span className="count">{users.filter(u => k === "all" || u.status === k).length}</span>
               </button>
             ))}
           </div>
@@ -36,29 +78,25 @@ export default function AdminUsersPage() {
         <table className="tbl">
           <thead><tr><th>Wallet</th><th>Handle</th><th>Joined</th><th className="right">Trades</th><th>KYC</th><th>Flags</th><th className="right">In escrow</th><th>Status</th><th></th></tr></thead>
           <tbody>
-            {list.map(u => (
-              <tr key={u.addr}>
+            {error ? (
+              <tr><td colSpan={9} className="muted" style={{ textAlign: "center", padding: 24 }}>{error}</td></tr>
+            ) : list.length === 0 ? (
+              <tr><td colSpan={9} className="muted" style={{ textAlign: "center", padding: 24 }}>No users match this filter.</td></tr>
+            ) : list.map(u => (
+              <tr key={u.address}>
                 <td className="mono" style={{ color: "var(--ink)" }}>{u.addr}</td>
-                <td>{u.handle === "—" ? <span className="muted-2">—</span> : u.handle}</td>
-                <td className="muted">{u.joined}</td>
+                <td>{u.handle || <span className="muted-2">-</span>}</td>
+                <td className="muted">{new Date(u.joined).toLocaleDateString()}</td>
                 <td className="right mono">{u.trades.toLocaleString()}</td>
-                <td><span className="pill" style={{
-                  background: u.kyc === "tier-2" ? "color-mix(in oklab, var(--accent) 14%, transparent)" : u.kyc === "tier-1" ? "color-mix(in oklab, var(--info) 14%, transparent)" : "var(--surface-2)",
-                  color: u.kyc === "tier-2" ? "var(--accent)" : u.kyc === "tier-1" ? "var(--info)" : "var(--ink-3)",
-                  borderColor: "color-mix(in oklab, currentColor 30%, transparent)",
-                }}>{u.kyc}</span></td>
-                <td>{u.flags > 0 ? <span style={{ color: u.flags >= 3 ? "var(--risk)" : "var(--warn)", fontFamily: "var(--mono)", fontSize: 12 }}>{u.flags}</span> : <span className="muted-2">—</span>}</td>
-                <td className="right mono">{u.locked > 0 ? `${u.locked} Ξ` : <span className="muted-2">—</span>}</td>
-                <td>
-                  {u.status === "active" && <span className="pill funded"><span className="pdot"/>Active</span>}
-                  {u.status === "frozen" && <span className="pill warn"><span className="pdot"/>Frozen</span>}
-                  {u.status === "banned" && <span className="pill" style={{ background: "color-mix(in oklab, var(--risk) 14%, transparent)", color: "var(--risk)", borderColor: "color-mix(in oklab, var(--risk) 30%, transparent)" }}><span className="pdot" style={{ background: "var(--risk)" }}/>Banned</span>}
-                </td>
+                <td><span className="pill">{u.kyc}</span></td>
+                <td>{u.flags > 0 ? <span style={{ color: u.flags >= 3 ? "var(--risk)" : "var(--warn)", fontFamily: "var(--mono)", fontSize: 12 }}>{u.flags}</span> : <span className="muted-2">-</span>}</td>
+                <td className="right mono">{u.locked > 0 ? `${u.locked.toFixed(3)} Ξ` : <span className="muted-2">-</span>}</td>
+                <td><UserStatus status={u.status} /></td>
                 <td className="right">
                   <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
-                    {u.status === "active" && <button className="btn sm">Freeze</button>}
-                    {u.status === "frozen" && <button className="btn sm primary">Unfreeze</button>}
-                    {u.status !== "banned" && <button className="btn sm danger">Ban</button>}
+                    {u.status === "active" && <button className="btn sm" disabled={busy === u.address} onClick={() => updateStatus(u.address, "frozen")}>Freeze</button>}
+                    {u.status === "frozen" && <button className="btn sm primary" disabled={busy === u.address} onClick={() => updateStatus(u.address, "active")}>Unfreeze</button>}
+                    {u.status !== "banned" && <button className="btn sm danger" disabled={busy === u.address} onClick={() => updateStatus(u.address, "banned")}>Ban</button>}
                   </div>
                 </td>
               </tr>
@@ -68,4 +106,10 @@ export default function AdminUsersPage() {
       </div>
     </main>
   );
+}
+
+function UserStatus({ status }: { status: string }) {
+  if (status === "frozen") return <span className="pill warn"><span className="pdot"/>Frozen</span>;
+  if (status === "banned") return <span className="pill" style={{ background: "color-mix(in oklab, var(--risk) 14%, transparent)", color: "var(--risk)", borderColor: "color-mix(in oklab, var(--risk) 30%, transparent)" }}><span className="pdot" style={{ background: "var(--risk)" }}/>Banned</span>;
+  return <span className="pill funded"><span className="pdot"/>Active</span>;
 }

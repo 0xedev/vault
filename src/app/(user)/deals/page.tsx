@@ -9,22 +9,26 @@ import type { DigitalDeal } from "@/lib/data";
 export default function DealRoomPage() {
   const [deal, setDeal] = useState<DigitalDeal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [step, setStep] = useState(2);
   const [draft, setDraft] = useState("");
-  const [chat, setChat] = useState([
-    { who: "Seller · 0xfa12…0011", text: "All deliverables uploaded. Treasury wallet ownership transferred to your address. Verifying.", t: "14:08", me: false },
-    { who: "You", text: "Confirmed receipt of FID, Telegram channel, and contract owner role. Domain DNS still pointing to old NS.", t: "14:11", me: true },
-    { who: "Seller · 0xfa12…0011", text: "Updating now — new NS records pushed. Should propagate in ~10m.", t: "14:13", me: false },
-  ]);
+  const [chat, setChat] = useState<{ who: string; text: string; t: string; me: boolean }[]>([]);
 
   useEffect(() => {
     fetch("/api/deals")
-      .then((r) => r.json())
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load deal room");
+        return json;
+      })
       .then((json) => {
         setDeal(json.data?.[0] || null);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Unable to load deal room");
+        setLoading(false);
+      });
   }, []);
 
   const sendMsg = () => {
@@ -34,20 +38,13 @@ export default function DealRoomPage() {
   };
 
   if (loading) return <main className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
+  if (error) return <main className="main"><div className="warn-banner" style={{ margin: 80 }}>{error}</div></main>;
   if (!deal) return <main className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Deal not found.</div></main>;
 
   const d = deal;
   const steps = ["Buyer deposits", "Seller transfers", "Buyer confirms", "Funds release", "Fee deducted"];
 
-  const checks = [
-    { t: "Token revenue rights — receiver address", done: true },
-    { t: "Tx-fee receiver contract role", done: true },
-    { t: "X account · 48k followers", done: true },
-    { t: "Farcaster FID 8210 transfer", done: true },
-    { t: "Domain · fed.fi · DNS update", done: false, active: true },
-    { t: "Telegram · 11k members", done: false },
-    { t: "Smart-contract owner role", done: false },
-  ];
+  const checks = d.includes.map((item, index) => ({ t: item, done: index < step, active: index === step }));
 
   return (
     <main className="main">
@@ -62,7 +59,7 @@ export default function DealRoomPage() {
           <h1 className="h2" style={{ marginTop: 8 }}>{d.name} <span className="muted-2 mono" style={{ fontSize: 18 }}>· {d.type}</span></h1>
         </div>
         <div className="row" style={{ gap: 10 }}>
-          <button className="btn ghost" onClick={() => alert("Dispute filed. Admin will review.")}><Icon.warn /> Open dispute</button>
+          <Link className="btn ghost" href="/escrow"><Icon.warn /> Open dispute</Link>
           <button className="btn" onClick={() => window.open("/contracts/VaultEscrow.sol", "_blank")}>Download contract</button>
         </div>
       </div>
@@ -89,7 +86,7 @@ export default function DealRoomPage() {
         <div className="col" style={{ gap: 18 }}>
           <div className="card" style={{ padding: 22 }}>
             <div className="row between">
-              <div><div className="eyebrow">Asset Overview</div><h3 className="serif" style={{ fontSize: 22, margin: "8px 0" }}>$FED Chain · Full Project Takeover</h3></div>
+              <div><div className="eyebrow">Asset Overview</div><h3 className="serif" style={{ fontSize: 22, margin: "8px 0" }}>{d.name}</h3></div>
               <span className="pill gold"><span className="pdot" />Verified seller</span>
             </div>
             <div className="grid grid-3" style={{ marginTop: 12 }}>
@@ -100,6 +97,7 @@ export default function DealRoomPage() {
             <hr className="hr" style={{ margin: "18px 0" }} />
             <div className="eyebrow" style={{ marginBottom: 10 }}>Deliverables checklist</div>
             <div>
+              {checks.length === 0 && <div className="muted" style={{ padding: 18, textAlign: "center" }}>No deliverables have been attached to this deal yet.</div>}
               {checks.map((c, i) => (
                 <div key={i} className={"check" + (c.done ? " done" : "")}>
                   <span className="box">{c.done && <Icon.check style={{ width: 12, height: 12 }} />}</span>
@@ -129,6 +127,7 @@ export default function DealRoomPage() {
                   </div>
                 </div>
               ))}
+              {chat.length === 0 && <div className="muted" style={{ padding: 20, textAlign: "center", fontSize: 12 }}>No messages yet. Messages you send are tied to this browser session until the messaging backend is connected.</div>}
             </div>
             <div className="row" style={{ gap: 8, marginTop: 12, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
               <input className="input" placeholder="Send a message…" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendMsg()} />
@@ -143,7 +142,7 @@ export default function DealRoomPage() {
             <div className="kv"><span className="k">Net to seller</span><span className="v" style={{ color: "var(--accent)" }}>{(d.price * 0.975).toFixed(2)} Ξ</span></div>
             <div className="row" style={{ gap: 8, marginTop: 16 }}>
               <button className="btn primary" style={{ flex: 1 }} onClick={() => setStep(Math.min(4, step + 1))}>Confirm receipt · advance</button>
-              <button className="btn danger" onClick={() => alert("Dispute opened. Funds frozen.")}>Dispute</button>
+              <Link className="btn danger" href="/escrow">Dispute</Link>
             </div>
           </div>
         </div>

@@ -9,13 +9,18 @@ import { fmtCompact, appColor } from "@/lib/utils";
 export default function FarcasterPage() {
   const [accounts, setAccounts] = useState<FarcasterAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [sort, setSort] = useState("followers");
   const [filter, setFilter] = useState("all");
 
   useEffect(() => {
     fetch("/api/marketplace/farcaster")
-      .then((r) => r.json()).then((j) => { setAccounts(j.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load Farcaster listings");
+        return json;
+      }).then((j) => { setAccounts(j.data || []); setLoading(false); })
+      .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load Farcaster listings"); setLoading(false); });
   }, []);
 
   const filt = useMemo(() => {
@@ -76,7 +81,7 @@ export default function FarcasterPage() {
         </div>
       </div>
 
-      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : <>
+      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : <>
 
       <div className="card" style={{ overflow: "hidden" }}>
         <table className="tbl">
@@ -119,8 +124,8 @@ export default function FarcasterPage() {
 
       <div className="grid grid-3" style={{ marginTop: 18 }}>
         <div className="metric"><span className="lab">Avg sale price</span><span className="val">{(accounts.reduce((a, b) => a + b.price, 0) / (accounts.length || 1)).toFixed(1)} Ξ</span><span className="delta">last 30 days</span></div>
-        <div className="metric"><span className="lab">FIDs transferred</span><span className="val">142</span><span className="delta">+ 18 vs prior month</span></div>
-        <div className="metric"><span className="lab">Median followers sold</span><span className="val">{fmtCompact(12400)}</span><span className="delta">3.4 follows / cast</span></div>
+        <div className="metric"><span className="lab">Power badge</span><span className="val">{accounts.filter((account) => account.power_badge).length}</span><span className="delta">live listings</span></div>
+        <div className="metric"><span className="lab">Median followers listed</span><span className="val">{fmtCompact(accounts[Math.floor(accounts.length / 2)]?.followers || 0)}</span><span className="delta">from current inventory</span></div>
       </div>
       </>}
     </main>

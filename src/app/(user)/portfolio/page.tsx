@@ -9,12 +9,20 @@ import Icon from "@/components/icons";
 export default function PortfolioPage() {
   const [escrows, setEscrows] = useState<Escrow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/escrows")
-      .then((r) => r.json()).then((j) => { setEscrows(j.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load portfolio");
+        return json;
+      }).then((j) => { setEscrows(j.data || []); setLoading(false); })
+      .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load portfolio"); setLoading(false); });
   }, []);
+
+  const locked = escrows.reduce((sum, escrow) => sum + escrow.amount, 0);
+  const released = escrows.filter((escrow) => escrow.stage === "Released").length;
 
   return (
     <main className="main">
@@ -26,13 +34,13 @@ export default function PortfolioPage() {
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 24 }}>
-        <div className="metric"><span className="lab">Total value</span><span className="val">14.812 Ξ</span><span className="delta">in wallet</span></div>
-        <div className="metric"><span className="lab">Active loans</span><span className="val">4</span><span className="delta">2 funded, 2 open</span></div>
-        <div className="metric"><span className="lab">In escrow</span><span className="val">62.0 Ξ</span><span className="delta">across {escrows.length} deals</span></div>
-        <div className="metric"><span className="lab">Interest earned</span><span className="val">2.184 Ξ</span><span className="delta">+ 0.42 this week</span></div>
+        <div className="metric"><span className="lab">Total value</span><span className="val">{fmtETH(locked)} Ξ</span><span className="delta">locked in live escrows</span></div>
+        <div className="metric"><span className="lab">Active deals</span><span className="val">{escrows.filter((escrow) => escrow.stage !== "Released" && escrow.stage !== "Refunded").length}</span><span className="delta">current positions</span></div>
+        <div className="metric"><span className="lab">In escrow</span><span className="val">{fmtETH(locked)} Ξ</span><span className="delta">across {escrows.length} deals</span></div>
+        <div className="metric"><span className="lab">Completed</span><span className="val">{released}</span><span className="delta">released escrows</span></div>
       </div>
 
-      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : (
+      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : (
       <div className="card" style={{ overflow: "hidden" }}>
         <table className="tbl">
           <thead><tr>

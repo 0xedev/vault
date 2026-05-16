@@ -29,13 +29,18 @@ function Bar({ label, pct, sub }: { label: string; pct: number; sub: string }) {
 export default function XAccountsPage() {
   const [accounts, setAccounts] = useState<XAccount[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("followers");
 
   useEffect(() => {
     fetch("/api/marketplace/x-accounts")
-      .then((r) => r.json()).then((j) => { setAccounts(j.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load X accounts");
+        return json;
+      }).then((j) => { setAccounts(j.data || []); setLoading(false); })
+      .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load X accounts"); setLoading(false); });
   }, []);
 
   const filt = useMemo(() => {
@@ -73,8 +78,8 @@ export default function XAccountsPage() {
             <span className="mono" style={{ fontSize: 14 }}>{accounts.length}</span>
           </div>
           <div className="col right" style={{ gap: 1 }}>
-            <span className="smallcaps">In escrow</span>
-            <span className="mono" style={{ fontSize: 14 }}>68.0 Ξ</span>
+            <span className="smallcaps">Verified</span>
+            <span className="mono" style={{ fontSize: 14 }}>{accounts.filter((account) => account.verified).length}</span>
           </div>
         </div>
       </div>
@@ -104,7 +109,7 @@ export default function XAccountsPage() {
         </div>
       </div>
 
-      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : (
+      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : (
       <div className="grid grid-3">
         {filt.map(a => (
           <Link href="/deals" key={a.id} className="x-card">

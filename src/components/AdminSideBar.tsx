@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "./icons";
-import { ADMIN_DISPUTES, ADMIN_TICKETS, ADMIN_LISTINGS, ADMIN_VERIFICATIONS } from "@/lib/admin-data";
 
 interface SidebarItem {
   sec?: string;
@@ -19,12 +18,12 @@ export default function AdminSideBar({ open, onClose }: { open: boolean; onClose
   const items: SidebarItem[] = [
     { sec: "Operations" },
     { k: "/admin/dash",          t: "Dashboard",      icon: <Icon.home/> },
-    { k: "/admin/disputes",      t: "Disputes",       icon: <Icon.warn/>,   badge: ADMIN_DISPUTES.filter(d => d.status !== "resolved").length+"" },
-    { k: "/admin/tickets",       t: "Support",        icon: <Icon.bell/>,   badge: ADMIN_TICKETS.filter(t => t.unread).length+"" },
+    { k: "/admin/disputes",      t: "Disputes",       icon: <Icon.warn/> },
+    { k: "/admin/tickets",       t: "Support",        icon: <Icon.bell/> },
     { sec: "Moderation" },
-    { k: "/admin/listings",      t: "Listings",       icon: <Icon.market/>, badge: ADMIN_LISTINGS.filter(l => l.status === "pending").length+"" },
+    { k: "/admin/listings",      t: "Listings",       icon: <Icon.market/> },
     { k: "/admin/users",         t: "Users",          icon: <Icon.shield/> },
-    { k: "/admin/verifications", t: "Verifications",  icon: <Icon.check/>,  badge: ADMIN_VERIFICATIONS.filter(v => v.status === "pending").length+"" },
+    { k: "/admin/verifications", t: "Verifications",  icon: <Icon.check/> },
     { sec: "System" },
     { k: "/admin/admin-escrow",  t: "Escrow ops",     icon: <Icon.escrow/> },
     { k: "/admin/audit",         t: "Audit log",      icon: <Icon.clock/> },

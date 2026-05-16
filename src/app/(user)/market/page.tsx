@@ -1,13 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
 import Icon from "@/components/icons";
 import LoanCard from "@/components/LoanCard";
 import Dropdown from "@/components/Dropdown";
 import NFTArt from "@/components/NFTArt";
 import { COLLECTIONS } from "@/lib/data";
-import { NFT_CONTRACTS } from "@/lib/nft-contracts";
 import { getNFTsForOwner } from "@/lib/alchemy";
 import { useWallet } from "@/components/WalletProvider";
 import type { Loan } from "@/lib/data";
@@ -257,6 +255,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
 export default function MarketplacePage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("apr");
   const [collectionFilter, setCollectionFilter] = useState("all");
@@ -265,8 +264,12 @@ export default function MarketplacePage() {
 
   useEffect(() => {
     fetch("/api/listings")
-      .then((r) => r.json()).then((j) => { setLoans(j.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load listings");
+        return json;
+      }).then((j) => { setLoans(j.data || []); setLoading(false); })
+      .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load listings"); setLoading(false); });
   }, []);
 
   const filtered = useMemo(() => {
@@ -342,6 +345,8 @@ export default function MarketplacePage() {
 
       {loading ? (
         <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading listings…</div>
+      ) : error ? (
+        <div className="warn-banner" style={{ padding: 18 }}>{error}</div>
       ) : filtered.length === 0 ? (
         <div className="muted" style={{ padding: 80, textAlign: "center" }}>No loans match this filter.</div>
       ) : (

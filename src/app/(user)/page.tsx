@@ -1,13 +1,15 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import VaultMark from "@/components/VaultMark";
 import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
 import StatusPill from "@/components/StatusPill";
 import LoanCard from "@/components/LoanCard";
-import { COLLECTIONS, LOANS } from "@/lib/data";
+import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
+import type { Loan } from "@/lib/data";
 
 function Sparkline() {
   const pts = [12, 18, 14, 22, 28, 26, 32, 30, 38, 42, 40, 48, 52, 58, 56, 64, 70, 68, 74, 80, 84];
@@ -34,7 +36,8 @@ function Sparkline() {
   );
 }
 
-function DashboardPreview() {
+function DashboardPreview({ loans }: { loans: Loan[] }) {
+  const activePrincipal = loans.reduce((sum, loan) => sum + loan.amt, 0);
   return (
     <div className="card" style={{ padding: 18, position: "relative", overflow: "hidden" }}>
       <div className="row between" style={{ marginBottom: 14 }}>
@@ -47,12 +50,12 @@ function DashboardPreview() {
         </div>
       </div>
       <div className="grid grid-2" style={{ marginBottom: 14 }}>
-        <div className="metric"><span className="lab">Interest earned</span><span className="val">2.184 Ξ</span><span className="delta">+ 0.42 this week</span></div>
-        <div className="metric"><span className="lab">Active principal</span><span className="val">62.0 Ξ</span><span className="delta">across 4 loans</span></div>
+        <div className="metric"><span className="lab">Open listings</span><span className="val">{loans.length}</span><span className="delta">from live database</span></div>
+        <div className="metric"><span className="lab">Active principal</span><span className="val">{fmtETH(activePrincipal)} Ξ</span><span className="delta">across {loans.length} loans</span></div>
       </div>
       <Sparkline />
       <div className="col" style={{ gap: 10, marginTop: 12 }}>
-        {LOANS.slice(0, 3).map((l, i) => (
+        {loans.slice(0, 3).map((l, i) => (
           <div key={l.id} className="row between" style={{ padding: "8px 0", borderTop: i ? "1px dashed var(--line)" : "none" }}>
             <div className="row" style={{ gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}><NFTArt seed={l.coll} /></div>
@@ -73,6 +76,24 @@ function DashboardPreview() {
 }
 
 export default function LandingPage() {
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/listings?limit=4")
+      .then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "Unable to load live listings");
+        return json;
+      })
+      .then((json) => setLoans(json.data || []))
+      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load live listings"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const totalPrincipal = loans.reduce((sum, loan) => sum + loan.amt, 0);
+
   return (
     <main className="main">
       {/* DESKTOP */}
@@ -91,7 +112,7 @@ export default function LandingPage() {
               <Link href="/market" className="btn lg ghost">List your NFT</Link>
             </div>
             <div className="row" style={{ marginTop: 56, gap: 48, flexWrap: "wrap" }}>
-              {[["Total volume", "184,290 Ξ"], ["Active loans", "1,284"], ["Default rate", "1.4%"]].map(([k, v]) => (
+              {[["Listed principal", `${fmtETH(totalPrincipal)} Ξ`], ["Active loans", String(loans.length)], ["Data source", "Live DB"]].map(([k, v]) => (
                 <div key={k} className="col" style={{ gap: 4 }}>
                   <span className="smallcaps">{k}</span>
                   <span className="mono" style={{ fontSize: 18 }}>{v}</span>
@@ -99,7 +120,7 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
-          <DashboardPreview />
+          <DashboardPreview loans={loans} />
         </section>
 
         <section style={{ padding: "96px 0 48px" }}>
@@ -127,9 +148,17 @@ export default function LandingPage() {
         <section style={{ padding: "32px 0 24px" }}>
           <div className="eyebrow">Live on BSH</div>
           <h2 className="h2" style={{ margin: "8px 0 22px" }}>Lend & borrow against trending NFTs.</h2>
-          <div className="grid grid-4">
-            {LOANS.slice(0, 4).map((l) => <LoanCard key={l.id} l={l} />)}
-          </div>
+          {loading ? (
+            <div className="muted" style={{ padding: 48, textAlign: "center" }}>Loading live listings…</div>
+          ) : error ? (
+            <div className="warn-banner" style={{ padding: 18 }}>{error}</div>
+          ) : loans.length === 0 ? (
+            <div className="muted" style={{ padding: 48, textAlign: "center" }}>No live NFT loan listings yet.</div>
+          ) : (
+            <div className="grid grid-4">
+              {loans.map((l) => <LoanCard key={l.id} l={l} />)}
+            </div>
+          )}
         </section>
 
         <section style={{ padding: "48px 0 12px" }}>
@@ -170,7 +199,7 @@ export default function LandingPage() {
             <Link href="/miniapps" className="btn lg ghost">Buy & sell <Icon.arrow /></Link>
           </div>
           <div className="row" style={{ marginTop: 32, gap: 32, flexWrap: "wrap" }}>
-            {[["$184k+", "Volume"], ["1,284", "Active loans"], ["1.4%", "Default rate"]].map(([v, k]) => (
+            {[[`${fmtETH(totalPrincipal)} Ξ`, "Listed"], [String(loans.length), "Active loans"], ["Live DB", "Data source"]].map(([v, k]) => (
               <div key={k} className="col" style={{ gap: 2 }}>
                 <span className="mono" style={{ fontSize: 20 }}>{v}</span>
                 <span className="smallcaps">{k}</span>

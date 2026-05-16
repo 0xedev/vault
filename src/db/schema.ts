@@ -23,6 +23,10 @@ export const marketplaceKind = pgEnum("marketplace_kind", [
 export const users = pgTable("users", {
   address: text("address").primaryKey(),
   role: userRole("role").default("user").notNull(),
+  handle: text("handle"),
+  kycTier: text("kyc_tier").default("none").notNull(),
+  flags: integer("flags").default(0).notNull(),
+  status: text("status").default("active").notNull(),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
   trades: integer("trades").default(0).notNull(),
   reputation: real("reputation").default(0).notNull(),
@@ -39,9 +43,46 @@ export const listings = pgTable("listings", {
   currency: text("currency").default("ETH").notNull(),
   collateralData: jsonb("collateral_data"),
   status: listingStatus("status").default("active").notNull(),
+  moderationStatus: text("moderation_status").default("approved").notNull(),
+  flaggedCount: integer("flagged_count").default(0).notNull(),
+  riskScore: integer("risk_score").default(0).notNull(),
   terms: jsonb("terms"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const supportTickets = pgTable("support_tickets", {
+  id: text("id").primaryKey(),
+  fromAddress: text("from_address").references(() => users.address),
+  subject: text("subject").notNull(),
+  body: text("body"),
+  priority: text("priority").default("medium").notNull(),
+  category: text("category").default("general").notNull(),
+  status: text("status").default("open").notNull(),
+  unread: integer("unread").default(1).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const verifications = pgTable("verifications", {
+  id: text("id").primaryKey(),
+  marketplace: marketplaceKind("marketplace").notNull(),
+  target: text("target").notNull(),
+  ownerAddress: text("owner_address").references(() => users.address).notNull(),
+  method: text("method").notNull(),
+  status: text("status").default("pending").notNull(),
+  checks: jsonb("checks"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const auditLogs = pgTable("audit_logs", {
+  id: text("id").primaryKey(),
+  actor: text("actor").default("system").notNull(),
+  action: text("action").notNull(),
+  target: text("target").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const offers = pgTable("offers", {
