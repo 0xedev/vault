@@ -5,13 +5,110 @@ import Link from "next/link";
 import Icon from "@/components/icons";
 import type { FarcasterAccount } from "@/lib/data";
 import { fmtCompact, appColor } from "@/lib/utils";
+import { useWallet } from "@/components/WalletProvider";
+
+function ListFidModal({ onClose }: { onClose: () => void }) {
+  const { address } = useWallet();
+  const [fid, setFid] = useState("");
+  const [handle, setHandle] = useState("");
+  const [channel, setChannel] = useState("");
+  const [followers, setFollowers] = useState("");
+  const [price, setPrice] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState("");
+
+  const submitListing = async () => {
+    if (!address) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/marketplace/farcaster", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerAddress: address,
+          title: handle.startsWith("@") ? handle.slice(1) : handle,
+          description: `Farcaster FID ${fid}${channel ? ` in /${channel}` : ""}`,
+          price: Number(price),
+          data: {
+            fid: Number(fid),
+            handle: handle.replace(/^@/, ""),
+            channel: channel.replace(/^\//, "") || "general",
+            followers: Number(followers || 0),
+            casts_30d: 0,
+            rev_30d: 0,
+            power_badge: false,
+            verified: false,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Unable to submit FID listing");
+      setDone("FID submitted for ownership review. It appears after admin approval.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to submit FID listing");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
+        <div className="modal-h">
+          <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>List Farcaster FID</h3>
+          <button className="btn ghost sm" onClick={onClose}><Icon.x /></button>
+        </div>
+        <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            <div className="col" style={{ gap: 4 }}>
+              <span className="label">FID</span>
+              <input className="input mono" value={fid} onChange={(e) => setFid(e.target.value)} placeholder="12345" />
+            </div>
+            <div className="col" style={{ gap: 4 }}>
+              <span className="label">Handle</span>
+              <input className="input" value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@founder" />
+            </div>
+            <div className="col" style={{ gap: 4 }}>
+              <span className="label">Primary channel</span>
+              <input className="input" value={channel} onChange={(e) => setChannel(e.target.value)} placeholder="/crypto" />
+            </div>
+            <div className="col" style={{ gap: 4 }}>
+              <span className="label">Followers</span>
+              <input className="input mono" value={followers} onChange={(e) => setFollowers(e.target.value)} placeholder="25000" />
+            </div>
+          </div>
+          <div className="col" style={{ gap: 4 }}>
+            <span className="label">Asking price (Ξ)</span>
+            <input className="input mono" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="8.5" />
+          </div>
+          <div className="warn-banner">
+            <Icon.warn />
+            <div style={{ fontSize: 11 }}>Admin review verifies FID ownership, transfer readiness, and buyer handoff instructions before the listing goes live.</div>
+          </div>
+          {error && <div className="warn-banner" style={{ color: "var(--risk)" }}>{error}</div>}
+          {done && <div className="pill funded" style={{ width: "fit-content" }}><span className="pdot" />{done}</div>}
+        </div>
+        <div className="modal-f">
+          <button className="btn" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+          <button className="btn primary lg" style={{ flex: 1 }} onClick={submitListing} disabled={submitting || !fid || !handle || !price}>
+            {submitting ? "Submitting…" : "Submit for review"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function FarcasterPage() {
+  const { isConnected, connect } = useWallet();
   const [accounts, setAccounts] = useState<FarcasterAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sort, setSort] = useState("followers");
   const [filter, setFilter] = useState("all");
+  const [listing, setListing] = useState(false);
 
   useEffect(() => {
     fetch("/api/marketplace/farcaster")
@@ -53,8 +150,12 @@ export default function FarcasterPage() {
             <span className="smallcaps">Open listings</span>
             <span className="mono" style={{ fontSize: 14 }}>{accounts.length}</span>
           </div>
+          <button className="btn primary" onClick={() => isConnected ? setListing(true) : connect()}>
+            {isConnected ? "List FID" : "Connect to list"}
+          </button>
         </div>
       </div>
+      {listing && <ListFidModal onClose={() => setListing(false)} />}
 
       <div className="card" style={{ padding: 12, marginBottom: 18 }}>
         <div className="row" style={{ gap: 16, flexWrap: "wrap" }}>

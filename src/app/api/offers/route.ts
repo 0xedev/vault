@@ -11,6 +11,11 @@ const offerSchema = z.object({
   expiresInHours: z.number().int().positive().optional().default(24),
 });
 
+const offerStatusSchema = z.object({
+  id: z.string().min(1),
+  status: z.enum(["accepted", "rejected"]),
+});
+
 export async function GET(req: NextRequest) {
   const db = getDatabase();
   if (!db) return databaseRequired();
@@ -48,4 +53,15 @@ export async function POST(req: NextRequest) {
   await db`INSERT INTO offers (id, listing_id, offerer_address, amount, apr, term_days, status) VALUES (${id}, ${parsed.data.listingId}, ${parsed.data.offererAddress}, ${parsed.data.amount}, ${parsed.data.apr || null}, ${parsed.data.termDays || null}, 'pending')`;
 
   return NextResponse.json({ data: { id, ...parsed.data, status: "pending", createdAt: new Date().toISOString() } }, { status: 201 });
+}
+
+export async function PATCH(req: NextRequest) {
+  const parsed = offerStatusSchema.safeParse(await req.json());
+  if (!parsed.success) return badRequest("Invalid offer status", parsed.error.flatten());
+
+  const db = getDatabase();
+  if (!db) return databaseRequired();
+
+  await db`UPDATE offers SET status = ${parsed.data.status} WHERE id = ${parsed.data.id}`;
+  return NextResponse.json({ data: parsed.data });
 }

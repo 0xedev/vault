@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
+import { useWallet } from "@/components/WalletProvider";
 import type { XAccount } from "@/lib/data";
 import { fmtCompact } from "@/lib/utils";
 
@@ -27,9 +28,15 @@ function Bar({ label, pct, sub }: { label: string; pct: number; sub: string }) {
 }
 
 export default function XAccountsPage() {
+  const { address, isConnected, connect } = useWallet();
   const [accounts, setAccounts] = useState<XAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [listing, setListing] = useState(false);
+  const [handle, setHandle] = useState("");
+  const [followers, setFollowers] = useState("");
+  const [price, setPrice] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("followers");
 
@@ -63,6 +70,44 @@ export default function XAccountsPage() {
     ["large",    "100k+",     accounts.filter(a => a.followers >= 100000).length],
   ];
 
+  const submitListing = async () => {
+    if (!address) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const normalized = handle.startsWith("@") ? handle : `@${handle}`;
+      const res = await fetch("/api/marketplace/x-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerAddress: address,
+          title: normalized,
+          price: Number(price),
+          data: {
+            handle: normalized,
+            followers: Number(followers || 0),
+            niche: "Pending review",
+            age: "Unverified",
+            engagement: 0,
+            posts_30d: 0,
+            growth: "0%",
+            verified: false,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Unable to submit X listing");
+      setListing(false);
+      setHandle("");
+      setFollowers("");
+      setPrice("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to submit X listing");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <main className="main">
       <div className="row between" style={{ alignItems: "center", marginBottom: 22, gap: 24, rowGap: 16, flexWrap: "wrap" }}>
@@ -81,8 +126,34 @@ export default function XAccountsPage() {
             <span className="smallcaps">Verified</span>
             <span className="mono" style={{ fontSize: 14 }}>{accounts.filter((account) => account.verified).length}</span>
           </div>
+          <button className="btn primary" onClick={() => isConnected ? setListing(true) : connect()}>
+            {isConnected ? "List account" : "Connect to list"}
+          </button>
         </div>
       </div>
+
+      {listing && (
+        <div className="modal-bg" onClick={() => setListing(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div className="modal-h">
+              <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>List X account</h3>
+              <button className="btn ghost sm" onClick={() => setListing(false)}><Icon.x /></button>
+            </div>
+            <div className="modal-b col" style={{ gap: 12 }}>
+              <div><span className="label">Handle</span><input className="input" value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@handle" /></div>
+              <div className="grid grid-2" style={{ gap: 12 }}>
+                <div><span className="label">Followers</span><input className="input mono" type="number" value={followers} onChange={(e) => setFollowers(e.target.value)} /></div>
+                <div><span className="label">Price (Ξ)</span><input className="input mono" type="number" step="0.1" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
+              </div>
+              <div className="warn-banner"><Icon.warn /><div style={{ fontSize: 12 }}>After submission, admin verifies OAuth ownership and transfer readiness before the listing is public.</div></div>
+            </div>
+            <div className="modal-f">
+              <button className="btn" onClick={() => setListing(false)}>Cancel</button>
+              <button className="btn primary" disabled={submitting || !handle || !price} onClick={submitListing}>{submitting ? "Submitting..." : "Submit for review"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ padding: 12, marginBottom: 18 }}>
         <div className="row" style={{ gap: 16, flexWrap: "wrap" }}>

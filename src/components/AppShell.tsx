@@ -7,6 +7,7 @@ import SideBar from "./SideBar";
 import TweaksPanel from "./TweaksPanel";
 import { ThemeProvider } from "./ThemeProvider";
 import { WalletProvider } from "./WalletProvider";
+import { RoleProvider } from "./RoleProvider";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = useState(false);
@@ -30,15 +31,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider>
       <WalletProvider>
-        <div className="app" data-page={isLanding ? "landing" : "default"} style={isLanding ? { gridTemplateColumns: "1fr" } : undefined}>
-          <Suspense fallback={null}>
-            <TopBar onMenu={handleMenu} />
-            <SideBar open={drawer} onClose={() => setDrawer(false)} />
-          </Suspense>
-          <div className={"scrim" + (drawer ? " open" : "")} onClick={() => setDrawer(false)}/>
-          {children}
-          <TweaksPanel />
-        </div>
+        <RoleProvider>
+          <div className="app" data-page={isLanding ? "landing" : "default"} style={isLanding ? { gridTemplateColumns: "1fr" } : undefined}>
+            <Suspense fallback={null}>
+              <TopBar onMenu={handleMenu} />
+              <SideBar open={drawer} onClose={() => setDrawer(false)} />
+            </Suspense>
+            <div className={"scrim" + (drawer ? " open" : "")} onClick={() => setDrawer(false)}/>
+            {children}
+            <TweaksPanel />
+          </div>
+        </RoleProvider>
       </WalletProvider>
     </ThemeProvider>
   );

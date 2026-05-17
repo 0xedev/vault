@@ -10,6 +10,8 @@ import { getNFTsForOwner } from "@/lib/alchemy";
 import { useWallet } from "@/components/WalletProvider";
 import type { Loan } from "@/lib/data";
 
+type LoanWithSeller = Loan & { sellerAddress?: string };
+
 function ListNFTModal({ onClose }: { onClose: () => void }) {
   const { address } = useWallet();
   const [step, setStep] = useState(0);
@@ -203,9 +205,16 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                 <div><span className="label">Term (days)</span><input className="input mono" type="number" value={term} onChange={e => setTerm(e.target.value)} /></div>
                 <div className="col" style={{ gap: 6, justifyContent: "flex-end" }}>
                   <span className="smallcaps">Implied LTV</span>
-                  <span className="mono" style={{ fontSize: 18, color: impliedLtv > 65 ? "var(--warn)" : "var(--accent)" }}>{impliedLtv}%</span>
+                  <span className="mono" style={{ fontSize: 18, color: impliedLtv > 75 ? "var(--risk)" : impliedLtv > 65 ? "var(--warn)" : "var(--accent)" }}>{impliedLtv}%</span>
                 </div>
               </div>
+
+              {impliedLtv > 75 && (
+                <div className="warn-banner" style={{ background: "rgba(255, 71, 71, 0.05)", borderColor: "var(--risk)", color: "var(--risk)" }}>
+                  <Icon.warn />
+                  <div style={{ fontSize: 12 }}>High LTV detected. Loans above 75% LTV are significantly less likely to be funded by lenders.</div>
+                </div>
+              )}
 
               <div className="row" style={{ gap: 8 }}>
                 <button className="btn" style={{ flex: 1 }} onClick={() => setStep(0)}>← Back</button>
@@ -260,7 +269,7 @@ export default function MarketplacePage() {
   const [sort, setSort] = useState("apr");
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [showListModal, setShowListModal] = useState(false);
-  const { isConnected, connect, isConnecting } = useWallet();
+  const { isConnected, connect, isConnecting, address } = useWallet();
 
   useEffect(() => {
     fetch("/api/listings")
@@ -273,7 +282,11 @@ export default function MarketplacePage() {
   }, []);
 
   const filtered = useMemo(() => {
-    let r = loans.filter((l) => filter === "all" || l.status === filter);
+    let r = loans.filter((l) => {
+      if (filter === "all") return true;
+      if (filter === "my") return Boolean(address) && (l as LoanWithSeller).sellerAddress?.toLowerCase() === address?.toLowerCase();
+      return l.status === filter;
+    });
     if (collectionFilter !== "all") {
       const collIdx = COLLECTIONS.indexOf(collectionFilter as typeof COLLECTIONS[number]);
       if (collIdx >= 0) r = r.filter((l) => l.coll === collIdx);
@@ -282,10 +295,11 @@ export default function MarketplacePage() {
     if (sort === "amt") r = [...r].sort((a, b) => b.amt - a.amt);
     if (sort === "ltv") r = [...r].sort((a, b) => a.ltv - b.ltv);
     return r;
-  }, [filter, sort, loans, collectionFilter]);
+  }, [filter, sort, loans, collectionFilter, address]);
 
   const chipData: [string, string, number][] = [
     ["all", "All", loans.length],
+    ["my", "My Listings", loans.filter((l) => Boolean(address) && (l as LoanWithSeller).sellerAddress?.toLowerCase() === address?.toLowerCase()).length],
     ["open", "Open", loans.filter((l) => l.status === "open").length],
     ["funded", "Funded", loans.filter((l) => l.status === "funded").length],
     ["warn", "At risk", loans.filter((l) => l.status === "warn").length],

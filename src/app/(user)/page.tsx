@@ -7,9 +7,50 @@ import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
 import StatusPill from "@/components/StatusPill";
 import LoanCard from "@/components/LoanCard";
+import { useRole } from "@/components/RoleProvider";
 import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
 import type { Loan } from "@/lib/data";
+
+function SetupChecklist() {
+  const { role } = useRole();
+  const isBuyer = role === "buyer";
+
+  const buyerSteps = [
+    { t: "Connect wallet", done: true },
+    { t: "Verify identity (KYC)", done: false },
+    { t: "Deposit ETH for lending", done: false },
+    { t: "Set up lender notifications", done: false },
+  ];
+
+  const sellerSteps = [
+    { t: "Connect wallet", done: true },
+    { t: "Verify NFT ownership", done: true },
+    { t: "Set up escrow profile", done: false },
+    { t: "List your first asset", done: false },
+  ];
+
+  const steps = isBuyer ? buyerSteps : sellerSteps;
+
+  return (
+    <div className="card" style={{ padding: 18, background: "var(--surface-2)" }}>
+      <div className="row between" style={{ marginBottom: 12 }}>
+        <span className="smallcaps">{isBuyer ? "Buyer" : "Seller"} setup checklist</span>
+        <span className="muted-2" style={{ fontSize: 11 }}>1 of 4 complete</span>
+      </div>
+      <div className="col" style={{ gap: 8 }}>
+        {steps.map((s, i) => (
+          <div key={i} className="row" style={{ gap: 10, opacity: s.done ? 0.6 : 1 }}>
+            <span style={{ width: 16, height: 16, borderRadius: 4, border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", background: s.done ? "var(--accent)" : "transparent" }}>
+              {s.done && <Icon.check style={{ width: 10, height: 10, color: "#fff" }} />}
+            </span>
+            <span style={{ fontSize: 13, textDecoration: s.done ? "line-through" : "none" }}>{s.t}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Sparkline() {
   const pts = [12, 18, 14, 22, 28, 26, 32, 30, 38, 42, 40, 48, 52, 58, 56, 64, 70, 68, 74, 80, 84];
@@ -120,7 +161,20 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
-          <DashboardPreview loans={loans} />
+          <div className="col" style={{ gap: 20 }}>
+            <DashboardPreview loans={loans} />
+            <SetupChecklist />
+            <div className="card" style={{ padding: 18 }}>
+              <div className="row between" style={{ marginBottom: 12 }}>
+                <span className="smallcaps">Market readiness</span>
+                <span className="mono" style={{ color: "var(--accent)" }}>84/100</span>
+              </div>
+              <div style={{ height: 4, background: "var(--line)", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: "84%", background: "var(--accent)" }} />
+              </div>
+              <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>Connect 2FA and verify your X handle to reach 100%.</p>
+            </div>
+          </div>
         </section>
 
         <section style={{ padding: "96px 0 48px" }}>

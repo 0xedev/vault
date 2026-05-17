@@ -2,19 +2,8 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { SiweMessage } from "siwe";
+import { getAddress } from "viem";
 
-function checksumAddress(address: string): string {
-  const addr = address.toLowerCase().replace("0x", "");
-  const hash = addr.split("").reduce((acc, c, i) => {
-    if (i === 0) return acc + c.charCodeAt(0);
-    return acc ^ c.charCodeAt(0);
-  }, addr.charCodeAt(0));
-  const h = ((hash * 134775813 + 1) % 4294967296).toString(16);
-  return "0x" + addr.split("").map((c, i) => {
-    const nibble = parseInt(h[Math.floor(i / 2)] || "0", 16);
-    return (nibble >> (3 - (i % 2) * 4)) & 8 ? c.toUpperCase() : c;
-  }).join("");
-}
 
 // Extend Window type
 declare global {
@@ -65,7 +54,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setAddress(accounts[0]);
         setChainId(parseInt(chain, 16));
 
-        const siweAddr = checksumAddress(accounts[0]);
+        const siweAddr = getAddress(accounts[0]);
 
         // SIWE flow: get nonce, create message, sign, verify
         const nonceRes = await fetch("/api/auth");

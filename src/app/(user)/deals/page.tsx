@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
+import { useRole } from "@/components/RoleProvider";
 import { fmtUSD } from "@/lib/utils";
 import type { DigitalDeal } from "@/lib/data";
 
@@ -12,7 +13,9 @@ export default function DealRoomPage() {
   const [error, setError] = useState("");
   const [step, setStep] = useState(2);
   const [draft, setDraft] = useState("");
+  const { role } = useRole();
   const [chat, setChat] = useState<{ who: string; text: string; t: string; me: boolean }[]>([]);
+  const [actionNotice, setActionNotice] = useState("");
 
   useEffect(() => {
     fetch("/api/deals")
@@ -45,6 +48,7 @@ export default function DealRoomPage() {
   const steps = ["Buyer deposits", "Seller transfers", "Buyer confirms", "Funds release", "Fee deducted"];
 
   const checks = d.includes.map((item, index) => ({ t: item, done: index < step, active: index === step }));
+  const canRelease = checks.length > 0 && checks.every((check) => check.done);
 
   return (
     <main className="main">
@@ -103,9 +107,10 @@ export default function DealRoomPage() {
                   <span className="box">{c.done && <Icon.check style={{ width: 12, height: 12 }} />}</span>
                   <div className="col" style={{ flex: 1, gap: 1 }}>
                     <span style={{ color: c.done ? "var(--ink)" : "var(--ink-2)" }}>{c.t}</span>
-                    {c.active && <span className="muted-2" style={{ fontSize: 11 }}>Buyer needs to confirm receipt</span>}
+                    {c.active && <span className="muted-2" style={{ fontSize: 11 }}>{role === "buyer" ? "Buyer needs to confirm receipt" : "Waiting for buyer confirmation"}</span>}
                   </div>
-                  {c.active && <button className="btn primary sm" onClick={() => setStep(Math.min(4, step + 1))}>Confirm</button>}
+                  {c.active && role === "buyer" && <button className="btn primary sm" onClick={() => setStep(Math.min(4, step + 1))}>Confirm</button>}
+                  {!c.done && role === "seller" && <button className="btn sm ghost" disabled title="Proof upload API is not connected yet">Proof pending</button>}
                 </div>
               ))}
             </div>
@@ -127,7 +132,7 @@ export default function DealRoomPage() {
                   </div>
                 </div>
               ))}
-              {chat.length === 0 && <div className="muted" style={{ padding: 20, textAlign: "center", fontSize: 12 }}>No messages yet. Messages you send are tied to this browser session until the messaging backend is connected.</div>}
+              {chat.length === 0 && <div className="muted" style={{ padding: 20, textAlign: "center", fontSize: 12 }}>No persisted deal messages yet. Messages you send are local to this browser session until the messaging backend is connected.</div>}
             </div>
             <div className="row" style={{ gap: 8, marginTop: 12, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
               <input className="input" placeholder="Send a message…" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendMsg()} />
@@ -140,9 +145,22 @@ export default function DealRoomPage() {
             <div className="kv"><span className="k">Buyer deposit</span><span className="v">{d.price} Ξ</span></div>
             <div className="kv"><span className="k">Platform fee (2.5%)</span><span className="v">{(d.price * 0.025).toFixed(2)} Ξ</span></div>
             <div className="kv"><span className="k">Net to seller</span><span className="v" style={{ color: "var(--accent)" }}>{(d.price * 0.975).toFixed(2)} Ξ</span></div>
+            {actionNotice && <div className="warn-banner" style={{ marginTop: 12, fontSize: 12 }}>{actionNotice}</div>}
             <div className="row" style={{ gap: 8, marginTop: 16 }}>
-              <button className="btn primary" style={{ flex: 1 }} onClick={() => setStep(Math.min(4, step + 1))}>Confirm receipt · advance</button>
-              <Link className="btn danger" href="/escrow">Dispute</Link>
+              {role === "buyer" ? (
+                <>
+                  <button className="btn primary" style={{ flex: 1 }} onClick={() => setStep(4)} disabled={!canRelease}>Release funds</button>
+                  <Link className="btn danger" style={{ flex: 1 }} href="/escrow">Open dispute</Link>
+                </>
+              ) : (
+                <>
+                  <button className="btn primary" style={{ flex: 1 }} onClick={() => setActionNotice("Buyer release request queued. Funds can only move after buyer confirmation or admin resolution.")}>Request release</button>
+                  <button className="btn danger" style={{ flex: 1 }} onClick={() => setActionNotice("Refund approval requires a live escrow transaction signer before funds can move.")}>Approve refund</button>
+                </>
+              )}
+            </div>
+            <div className="muted-2" style={{ fontSize: 11, marginTop: 10, textAlign: "center" }}>
+              Funds release is permanent. Only release after verifying all deliverables.
             </div>
           </div>
         </div>

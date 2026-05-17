@@ -61,6 +61,21 @@ export default function EscrowCenterPage() {
         <div className="metric"><span className="lab">Platform fees · est.</span><span className="val">{fmtETH(totalLocked * 0.015)} Ξ</span><span className="delta">1.5% origination</span></div>
       </div>
 
+      <section className="col" style={{ gap: 12, marginBottom: 24 }}>
+        <span className="smallcaps">Action Required</span>
+        <div className="grid grid-2" style={{ gap: 12 }}>
+          {escrows.filter(e => e.action !== "None").slice(0, 2).map(e => (
+            <div key={e.id} className="card row between" style={{ padding: 14, borderLeft: "3px solid var(--warn)" }}>
+              <div className="col" style={{ gap: 2 }}>
+                <span className="mono" style={{ fontSize: 13, color: "var(--ink)" }}>{e.id} · {e.asset}</span>
+                <span style={{ fontSize: 12 }}>{e.action}</span>
+              </div>
+              <Link href="/deals" className="btn primary sm">Resolve →</Link>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <div className="card">
         <div className="row" style={{ padding: "14px 18px", borderBottom: "1px solid var(--line)", justifyContent: "space-between" }}>
           <div className="chips">
@@ -98,7 +113,13 @@ export default function EscrowCenterPage() {
                   <td className="right mono">{fmtETH(e.amount)} {e.asset_type}</td>
                   <td><StatusPill s={e.stage} /></td>
                   <td className="muted">{e.deadline}</td>
-                  <td style={{ color: e.stage === "At risk" ? "var(--risk)" : "var(--ink-2)" }}>{e.action}</td>
+                  <td>
+                    {e.action !== "None" ? (
+                      <span className="pill warn" style={{ fontSize: 10 }}>{e.action}</span>
+                    ) : (
+                      <span className="muted-2" style={{ fontSize: 11 }}>No action needed</span>
+                    )}
+                  </td>
                   <td className="right"><Icon.arrow style={{ color: "var(--ink-3)" }} /></td>
                 </tr>
               ))}

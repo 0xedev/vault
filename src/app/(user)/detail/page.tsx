@@ -48,7 +48,6 @@ function AcceptLoanModal({ onClose, l }: { onClose: () => void; l: LoanRecord })
       });
       if (!res.ok) throw new Error("Escrow creation failed");
       setDone(true);
-      setTimeout(onClose, 1500);
     } catch (e) {
       console.error("Escrow creation failed", e);
     } finally {
@@ -148,7 +147,6 @@ function CounterOfferModal({ onClose, l }: { onClose: () => void; l: LoanRecord 
       });
       if (!res.ok) throw new Error("Counter submission failed");
       setDone(true);
-      setTimeout(onClose, 1500);
     } catch (e) {
       console.error("Counter submission failed", e);
     } finally {
@@ -227,6 +225,8 @@ function LoanDetailContent() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("offers");
   const [modal, setModal] = useState<string | null>(null);
+  const [offerAction, setOfferAction] = useState("");
+  const { address } = useWallet();
 
   useEffect(() => {
     const url = loanId ? `/api/listings/${loanId}` : "/api/listings?limit=1";
@@ -265,6 +265,47 @@ function LoanDetailContent() {
 
   const l = loan;
   const collectionName = l.collection || COLLECTIONS[l.coll] || "Unverified collection";
+  const isSeller = Boolean(address && l.sellerAddress && address.toLowerCase() === l.sellerAddress.toLowerCase());
+  const updateOfferStatus = async (id: string, status: "accepted" | "rejected") => {
+    setOfferAction(id);
+    try {
+      const res = await fetch("/api/offers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+      if (!res.ok) throw new Error("Unable to update offer");
+      setOffers((current) => current.map((offer) => offer.id === id ? { ...offer, status } : offer));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update offer");
+    } finally {
+      setOfferAction("");
+    }
+  };
+  const exportCalendar = () => {
+    const start = new Date();
+    const due = new Date(start.getTime() + l.term * 24 * 60 * 60 * 1000);
+    const stamp = (date: Date) => date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+    const ics = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Vault//Repayment//EN",
+      "BEGIN:VEVENT",
+      `UID:${l.id}@vault`,
+      `DTSTAMP:${stamp(start)}`,
+      `DTSTART:${stamp(due)}`,
+      `SUMMARY:Vault repayment due for ${l.id}`,
+      `DESCRIPTION:Repay ${(l.amt * (1 + l.apr / 100 * l.term / 365)).toFixed(3)} ETH to avoid collateral transfer.`,
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    const href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `vault-${l.id}-repayment.ics`;
+    link.click();
+    URL.revokeObjectURL(href);
+  };
 
   return (
     <main className="main">
@@ -315,7 +356,14 @@ function LoanDetailContent() {
                       <span className="mono" style={{ fontSize: 13 }}>{fmtETH(o.amt)} Ξ · {o.apr}% · {o.term}d</span>
                       <span className="muted-2" style={{ fontSize: 11, textTransform: "capitalize" }}>{o.status}</span>
                     </div>
-                    <button className="btn sm" disabled={o.status !== "pending"} style={{ opacity: o.status === "pending" ? 1 : 0.4 }}>Match</button>
+                    {isSeller ? (
+                      <div className="row" style={{ gap: 6 }}>
+                        <button className="btn sm primary" onClick={() => updateOfferStatus(o.id, "accepted")} disabled={o.status !== "pending" || offerAction === o.id}>Accept</button>
+                        <button className="btn sm danger" onClick={() => updateOfferStatus(o.id, "rejected")} disabled={o.status !== "pending" || offerAction === o.id}>Reject</button>
+                      </div>
+                    ) : (
+                      <button className="btn sm" disabled style={{ opacity: 0.45 }}>Seller decides</button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -335,7 +383,17 @@ function LoanDetailContent() {
             )}
             {tab === "terms" && (
               <div style={{ padding: 18 }}>
-                <p className="muted" style={{ marginTop: 0 }}>Standard NFT-loan terms. If the borrower defaults, the NFT is transferred to the lender. Platform fee is 1.5% of the loan principal at origination.</p>
+                <p className="muted" style={{ marginTop: 0, fontSize: 13, lineHeight: 1.6 }}>
+                  Standard NFT-loan terms. If the borrower defaults, the NFT is transferred to the lender. Platform fee is 1.5% of the loan principal at origination.
+                </p>
+                <div className="col" style={{ gap: 10, marginTop: 16 }}>
+                  <button className="btn sm" style={{ width: "fit-content" }} onClick={exportCalendar}>
+                    <Icon.clock style={{ width: 12, height: 12 }} /> Export repayment calendar
+                  </button>
+                  <div className="muted-2" style={{ fontSize: 12 }}>
+                    On-chain verification link appears after escrow deployment records a contract address.
+                  </div>
+                </div>
               </div>
             )}
           </div>

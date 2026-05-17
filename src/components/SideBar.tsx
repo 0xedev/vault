@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "./icons";
+import { useRole } from "./RoleProvider";
 
 interface SidebarItem {
   sec?: string;
@@ -28,12 +29,21 @@ const items: SidebarItem[] = [
 
 export default function SideBar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  const { role, setRole } = useRole();
 
   return (
     <aside className={"sidebar" + (open ? " open" : "")}>
       <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
         <Icon.x />
       </button>
+
+      <div style={{ padding: "0 14px 20px" }}>
+        <div className="seg" style={{ width: "100%" }}>
+          <button className={role === "buyer" ? "active" : ""} onClick={() => setRole("buyer")} style={{ flex: 1, fontSize: 11 }}>Lender/Buyer</button>
+          <button className={role === "seller" ? "active" : ""} onClick={() => setRole("seller")} style={{ flex: 1, fontSize: 11 }}>Borrower/Seller</button>
+        </div>
+      </div>
+
       {items.map((it, i) =>
         it.sec ? (
           <div className="side-h" key={"s"+i}>{it.sec}</div>
