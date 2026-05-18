@@ -45,7 +45,7 @@ export async function POST(
 ) {
   const { kind } = await params;
   const dbKind = dbKindMap[kind];
-  if (!dbKind || kind === "nft-loans") return NextResponse.json({ error: "Unknown marketplace kind" }, { status: 404 });
+  if (!dbKind || kind === "nft-loans") return NextResponse.json({ error: kind === "nft-loans" ? "Use /api/listings for NFT loans" : "Unknown marketplace kind" }, { status: 404 });
 
   const parsed = marketplaceListingSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid marketplace listing", parsed.error.flatten());

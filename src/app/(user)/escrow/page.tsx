@@ -64,7 +64,7 @@ export default function EscrowCenterPage() {
       <section className="col" style={{ gap: 12, marginBottom: 24 }}>
         <span className="smallcaps">Action Required</span>
         <div className="grid grid-2" style={{ gap: 12 }}>
-          {escrows.filter(e => e.action !== "None").slice(0, 2).map(e => (
+          {escrows.filter(e => e.action !== "On schedule").slice(0, 2).map(e => (
             <div key={e.id} className="card row between" style={{ padding: 14, borderLeft: "3px solid var(--warn)" }}>
               <div className="col" style={{ gap: 2 }}>
                 <span className="mono" style={{ fontSize: 13, color: "var(--ink)" }}>{e.id} · {e.asset}</span>

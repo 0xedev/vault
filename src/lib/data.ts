@@ -51,6 +51,7 @@ export interface XAccount {
   verified: boolean;
   posts_30d: number;
   growth: string;
+  imageUrl?: string;
 }
 
 export interface FarcasterAccount {
@@ -64,6 +65,7 @@ export interface FarcasterAccount {
   power_badge: boolean;
   verified: boolean;
   rev_30d: number;
+  imageUrl?: string;
 }
 
 export interface MiniApp {
@@ -77,4 +79,5 @@ export interface MiniApp {
   verified: boolean;
   source: boolean;
   age: string;
+  imageUrl?: string;
 }

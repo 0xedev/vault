@@ -38,10 +38,34 @@ export function useWallet() {
   return useContext(WalletContext);
 }
 
+const STORAGE_KEY = "vault-wallet";
+
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [address, setAddress] = useState<string | null>(null);
+  const [address, setAddress] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem(STORAGE_KEY) || null;
+    } catch { return null; }
+  });
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+
+  // On mount, silently restore connection if already authorized
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.ethereum) return;
+    window.ethereum.request({ method: "eth_accounts" }).then((accounts) => {
+      if (Array.isArray(accounts) && accounts.length > 0) {
+        setAddress(accounts[0]);
+        try { localStorage.setItem(STORAGE_KEY, accounts[0]); } catch {}
+        window.ethereum!.request({ method: "eth_chainId" }).then((chain: unknown) => {
+          setChainId(parseInt(chain as string, 16));
+        });
+      } else {
+        setAddress(null);
+        try { localStorage.removeItem(STORAGE_KEY); } catch {}
+      }
+    });
+  }, []);
 
   const connect = useCallback(async () => {
     setIsConnecting(true);
@@ -53,6 +77,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
         setAddress(accounts[0]);
         setChainId(parseInt(chain, 16));
+        try { localStorage.setItem(STORAGE_KEY, accounts[0]); } catch {}
 
         const siweAddr = getAddress(accounts[0]);
 
@@ -91,6 +116,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const disconnect = useCallback(() => {
     setAddress(null);
     setChainId(null);
+    try { localStorage.removeItem(STORAGE_KEY); } catch {}
   }, []);
 
   // Listen for account/chain changes

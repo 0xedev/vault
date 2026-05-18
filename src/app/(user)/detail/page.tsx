@@ -8,7 +8,10 @@ import NFTArt from "@/components/NFTArt";
 import StatusPill from "@/components/StatusPill";
 import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
+import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
+import { writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, parseContractError } from "@/lib/contract";
+import { parseEther, type Address } from "viem";
 import type { Loan } from "@/lib/data";
 
 type LoanRecord = Loan & { collection?: string; sellerAddress?: string };
@@ -23,116 +26,31 @@ type OfferRecord = {
   status: string;
 };
 
-function AcceptLoanModal({ onClose, l }: { onClose: () => void; l: LoanRecord }) {
+function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: { onClose: () => void; l: LoanRecord; prefillAmt?: number; prefillApr?: number; prefillTerm?: number }) {
   const { isConnected, connect, isConnecting, address } = useWallet();
-  const [confirm, setConfirm] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
-
-  const repayment = (l.amt * (1 + l.apr / 100 * l.term / 365)).toFixed(3);
-
-  const handleFund = async () => {
-    if (!address || !l.sellerAddress) return;
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/escrows", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          listingId: l.id,
-          buyerAddress: address,
-          sellerAddress: l.sellerAddress,
-          amount: l.amt,
-          currency: "ETH",
-        }),
-      });
-      if (!res.ok) throw new Error("Escrow creation failed");
-      setDone(true);
-    } catch (e) {
-      console.error("Escrow creation failed", e);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (!isConnected) {
-    return (
-      <div className="modal-bg" onClick={onClose}>
-        <div className="modal" onClick={(e) => e.stopPropagation()}>
-          <div className="modal-h">
-            <h3 className="serif" style={{ margin: 0, fontSize: 22 }}>Connect to lend</h3>
-            <button className="btn ghost sm" onClick={onClose}><Icon.x /></button>
-          </div>
-          <div className="modal-b" style={{ textAlign: "center", padding: "40px 22px" }}>
-            <Icon.shield style={{ width: 32, height: 32, color: "var(--accent)" }} />
-            <p className="muted" style={{ margin: "12px 0 20px", fontSize: 14 }}>Connect your wallet to fund this loan.</p>
-            <button className="btn primary lg" onClick={connect} disabled={isConnecting}>
-              {isConnecting ? "Connecting…" : "Connect wallet"}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-h">
-          <h3 className="serif" style={{ margin: 0, fontSize: 22 }}>{done ? "Escrow created!" : `Fund loan · ${fmtETH(l.amt)} Ξ`}</h3>
-          <button className="btn ghost sm" onClick={onClose}><Icon.x /></button>
-        </div>
-        <div className="modal-b">
-          {done ? (
-            <div style={{ textAlign: "center", padding: "30px 0" }}>
-              <Icon.check style={{ width: 36, height: 36, color: "var(--accent)" }} />
-              <p style={{ fontSize: 14, margin: "12px 0 4px" }}>{fmtETH(l.amt)} Ξ sent to escrow.</p>
-              <p className="muted-2" style={{ fontSize: 12 }}>Track this deal from Escrow Center.</p>
-            </div>
-          ) : (
-            <>
-              <div className="warn-banner" style={{ marginBottom: 16 }}>
-                <Icon.warn /><div>{fmtETH(l.amt)} Ξ will leave your wallet and be locked in escrow until repayment or default.</div>
-              </div>
-              <div className="kv"><span className="k">You send</span><span className="v big">{fmtETH(l.amt)} Ξ</span></div>
-              <div className="kv"><span className="k">You receive at repayment</span><span className="v" style={{ color: "var(--accent)" }}>{repayment} Ξ</span></div>
-              <div className="kv"><span className="k">If borrower defaults</span><span className="v">{l.collection || COLLECTIONS[l.coll] || "Collateral"} {l.token}</span></div>
-              <div className="kv"><span className="k">Term</span><span className="v">{l.term} days</span></div>
-              <div className="kv"><span className="k">Platform fee</span><span className="v">{(l.amt * 0.015).toFixed(3)} Ξ (1.5%)</span></div>
-              <div style={{ marginTop: 16 }}>
-                <span className="label">Type &quot;FUND&quot; to confirm</span>
-                <input className="input" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="FUND" />
-              </div>
-            </>
-          )}
-        </div>
-        {!done && (
-          <div className="modal-f">
-            <span className="muted-2" style={{ fontSize: 12 }}>Funds go to escrow contract. Repayment releases them.</span>
-            <div className="row" style={{ gap: 8 }}>
-              <button className="btn" onClick={onClose}>Cancel</button>
-              <button className="btn primary" disabled={confirm !== "FUND" || submitting || !l.sellerAddress} style={{ opacity: confirm === "FUND" && l.sellerAddress ? 1 : 0.5 }} onClick={handleFund}>{submitting ? "Funding…" : "Sign & fund"}</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CounterOfferModal({ onClose, l }: { onClose: () => void; l: LoanRecord }) {
-  const { isConnected, connect, isConnecting, address } = useWallet();
-  const [amt, setAmt] = useState(l.amt * 0.95);
-  const [apr, setApr] = useState(l.apr);
-  const [term, setTerm] = useState(l.term);
+  const [amt, setAmt] = useState(prefillAmt ?? l.amt * 0.95);
+  const [apr, setApr] = useState(prefillApr ?? l.apr);
+  const [term, setTerm] = useState(prefillTerm ?? l.term);
   const [exp, setExp] = useState(24);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [modalError, setModalError] = useState("");
 
   const handleSubmit = async () => {
     if (!address) return;
     setSubmitting(true);
     try {
+      // 1. Deposit ETH into escrow contract
+      const aprBps = Math.round(apr * 100);
+      await writeSubmitOffer(
+        address as Address,
+        BigInt(parseInt(l.id.replace("L-", "")) || 1),
+        parseEther(amt.toFixed(4)),
+        aprBps,
+        term,
+      );
+
+      // 2. POST to API
       const res = await fetch("/api/offers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -147,8 +65,9 @@ function CounterOfferModal({ onClose, l }: { onClose: () => void; l: LoanRecord 
       });
       if (!res.ok) throw new Error("Counter submission failed");
       setDone(true);
+      setModalError("");
     } catch (e) {
-      console.error("Counter submission failed", e);
+      setModalError(parseContractError(e));
     } finally {
       setSubmitting(false);
     }
@@ -200,11 +119,12 @@ function CounterOfferModal({ onClose, l }: { onClose: () => void; l: LoanRecord 
               </div>
               <div className="card" style={{ padding: 10, marginTop: 12, background: "var(--surface-2)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                 <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>Repayment</span><span className="mono" style={{ fontSize: 12 }}>{(amt * (1 + apr / 100 * term / 365)).toFixed(2)} Ξ</span></div>
-                <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>LTV</span><span className="mono" style={{ fontSize: 12 }}>{Math.round(amt / l.value * 100)}%</span></div>
+                <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>LTV</span><span className="mono" style={{ fontSize: 12 }}>{l.value > 0 ? Math.round(amt / l.value * 100) : 0}%</span></div>
                 <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>Expires</span><span className="mono" style={{ fontSize: 12 }}>{exp}h</span></div>
               </div>
             </>
           )}
+          {modalError && <div className="warn-banner" style={{ marginTop: 8, color: "var(--risk)", fontSize: 12 }}>{modalError}</div>}
         </div>
         <div className="modal-f">
           <button className="btn" onClick={onClose} style={{ flex: 1 }}>{done ? "Close" : "Cancel"}</button>
@@ -226,7 +146,46 @@ function LoanDetailContent() {
   const [tab, setTab] = useState("offers");
   const [modal, setModal] = useState<string | null>(null);
   const [offerAction, setOfferAction] = useState("");
+  const [matchOffer, setMatchOffer] = useState<{ amt: number; apr: number; term: number } | null>(null);
+  const [matching, setMatching] = useState("");
+  const [repaying, setRepaying] = useState(false);
+  const [claiming, setClaiming] = useState(false);
   const { address } = useWallet();
+
+  const submitMatch = async (o: OfferRecord) => {
+    if (!address || !loan) return;
+    setMatching(o.id);
+    try {
+      // 1. Deposit ETH via contract
+      const aprBps = Math.round(o.apr * 100);
+      await writeSubmitOffer(
+        address as Address,
+        BigInt(parseInt(loan.id.replace("L-", "")) || 1),
+        parseEther(o.amt.toFixed(4)),
+        aprBps,
+        o.term,
+      );
+
+      // 2. POST to API
+      const res = await fetch("/api/offers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: loan.id,
+          offererAddress: address,
+          amount: o.amt,
+          apr: o.apr,
+          termDays: o.term,
+        }),
+      });
+      if (!res.ok) throw new Error("Match failed");
+      setOffers((current) => [...current, { id: `O-${Date.now()}`, who: shortAddress(address), offererAddress: address, amt: o.amt, apr: o.apr, term: o.term, when: new Date().toISOString(), status: "pending" }]);
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setMatching("");
+    }
+  };
 
   useEffect(() => {
     const url = loanId ? `/api/listings/${loanId}` : "/api/listings?limit=1";
@@ -266,18 +225,35 @@ function LoanDetailContent() {
   const l = loan;
   const collectionName = l.collection || COLLECTIONS[l.coll] || "Unverified collection";
   const isSeller = Boolean(address && l.sellerAddress && address.toLowerCase() === l.sellerAddress.toLowerCase());
-  const updateOfferStatus = async (id: string, status: "accepted" | "rejected") => {
+  const updateOfferStatus = async (id: string, status: "accepted" | "rejected", offer: OfferRecord) => {
     setOfferAction(id);
     try {
+      // 1. If accepting, call contract to release ETH to borrower
+      if (status === "accepted" && address && offer.offererAddress) {
+        const aprBps = Math.round(offer.apr * 100);
+        await writeAcceptOffer(
+          address as Address,
+          BigInt(parseInt(l.id.replace("L-", "")) || 1),
+          offer.offererAddress as Address,
+          parseEther(offer.amt.toFixed(4)),
+          aprBps,
+          offer.term,
+        );
+      }
+
+      // 2. Update API
       const res = await fetch("/api/offers", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
       });
       if (!res.ok) throw new Error("Unable to update offer");
-      setOffers((current) => current.map((offer) => offer.id === id ? { ...offer, status } : offer));
+      setOffers((current) => current.map((o) => o.id === id ? { ...o, status } : o));
+      if (status === "accepted") {
+        setLoan((prev) => prev ? { ...prev, status: "funded" as Loan["status"] } : prev);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to update offer");
+      setError(parseContractError(err));
     } finally {
       setOfferAction("");
     }
@@ -306,6 +282,44 @@ function LoanDetailContent() {
     link.click();
     URL.revokeObjectURL(href);
   };
+
+  const repayLoan = async () => {
+    if (!address || !loan) return;
+    setRepaying(true);
+    try {
+      const repaymentDue = l.amt * (1 + l.apr / 100 * l.term / 365);
+      await writeRepay(
+        address as Address,
+        BigInt(parseInt(l.id.replace("L-", "")) || 1),
+        parseEther(repaymentDue.toFixed(4)),
+      );
+      setLoan((prev) => prev ? { ...prev, status: "open" as Loan["status"] } : prev);
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setRepaying(false);
+    }
+  };
+
+  const claimDefaultedNft = async () => {
+    if (!address || !loan) return;
+    setClaiming(true);
+    try {
+      await writeClaimCollateral(
+        address as Address,
+        BigInt(parseInt(l.id.replace("L-", "")) || 1),
+      );
+      setLoan((prev) => prev ? { ...prev, status: "default" as Loan["status"] } : prev);
+    } catch (err) {
+      alert(parseContractError(err));
+    } finally {
+      setClaiming(false);
+    }
+  };
+
+  const isBorrower = isSeller; // same logic: wallet matches listing seller
+  const isLender = offers.some((o) => o.status === "accepted" && o.offererAddress?.toLowerCase() === address?.toLowerCase());
+  const isFunded = l.status === "funded";
 
   return (
     <main className="main">
@@ -358,11 +372,14 @@ function LoanDetailContent() {
                     </div>
                     {isSeller ? (
                       <div className="row" style={{ gap: 6 }}>
-                        <button className="btn sm primary" onClick={() => updateOfferStatus(o.id, "accepted")} disabled={o.status !== "pending" || offerAction === o.id}>Accept</button>
-                        <button className="btn sm danger" onClick={() => updateOfferStatus(o.id, "rejected")} disabled={o.status !== "pending" || offerAction === o.id}>Reject</button>
+                        <button className="btn sm primary" onClick={() => updateOfferStatus(o.id, "accepted", o)} disabled={o.status !== "pending" || offerAction === o.id}>Accept</button>
+                        <button className="btn sm danger" onClick={() => updateOfferStatus(o.id, "rejected", o)} disabled={o.status !== "pending" || offerAction === o.id}>Reject</button>
                       </div>
                     ) : (
-                      <button className="btn sm" disabled style={{ opacity: 0.45 }}>Seller decides</button>
+                      <div className="row" style={{ gap: 6 }}>
+                        <button className="btn sm" disabled={o.status !== "pending" || matching === o.id} onClick={() => submitMatch(o)}>{matching === o.id ? "…" : "Match"}</button>
+                        <button className="btn sm" disabled={o.status !== "pending"} onClick={() => { setMatchOffer({ amt: o.amt, apr: Number((o.apr - 0.5).toFixed(1)), term: o.term }); setModal("counter"); }}>Counter</button>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -411,11 +428,26 @@ function LoanDetailContent() {
             <div className="kv"><span className="k">Escrow</span><span className="v" style={{ color: "var(--accent)" }}>baseshire.eth · EOA</span></div>
 
             <div className="row" style={{ gap: 8, marginTop: 18 }}>
-              <button className="btn primary lg" style={{ flex: 1 }} onClick={() => setModal("accept")}>Fund this loan · {fmtETH(l.amt)} Ξ</button>
-              <button className="btn lg" onClick={() => setModal("counter")}>Counter</button>
+              {!isFunded && (
+                <button className="btn primary lg" style={{ flex: 1 }} onClick={() => { setMatchOffer(null); setModal("counter"); }}>Submit offer</button>
+              )}
+              {isFunded && isBorrower && (
+                <button className="btn primary lg" style={{ flex: 1 }} onClick={repayLoan} disabled={repaying}>
+                  {repaying ? "Repaying…" : `Repay ${(l.amt * (1 + l.apr / 100 * l.term / 365)).toFixed(3)} Ξ`}
+                </button>
+              )}
+              {isFunded && isLender && (
+                <button className="btn danger lg" style={{ flex: 1 }} onClick={claimDefaultedNft} disabled={claiming}>
+                  {claiming ? "Claiming…" : "Claim collateral"}
+                </button>
+              )}
             </div>
             <div className="muted-2" style={{ fontSize: 11.5, marginTop: 10, textAlign: "center" }}>
-              {fmtETH(l.amt)} Ξ leaves your wallet and is sent to escrow. Funds release on repayment.
+              {!isFunded
+                ? `NFT is locked in escrow. Borrower receives ${fmtETH(l.amt)} Ξ only when they accept an offer.`
+                : isBorrower
+                  ? "Repay the loan to reclaim your NFT."
+                  : "If the borrower defaults, claim the NFT collateral."}
             </div>
           </div>
 
@@ -436,8 +468,7 @@ function LoanDetailContent() {
         </div>
       </div>
 
-      {modal === "accept" && <AcceptLoanModal onClose={() => setModal(null)} l={l} />}
-      {modal === "counter" && <CounterOfferModal onClose={() => setModal(null)} l={l} />}
+      {modal === "counter" && <CounterOfferModal onClose={() => { setModal(null); setMatchOffer(null); }} l={l} prefillAmt={matchOffer?.amt} prefillApr={matchOffer?.apr} prefillTerm={matchOffer?.term} />}
     </main>
   );
 }

@@ -7,50 +7,11 @@ import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
 import StatusPill from "@/components/StatusPill";
 import LoanCard from "@/components/LoanCard";
-import { useRole } from "@/components/RoleProvider";
+
 import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
 import type { Loan } from "@/lib/data";
 
-function SetupChecklist() {
-  const { role } = useRole();
-  const isBuyer = role === "buyer";
-
-  const buyerSteps = [
-    { t: "Connect wallet", done: true },
-    { t: "Verify identity (KYC)", done: false },
-    { t: "Deposit ETH for lending", done: false },
-    { t: "Set up lender notifications", done: false },
-  ];
-
-  const sellerSteps = [
-    { t: "Connect wallet", done: true },
-    { t: "Verify NFT ownership", done: true },
-    { t: "Set up escrow profile", done: false },
-    { t: "List your first asset", done: false },
-  ];
-
-  const steps = isBuyer ? buyerSteps : sellerSteps;
-
-  return (
-    <div className="card" style={{ padding: 18, background: "var(--surface-2)" }}>
-      <div className="row between" style={{ marginBottom: 12 }}>
-        <span className="smallcaps">{isBuyer ? "Buyer" : "Seller"} setup checklist</span>
-        <span className="muted-2" style={{ fontSize: 11 }}>1 of 4 complete</span>
-      </div>
-      <div className="col" style={{ gap: 8 }}>
-        {steps.map((s, i) => (
-          <div key={i} className="row" style={{ gap: 10, opacity: s.done ? 0.6 : 1 }}>
-            <span style={{ width: 16, height: 16, borderRadius: 4, border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", background: s.done ? "var(--accent)" : "transparent" }}>
-              {s.done && <Icon.check style={{ width: 10, height: 10, color: "#fff" }} />}
-            </span>
-            <span style={{ fontSize: 13, textDecoration: s.done ? "line-through" : "none" }}>{s.t}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function Sparkline() {
   const pts = [12, 18, 14, 22, 28, 26, 32, 30, 38, 42, 40, 48, 52, 58, 56, 64, 70, 68, 74, 80, 84];
@@ -91,8 +52,8 @@ function DashboardPreview({ loans }: { loans: Loan[] }) {
         </div>
       </div>
       <div className="grid grid-2" style={{ marginBottom: 14 }}>
-        <div className="metric"><span className="lab">Open listings</span><span className="val">{loans.length}</span><span className="delta">from live database</span></div>
-        <div className="metric"><span className="lab">Active principal</span><span className="val">{fmtETH(activePrincipal)} Ξ</span><span className="delta">across {loans.length} loans</span></div>
+        <div className="metric"><span className="lab">Open listings</span><span className="val">{loans.length}</span></div>
+        <div className="metric"><span className="lab">Active principal</span><span className="val">{fmtETH(activePrincipal)} Ξ</span></div>
       </div>
       <Sparkline />
       <div className="col" style={{ gap: 10, marginTop: 12 }}>
@@ -153,7 +114,7 @@ export default function LandingPage() {
               <Link href="/market" className="btn lg ghost">List your NFT</Link>
             </div>
             <div className="row" style={{ marginTop: 56, gap: 48, flexWrap: "wrap" }}>
-              {[["Listed principal", `${fmtETH(totalPrincipal)} Ξ`], ["Active loans", String(loans.length)], ["Data source", "Live DB"]].map(([k, v]) => (
+              {[["Listed principal", `${fmtETH(totalPrincipal)} Ξ`], ["Active loans", String(loans.length)]].map(([k, v]) => (
                 <div key={k} className="col" style={{ gap: 4 }}>
                   <span className="smallcaps">{k}</span>
                   <span className="mono" style={{ fontSize: 18 }}>{v}</span>
@@ -163,17 +124,6 @@ export default function LandingPage() {
           </div>
           <div className="col" style={{ gap: 20 }}>
             <DashboardPreview loans={loans} />
-            <SetupChecklist />
-            <div className="card" style={{ padding: 18 }}>
-              <div className="row between" style={{ marginBottom: 12 }}>
-                <span className="smallcaps">Market readiness</span>
-                <span className="mono" style={{ color: "var(--accent)" }}>84/100</span>
-              </div>
-              <div style={{ height: 4, background: "var(--line)", borderRadius: 2, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: "84%", background: "var(--accent)" }} />
-              </div>
-              <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>Connect 2FA and verify your X handle to reach 100%.</p>
-            </div>
           </div>
         </section>
 
@@ -253,7 +203,7 @@ export default function LandingPage() {
             <Link href="/miniapps" className="btn lg ghost">Buy & sell <Icon.arrow /></Link>
           </div>
           <div className="row" style={{ marginTop: 32, gap: 32, flexWrap: "wrap" }}>
-            {[[`${fmtETH(totalPrincipal)} Ξ`, "Listed"], [String(loans.length), "Active loans"], ["Live DB", "Data source"]].map(([v, k]) => (
+            {[[`${fmtETH(totalPrincipal)} Ξ`, "Listed"], [String(loans.length), "Active loans"]].map(([v, k]) => (
               <div key={k} className="col" style={{ gap: 2 }}>
                 <span className="mono" style={{ fontSize: 20 }}>{v}</span>
                 <span className="smallcaps">{k}</span>
