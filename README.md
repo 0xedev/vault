@@ -8,6 +8,7 @@ Built from a [Claude Design](https://claude.ai/design) handoff bundle.
 
 ```bash
 npm install
+cp .env.example .env.local # or set DATABASE_URL in your shell
 npm run dev      # http://localhost:3000
 npm run build    # production build
 ```
@@ -33,7 +34,7 @@ npm run build    # production build
 - **Next.js 16** (App Router) with TypeScript
 - **CSS custom properties** for theming (dark/light, solid/glass, density)
 - Google Fonts: Geist, Instrument Serif, JetBrains Mono
-- Mock data layer — no external API
+- Live Neon/Postgres API routes. `DATABASE_URL` is required; endpoints return an explicit 503 when it is missing.
 
 ## Theme system
 

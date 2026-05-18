@@ -30,7 +30,7 @@ export default function HistoryPage() {
             <th>ID</th><th>Type</th><th>Asset</th><th className="right">Value</th><th>Counterparty</th><th>Deadline</th><th></th>
           </tr></thead>
           <tbody>
-            {escrows.map((e, i) => (
+            {escrows.map((e) => (
               <tr key={e.id}>
                 <td className="mono">{e.id}</td>
                 <td>{e.kind}</td>

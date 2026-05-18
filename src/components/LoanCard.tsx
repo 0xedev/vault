@@ -10,9 +10,10 @@ export default function LoanCard({ l }: { l: Loan }) {
     <Link href={`/detail?id=${l.id}`} className="loan-card">
       <div style={{ position: "relative" }}>
         <NFTArt seed={l.coll} label={l.token} />
-        <span className="pill floor-pill" style={{ position: "absolute", top: 8, right: 8 }}>
+        <span className="pill floor-pill" style={{ position: "absolute", top: 8, right: 8, gap: 4 }}>
           <span className="pdot" style={{ background: "var(--gold)" }} />
           <span className="nowrap">{fmtETH(l.value)} Ξ floor</span>
+          <span className="mono" style={{ fontSize: 9, opacity: 0.6, marginLeft: 2 }}>±3%</span>
         </span>
       </div>
       <div className="row between">

@@ -1,17 +1,23 @@
-import { neon } from "@neondatabase/serverless";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
+import { mapLoanListing } from "@/lib/marketplace";
 
-function getDb() {
-  if (!process.env.DATABASE_URL) return null;
-  return neon(process.env.DATABASE_URL);
-}
+const listingSchema = z.object({
+  id: z.string().min(1).optional(),
+  seller: z.string().startsWith("0x").min(10),
+  amount: z.number().positive(),
+  apr: z.number().min(0).max(100),
+  term: z.number().int().positive().max(365),
+  collection: z.string().min(1),
+  tokenId: z.string().min(1),
+  ltv: z.number().min(0).max(100),
+  value: z.number().nonnegative().optional(),
+});
 
 export async function GET(req: NextRequest) {
-  const db = getDb();
-  if (!db) {
-    const { LOANS } = await import("@/lib/data");
-    return NextResponse.json({ data: LOANS, total: LOANS.length });
-  }
+  const db = getDatabase();
+  if (!db) return databaseRequired();
 
   const url = new URL(req.url);
   const status = url.searchParams.get("status") || "all";
@@ -23,28 +29,47 @@ export async function GET(req: NextRequest) {
   let countRows: Record<string, unknown>[];
 
   if (status === "all") {
-    rows = await db`SELECT * FROM listings WHERE marketplace = 'nft_loan' LIMIT ${limit} OFFSET ${offset}`;
-    countRows = await db`SELECT COUNT(*) as count FROM listings WHERE marketplace = 'nft_loan'`;
+    rows = await db`SELECT * FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' LIMIT ${limit} OFFSET ${offset}` as Record<string, unknown>[];
+    countRows = await db`SELECT COUNT(*) as count FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled'` as Record<string, unknown>[];
   } else {
-    rows = await db`SELECT * FROM listings WHERE marketplace = 'nft_loan' AND collateral_data->>'status' = ${status} LIMIT ${limit} OFFSET ${offset}`;
-    countRows = await db`SELECT COUNT(*) as count FROM listings WHERE marketplace = 'nft_loan' AND collateral_data->>'status' = ${status}`;
+    rows = await db`SELECT * FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} LIMIT ${limit} OFFSET ${offset}` as Record<string, unknown>[];
+    countRows = await db`SELECT COUNT(*) as count FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' AND collateral_data->>'status' = ${status}` as Record<string, unknown>[];
   }
 
   const total = parseInt(countRows[0]?.count as string || "0");
 
-  const data = rows.map((r: Record<string, unknown>) => {
-    const cd = typeof r.collateral_data === "string" ? JSON.parse(r.collateral_data as string) : (r.collateral_data || {});
-    return {
-      id: r.id, coll: cd.coll || 0, token: cd.token || "", amt: Number(r.price),
-      apr: cd.apr || 0, term: cd.term || 0, ltv: cd.ltv || 0,
-      status: cd.status || r.status, bid: cd.bid || 0, value: cd.value || 0,
-      borrower: String(r.seller_address || "").slice(0, 6) + "..." + String(r.seller_address || "").slice(-4),
-    };
-  });
+  const data = rows.map(mapLoanListing);
 
   if (sort === "apr") data.sort((a, b) => b.apr - a.apr);
   if (sort === "amt") data.sort((a, b) => b.amt - a.amt);
   if (sort === "ltv") data.sort((a, b) => a.ltv - b.ltv);
 
   return NextResponse.json({ data, total, offset, limit });
+}
+
+export async function POST(req: NextRequest) {
+  const body = await req.json();
+  const parsed = listingSchema.safeParse(body);
+  if (!parsed.success) return badRequest("Invalid listing", parsed.error.flatten());
+
+  const db = getDatabase();
+  if (!db) return databaseRequired();
+
+  const data = parsed.data;
+  const id = data.id || `L-${Date.now()}`;
+  const collateralData = JSON.stringify({
+    collection: data.collection,
+    token: data.tokenId,
+    apr: data.apr,
+    term: data.term,
+    ltv: data.ltv,
+    status: "open",
+    value: data.value || 0,
+  });
+
+  await db`INSERT INTO users (address) VALUES (${data.seller}) ON CONFLICT (address) DO NOTHING`;
+  await db`INSERT INTO listings (id, seller_address, marketplace, title, price, collateral_data, status, moderation_status)
+    VALUES (${id}, ${data.seller}, 'nft_loan', ${`${data.collection} ${data.tokenId}`}, ${data.amount}, ${collateralData}, 'active', 'pending')`;
+
+  return NextResponse.json({ data: { id, ...data, status: "open" } }, { status: 201 });
 }

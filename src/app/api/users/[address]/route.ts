@@ -1,23 +1,16 @@
-import { neon } from "@neondatabase/serverless";
 import { NextRequest, NextResponse } from "next/server";
-
-function getDb() {
-  if (!process.env.DATABASE_URL) return null;
-  return neon(process.env.DATABASE_URL);
-}
+import { databaseRequired, getDatabase } from "@/lib/api";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ address: string }> }
 ) {
   const { address } = await params;
-  const db = getDb();
+  const db = getDatabase();
 
-  if (!db) {
-    return NextResponse.json({ data: { address, joinedAt: "2024-01-01", trades: 42, reputation: 4.8, lockedBalance: 0, role: "user" } });
-  }
+  if (!db) return databaseRequired();
 
-  const rows = await db`SELECT * FROM users WHERE address = ${address}`;
+  const rows = await db`SELECT * FROM users WHERE address = ${address}` as Record<string, unknown>[];
   if (rows.length === 0) {
     return NextResponse.json({ data: { address, trades: 0, reputation: 0, lockedBalance: 0, role: "user" } });
   }

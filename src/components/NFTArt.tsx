@@ -10,8 +10,7 @@ export default function NFTArt({ seed = 0, label, size = "100%" }: { seed?: numb
     ["#013A8E", "#7F9DC5", "#063D91"],
   ];
   const p = palettes[seed % palettes.length];
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const n = (_k: number) => ((Math.sin(seed * 12.9 + _k * 78.2) * 43758.5) % 1 + 1) % 1;
+  const n = (offset: number) => ((Math.sin(seed * 12.9 + offset * 78.2) * 43758.5) % 1 + 1) % 1;
   const variant = seed % 5;
 
   return (

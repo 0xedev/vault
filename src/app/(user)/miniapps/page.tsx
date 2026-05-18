@@ -4,18 +4,319 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
 import { appColor, fmtCompact } from "@/lib/utils";
+import { useWallet } from "@/components/WalletProvider";
+import { writeListMiniApp, hashMetadata, verificationCode, parseContractError } from "@/lib/contract";
+import { parseEther, type Address } from "viem";
 import type { MiniApp } from "@/lib/data";
 
+const DELIVERABLE_OPTIONS = [
+  { key: "source", label: "Source code repo" },
+  { key: "domain", label: "Domain & DNS" },
+  { key: "social", label: "Social handles (X / Farcaster / TG)" },
+  { key: "contract", label: "Smart contract owner role" },
+  { key: "keys", label: "API keys & env vars" },
+  { key: "db", label: "Database / hosting" },
+  { key: "docs", label: "Documentation & onboarding" },
+  { key: "revenue", label: "Revenue streams (tx fees, subs)" },
+] as const;
+
+function ListMiniAppModal({ onClose }: { onClose: () => void }) {
+  const { address } = useWallet();
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [repo, setRepo] = useState("");
+  const [description, setDescription] = useState("");
+  const [deliverables, setDeliverables] = useState<Record<string, boolean>>({});
+  const [dau, setDau] = useState("");
+  const [mrr, setMrr] = useState("");
+  const [price, setPrice] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [fetchingOg, setFetchingOg] = useState(false);
+  const [ogData, setOgData] = useState<{ image?: string; title?: string; description?: string; site?: string } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState("");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [verified, setVerified] = useState(false);
+
+  const checkVerification = async () => {
+    if (!url || !verifyCode) return;
+    setVerifying(true);
+    try {
+      const res = await fetch(`/api/verify?type=dns&domain=${encodeURIComponent(url)}&code=${verifyCode}`);
+      const json = await res.json();
+      if (json.verified) {
+        setVerified(true);
+        setDone("Ownership verified! Listing is now visible to buyers.");
+      } else {
+        setError(`Not verified yet. ${json.reason || "DNS TXT record not found."}`);
+      }
+    } catch {
+      setError("Verification check failed. Try again.");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const toggleDeliverable = (key: string) => {
+    setDeliverables((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const fetchOgPreview = async (liveUrl: string) => {
+    if (!liveUrl || !/^https?:\/\//i.test(liveUrl)) return;
+    setFetchingOg(true);
+    try {
+      const res = await fetch(`/api/og-preview?url=${encodeURIComponent(liveUrl)}`);
+      const json = await res.json();
+      if (json.image) {
+        setOgData(json);
+        setImageUrl(json.image);
+        if (json.title && !name) setName(json.title);
+        if (json.description && !description) setDescription(json.description);
+      }
+    } catch {
+      // silent — user can set image manually
+    } finally {
+      setFetchingOg(false);
+    }
+  };
+
+  const handleUrlBlur = () => {
+    if (url) fetchOgPreview(url);
+  };
+
+  const handleSubmit = async () => {
+    if (!address) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      const selectedDeliverables = DELIVERABLE_OPTIONS
+        .filter((d) => deliverables[d.key])
+        .map((d) => d.label);
+
+      // 1. Build metadata, hash it, store on-chain
+      const metadata = {
+        name,
+        description,
+        url,
+        repo,
+        image: imageUrl,
+        deliverables: selectedDeliverables,
+        dau: Number(dau || 0),
+        mrr: Number(mrr || 0),
+        price: Number(price),
+        stack: repo.includes("github") ? ["GitHub", "Source available"] : ["Source pending"],
+        createdAt: new Date().toISOString(),
+      };
+      const metaHash = hashMetadata(metadata);
+      const priceWei = parseEther(price || "0");
+
+      // 2. Store on-chain
+      await writeListMiniApp(address as Address, priceWei, metaHash);
+
+      // 3. POST to API
+      const res = await fetch("/api/marketplace/mini-apps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sellerAddress: address,
+          title: name,
+          description,
+          price: Number(price),
+          imageUrl,
+          data: {
+            name,
+            kind: "Mini App",
+            dau: Number(dau || 0),
+            mrr: Number(mrr || 0),
+            stack: metadata.stack,
+            source: Boolean(repo),
+            verified: false,
+            age: "New",
+            url,
+            repo,
+            includes: selectedDeliverables,
+            imageUrl,
+            metadataHash: metaHash,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Unable to submit listing");
+      setVerifyCode(verificationCode(metaHash));
+      setDone("Listed on-chain. Verify ownership to make it visible to buyers.");
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+        <div className="modal-h">
+          <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>List Mini App</h3>
+          <button className="btn ghost sm" onClick={onClose}><Icon.x /></button>
+        </div>
+        <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14, maxHeight: "70vh", overflowY: "auto" }}>
+          <div className="col" style={{ gap: 4 }}>
+            <span className="label">Project Name</span>
+            <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. On-Chain Poker" />
+          </div>
+
+          <div className="grid grid-3" style={{ gap: 12 }}>
+            <div className="col" style={{ gap: 4 }}>
+              <span className="label">DAU</span>
+              <input className="input mono" value={dau} onChange={e => setDau(e.target.value)} placeholder="1.2k" />
+            </div>
+            <div className="col" style={{ gap: 4 }}>
+              <span className="label">MRR (Ξ)</span>
+              <input className="input mono" value={mrr} onChange={e => setMrr(e.target.value)} placeholder="0.5" />
+            </div>
+            <div className="col" style={{ gap: 4 }}>
+              <span className="label">Price (Ξ)</span>
+              <input className="input mono" value={price} onChange={e => setPrice(e.target.value)} placeholder="12" />
+            </div>
+          </div>
+
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            <div className="col" style={{ gap: 4 }}>
+              <span className="label">Live URL</span>
+              <input className="input" value={url} onChange={e => setUrl(e.target.value)} onBlur={handleUrlBlur} placeholder="https://..." />
+            </div>
+            <div className="col" style={{ gap: 4 }}>
+              <span className="label">Repository</span>
+              <input className="input" value={repo} onChange={e => setRepo(e.target.value)} placeholder="GitHub URL" />
+            </div>
+          </div>
+
+          {/* OG image preview */}
+          <div className="col" style={{ gap: 6 }}>
+            <span className="label">Preview image {fetchingOg && <span className="muted" style={{ fontWeight: 400 }}>fetching…</span>}</span>
+            <div className="row" style={{ gap: 10 }}>
+              <input
+                className="input"
+                value={imageUrl}
+                onChange={e => setImageUrl(e.target.value)}
+                placeholder="Image URL (auto-fetched from OG, or paste manually)"
+                style={{ flex: 1 }}
+              />
+              <button className="btn sm" onClick={() => fetchOgPreview(url)} disabled={fetchingOg || !url} style={{ flexShrink: 0 }}>
+                {fetchingOg ? "…" : "Re-fetch"}
+              </button>
+            </div>
+            {imageUrl && (
+              <div style={{ width: "100%", aspectRatio: "16/10", borderRadius: 8, overflow: "hidden", background: "var(--surface-2)", border: "1px solid var(--line)" }}>
+                <img
+                  src={imageUrl}
+                  alt="Preview"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="col" style={{ gap: 4 }}>
+            <span className="label">Project Description</span>
+            <textarea
+              className="input"
+              style={{ minHeight: 60, resize: "vertical", padding: "10px 12px" }}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="What does this app do?"
+            />
+          </div>
+
+          {/* Deliverables checklist grid */}
+          <div className="col" style={{ gap: 6 }}>
+            <span className="label">Deliverables ({Object.values(deliverables).filter(Boolean).length} selected)</span>
+            <div className="grid grid-2" style={{ gap: 6 }}>
+              {DELIVERABLE_OPTIONS.map((d) => (
+                <label
+                  key={d.key}
+                  className="check"
+                  style={{
+                    padding: "8px 10px",
+                    border: deliverables[d.key] ? "1px solid var(--accent)" : "1px solid var(--line)",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    background: deliverables[d.key] ? "rgba(127,157,197,0.08)" : "transparent",
+                    fontSize: 12.5,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!deliverables[d.key]}
+                    onChange={() => toggleDeliverable(d.key)}
+                    style={{ accentColor: "var(--accent)" }}
+                  />
+                  {d.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="warn-banner">
+            <Icon.warn />
+            <div style={{ fontSize: 11 }}>
+              Listing is stored on-chain and enters moderation. Platform fee of 2.5% applies on successful escrow release.
+            </div>
+          </div>
+          {error && <div className="warn-banner" style={{ color: "var(--risk)" }}>{error}</div>}
+          {done && (
+            <div className="card" style={{ padding: 14, background: verified ? "rgba(127,157,197,0.12)" : "rgba(127,157,197,0.08)", border: `1px solid ${verified ? "var(--accent)" : "var(--line)"}` }}>
+              <div className="pill funded" style={{ width: "fit-content", marginBottom: 10 }}><span className="pdot" />{done}</div>
+              {!verified && (
+                <>
+                  <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4 }}>Prove ownership:</div>
+                    <div className="col" style={{ gap: 4 }}>
+                      <span>Add this TXT record to your domain DNS:<br /><code className="mono" style={{ background: "var(--surface-2)", padding: "2px 6px", borderRadius: 3, fontSize: 11 }}>vault-verify={verifyCode}</code></span>
+                      <span className="muted-2">Or add <code className="mono" style={{ background: "var(--surface-2)", padding: "1px 5px", borderRadius: 3, fontSize: 10 }}>vault-verify: {verifyCode}</code> to your repo README.</span>
+                    </div>
+                  </div>
+                  <button className="btn sm primary" onClick={checkVerification} disabled={verifying}>
+                    {verifying ? "Checking DNS…" : "Check verification"}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="modal-f">
+          <button className="btn" style={{ flex: 1 }} onClick={onClose}>Cancel</button>
+          <button className="btn primary lg" style={{ flex: 1 }} onClick={handleSubmit} disabled={submitting || !name || !price || !url}>
+            {submitting ? "Signing & listing…" : "List Mini App"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MiniAppsPage() {
+  const { isConnected, connect } = useWallet();
+  const [showListModal, setShowListModal] = useState(false);
   const [apps, setApps] = useState<MiniApp[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("dau");
 
   useEffect(() => {
     fetch("/api/marketplace/mini-apps")
-      .then((r) => r.json()).then((j) => { setApps(j.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load mini apps");
+        return json;
+      }).then((j) => { setApps(j.data || []); setLoading(false); })
+      .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load mini apps"); setLoading(false); });
   }, []);
 
   const kinds = ["all", ...new Set(apps.map(a => a.kind))];
@@ -39,9 +340,14 @@ export default function MiniAppsPage() {
         </div>
         <div className="row" style={{ gap: 18, alignItems: "center", flex: "0 0 auto", flexWrap: "wrap" }}>
           <div className="col right" style={{ gap: 1 }}><span className="smallcaps">Open listings</span><span className="mono" style={{ fontSize: 14 }}>{apps.length}</span></div>
-          <div className="col right" style={{ gap: 1 }}><span className="smallcaps">In escrow</span><span className="mono" style={{ fontSize: 14 }}>226.0 Ξ</span></div>
+          <div className="col right" style={{ gap: 1 }}><span className="smallcaps">Verified</span><span className="mono" style={{ fontSize: 14 }}>{apps.filter((app) => app.verified).length}</span></div>
+          <button className="btn primary" onClick={() => isConnected ? setShowListModal(true) : connect()}>
+            {isConnected ? "List Mini App" : "Connect to list"}
+          </button>
         </div>
       </div>
+
+      {showListModal && <ListMiniAppModal onClose={() => setShowListModal(false)} />}
 
       <div className="card" style={{ padding: 12, marginBottom: 18 }}>
         <div className="row" style={{ gap: 16, flexWrap: "wrap" }}>
@@ -64,12 +370,16 @@ export default function MiniAppsPage() {
         </div>
       </div>
 
-      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : (
+      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : (
         <div className="grid grid-3">
           {filt.map(a => (
             <Link href="/deals" key={a.id} className="loan-card">
               <div style={{ position: "relative", aspectRatio: "16/10", background: `linear-gradient(135deg, ${appColor(a.id, 0)}, ${appColor(a.id, 1)})`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                <div style={{ fontFamily: "var(--display)", fontSize: 36, color: "#fff", letterSpacing: -0.5, textShadow: "0 2px 12px rgba(0,0,0,.3)" }}>{a.name}</div>
+                {a.imageUrl ? (
+                  <img src={a.imageUrl} alt={a.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                ) : (
+                  <div style={{ fontFamily: "var(--display)", fontSize: 36, color: "#fff", letterSpacing: -0.5, textShadow: "0 2px 12px rgba(0,0,0,.3)" }}>{a.name}</div>
+                )}
                 <span className="pill" style={{ position: "absolute", top: 10, left: 10, background: "rgba(0,0,0,0.45)", borderColor: "transparent" }}><span className="pdot" style={{ background: a.verified ? "var(--gold)" : "var(--ink-4)" }}/>{a.kind}</span>
                 {a.verified && <span className="pill gold" style={{ position: "absolute", top: 10, right: 10 }}><Icon.check style={{ width: 11, height: 11 }}/> Verified</span>}
               </div>

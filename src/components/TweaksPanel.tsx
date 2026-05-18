@@ -11,6 +11,8 @@ const TWEAKS_STYLE = `
   border:.5px solid rgba(255,255,255,.6);border-radius:14px;
   box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
   font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+@media(max-width:480px){.twk-panel{left:12px;right:12px;bottom:12px;width:auto;
+  max-height:calc(100vh - 24px)}}
 .twk-hd{display:flex;align-items:center;justify-content:space-between;
   padding:10px 8px 10px 14px;cursor:move;user-select:none}
 .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
@@ -49,6 +51,7 @@ export default function TweaksPanel() {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef({ x: 16, y: 16 });
+  const [offset, setOffset] = useState({ x: 16, y: 16 });
 
   const clampToViewport = useCallback(() => {
     const panel = panelRef.current;
@@ -58,6 +61,7 @@ export default function TweaksPanel() {
       x: Math.min(window.innerWidth - w - 16, Math.max(16, offsetRef.current.x)),
       y: Math.min(window.innerHeight - h - 16, Math.max(16, offsetRef.current.y)),
     };
+    setOffset(offsetRef.current);
     panel.style.right = offsetRef.current.x + "px";
     panel.style.bottom = offsetRef.current.y + "px";
   }, []);
@@ -109,7 +113,7 @@ export default function TweaksPanel() {
         </svg>
       </button>
       {open && (
-        <div ref={panelRef} className="twk-panel" style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+        <div ref={panelRef} className="twk-panel" style={{ right: offset.x, bottom: offset.y }}>
           <div className="twk-hd" onMouseDown={onDragStart}>
             <b>Tweaks</b>
             <button className="twk-x-btn" onMouseDown={e => e.stopPropagation()} onClick={() => setOpen(false)}>✕</button>

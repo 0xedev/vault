@@ -9,12 +9,26 @@ export type ThemeSettings = {
   accent: string;
 };
 
+const STORAGE_KEY = "vault-theme";
+
 const defaults: ThemeSettings = {
-  theme: "light",
+  theme: "dark",
   card: "solid",
   density: "regular",
   accent: "#7F9DC5",
 };
+
+function loadSettings(): ThemeSettings {
+  if (typeof window === "undefined") return defaults;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...defaults, ...parsed };
+    }
+  } catch {}
+  return defaults;
+}
 
 const ThemeContext = createContext<{
   settings: ThemeSettings;
@@ -26,10 +40,14 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<ThemeSettings>(defaults);
+  const [settings, setSettings] = useState<ThemeSettings>(loadSettings);
 
   const setSetting = useCallback(<K extends keyof ThemeSettings>(key: K, value: ThemeSettings[K]) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettings(prev => {
+      const next = { ...prev, [key]: value };
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
   }, []);
 
   useEffect(() => {

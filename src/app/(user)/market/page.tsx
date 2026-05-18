@@ -1,16 +1,18 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
 import Icon from "@/components/icons";
 import LoanCard from "@/components/LoanCard";
 import Dropdown from "@/components/Dropdown";
 import NFTArt from "@/components/NFTArt";
 import { COLLECTIONS } from "@/lib/data";
-import { NFT_CONTRACTS } from "@/lib/nft-contracts";
 import { getNFTsForOwner } from "@/lib/alchemy";
 import { useWallet } from "@/components/WalletProvider";
+import { approveNft, getEscrowAddress, writeListNFT, parseContractError } from "@/lib/contract";
+import { parseEther } from "viem";
 import type { Loan } from "@/lib/data";
+
+type LoanWithSeller = Loan & { sellerAddress?: string };
 
 function ListNFTModal({ onClose }: { onClose: () => void }) {
   const { address } = useWallet();
@@ -23,7 +25,8 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [showDetected, setShowDetected] = useState(false);
-  const [detectedNfts, setDetectedNfts] = useState<{ collection: string; tokenId: string; seed: number; value: number }[]>([]);
+  const [detectedNfts, setDetectedNfts] = useState<{ collection: string; tokenId: string; seed: number; value: number; contractAddress: string }[]>([]);
+  const [selectedContract, setSelectedContract] = useState("");
   const [scanning, setScanning] = useState(false);
   const [collSeed] = useState(() => Math.floor(Math.random() * 100));
 
@@ -44,6 +47,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           tokenId: n.tokenId.includes("#") ? n.tokenId : `#${n.tokenId}`,
           seed: parseInt(n.tokenId) || Math.floor(Math.random() * 10000),
           value: n.floorPriceEth || 0,
+          contractAddress: n.contract.address,
         }));
       setDetectedNfts(found);
     } catch {
@@ -79,16 +83,37 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     setError("");
 
     try {
+      if (!address) throw new Error("Wallet not connected");
+
       // 1. Sign a message proving intent to list
-      if (window.ethereum && address) {
-        const message = `List ${collection} ${tokenId} as collateral for ${amount} Ξ loan at ${apr}% APR / ${term} days on Baseshire Hathaway`;
+      if (window.ethereum) {
+        const message = `List ${collection} ${tokenId} as collateral for ${amount} Ξ loan at ${apr}% APR / ${term} days on Vault`;
         await window.ethereum.request({
           method: "personal_sign",
           params: [message, address],
         });
       }
 
-      // 2. POST to API
+      // 2. Approve NFT for escrow contract, then list on-chain
+      const nftTokenId = BigInt(parseInt(tokenId.replace("#", "")) || collSeed);
+      const amountWei = parseEther(amount || "0");
+      const aprBps = Math.round(Number(apr) * 100); // e.g. 14.2 → 1420
+      const termDays = Number(term);
+
+      if (selectedContract) {
+        const escrowAddr = getEscrowAddress();
+        await approveNft(address as `0x${string}`, selectedContract as `0x${string}`, nftTokenId, escrowAddr);
+        await writeListNFT(
+          address as `0x${string}`,
+          selectedContract as `0x${string}`,
+          nftTokenId,
+          amountWei,
+          aprBps,
+          termDays,
+        );
+      }
+
+      // 3. POST to API
       const res = await fetch("/api/listings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -97,7 +122,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           seller: address || "0x0000",
           amount: Number(amount),
           apr: Number(apr),
-          term: Number(term),
+          term: termDays,
           collection,
           tokenId,
           ltv: impliedLtv,
@@ -107,15 +132,16 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       if (!res.ok) throw new Error("Listing failed");
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      setError(parseContractError(err));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const selectNFT = (c: string, t: string, value: number) => {
+  const selectNFT = (c: string, t: string, value: number, contractAddr: string) => {
     setCollection(c);
     setTokenId(t);
+    setSelectedContract(contractAddr);
     setAmount(value ? (value * 0.5).toFixed(1) : "");
     setShowDetected(false);
   };
@@ -156,7 +182,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                   {detectedNfts.map((n, i) => (
                     <button
                       key={i}
-                      onClick={() => selectNFT(n.collection, n.tokenId, n.value)}
+                      onClick={() => selectNFT(n.collection, n.tokenId, n.value, n.contractAddress)}
                       className="card"
                       style={{
                         padding: 10, display: "flex", alignItems: "center", gap: 10,
@@ -205,9 +231,16 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                 <div><span className="label">Term (days)</span><input className="input mono" type="number" value={term} onChange={e => setTerm(e.target.value)} /></div>
                 <div className="col" style={{ gap: 6, justifyContent: "flex-end" }}>
                   <span className="smallcaps">Implied LTV</span>
-                  <span className="mono" style={{ fontSize: 18, color: impliedLtv > 65 ? "var(--warn)" : "var(--accent)" }}>{impliedLtv}%</span>
+                  <span className="mono" style={{ fontSize: 18, color: impliedLtv > 75 ? "var(--risk)" : impliedLtv > 65 ? "var(--warn)" : "var(--accent)" }}>{impliedLtv}%</span>
                 </div>
               </div>
+
+              {impliedLtv > 75 && (
+                <div className="warn-banner" style={{ background: "rgba(255, 71, 71, 0.05)", borderColor: "var(--risk)", color: "var(--risk)" }}>
+                  <Icon.warn />
+                  <div style={{ fontSize: 12 }}>High LTV detected. Loans above 75% LTV are significantly less likely to be funded by lenders.</div>
+                </div>
+              )}
 
               <div className="row" style={{ gap: 8 }}>
                 <button className="btn" style={{ flex: 1 }} onClick={() => setStep(0)}>← Back</button>
@@ -227,14 +260,14 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                 <div className="kv"><span className="k">Term</span><span className="v mono">{term} days</span></div>
                 <div className="kv"><span className="k">Implied LTV</span><span className="v mono" style={{ color: impliedLtv > 65 ? "var(--warn)" : "var(--accent)" }}>{impliedLtv}%</span></div>
                 <div className="kv"><span className="k">Platform fee (1.5%)</span><span className="v mono">{platformFee.toFixed(3)} Ξ</span></div>
-                <div className="kv"><span className="k">You receive at origination</span><span className="v mono" style={{ color: "var(--accent)" }}>{(Number(amount) - platformFee).toFixed(3)} Ξ</span></div>
+                <div className="kv"><span className="k">You receive when funded</span><span className="v mono" style={{ color: "var(--accent)" }}>{(Number(amount) - platformFee).toFixed(3)} Ξ</span></div>
               </div>
 
               <div className="warn-banner" style={{ alignItems: "flex-start" }}>
                 <Icon.warn style={{ flexShrink: 0, marginTop: 2 }} />
                 <div style={{ fontSize: 12 }}>
-                  <div style={{ fontWeight: 500, marginBottom: 2 }}>You are about to sign a message confirming this listing.</div>
-                  <span className="muted-2">Your NFT stays in your wallet. It will only be transferred to escrow when a lender accepts and funds the loan.</span>
+                  <div style={{ fontWeight: 500, marginBottom: 2 }}>Listing transfers your NFT to escrow.</div>
+                  <span className="muted-2">Your NFT is locked in the escrow contract. You receive ETH only when you accept a lender&apos;s offer. If you default, the lender claims the NFT.</span>
                 </div>
               </div>
 
@@ -257,20 +290,29 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
 export default function MarketplacePage() {
   const [loans, setLoans] = useState<Loan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("apr");
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [showListModal, setShowListModal] = useState(false);
-  const { isConnected, connect, isConnecting } = useWallet();
+  const { isConnected, connect, isConnecting, address } = useWallet();
 
   useEffect(() => {
     fetch("/api/listings")
-      .then((r) => r.json()).then((j) => { setLoans(j.data || []); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load listings");
+        return json;
+      }).then((j) => { setLoans(j.data || []); setLoading(false); })
+      .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load listings"); setLoading(false); });
   }, []);
 
   const filtered = useMemo(() => {
-    let r = loans.filter((l) => filter === "all" || l.status === filter);
+    let r = loans.filter((l) => {
+      if (filter === "all") return true;
+      if (filter === "my") return Boolean(address) && (l as LoanWithSeller).sellerAddress?.toLowerCase() === address?.toLowerCase();
+      return l.status === filter;
+    });
     if (collectionFilter !== "all") {
       const collIdx = COLLECTIONS.indexOf(collectionFilter as typeof COLLECTIONS[number]);
       if (collIdx >= 0) r = r.filter((l) => l.coll === collIdx);
@@ -279,10 +321,11 @@ export default function MarketplacePage() {
     if (sort === "amt") r = [...r].sort((a, b) => b.amt - a.amt);
     if (sort === "ltv") r = [...r].sort((a, b) => a.ltv - b.ltv);
     return r;
-  }, [filter, sort, loans, collectionFilter]);
+  }, [filter, sort, loans, collectionFilter, address]);
 
   const chipData: [string, string, number][] = [
     ["all", "All", loans.length],
+    ["my", "My Listings", loans.filter((l) => Boolean(address) && (l as LoanWithSeller).sellerAddress?.toLowerCase() === address?.toLowerCase()).length],
     ["open", "Open", loans.filter((l) => l.status === "open").length],
     ["funded", "Funded", loans.filter((l) => l.status === "funded").length],
     ["warn", "At risk", loans.filter((l) => l.status === "warn").length],
@@ -342,6 +385,8 @@ export default function MarketplacePage() {
 
       {loading ? (
         <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading listings…</div>
+      ) : error ? (
+        <div className="warn-banner" style={{ padding: 18 }}>{error}</div>
       ) : filtered.length === 0 ? (
         <div className="muted" style={{ padding: 80, textAlign: "center" }}>No loans match this filter.</div>
       ) : (
