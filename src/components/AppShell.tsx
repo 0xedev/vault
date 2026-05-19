@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, Suspense, useEffect } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import TopBar from "./TopBar";
 import SideBar from "./SideBar";
@@ -8,6 +9,15 @@ import TweaksPanel from "./TweaksPanel";
 import { ThemeProvider } from "./ThemeProvider";
 import { WalletProvider } from "./WalletProvider";
 import { RoleProvider } from "./RoleProvider";
+import Icon from "./icons";
+
+const mobileNavItems = [
+  { href: "/", label: "Home", icon: <Icon.home /> },
+  { href: "/market", label: "Market", icon: <Icon.market /> },
+  { href: "/escrow", label: "Escrow", icon: <Icon.escrow /> },
+  { href: "/deals", label: "Deals", icon: <Icon.deal /> },
+  { href: "/portfolio", label: "You", icon: <Icon.shield /> },
+];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = useState(false);
@@ -40,6 +50,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <div className={"scrim" + (drawer ? " open" : "")} onClick={() => setDrawer(false)}/>
             {children}
             <TweaksPanel />
+            <nav className="mobile-bottom-nav" aria-label="Primary mobile navigation">
+              {mobileNavItems.map((item) => {
+                const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href + "/"));
+                return (
+                  <Link key={item.href} href={item.href} className={active ? "active" : ""}>
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
           </div>
         </RoleProvider>
       </WalletProvider>
