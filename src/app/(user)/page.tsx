@@ -86,7 +86,7 @@ export default function LandingPage() {
   const [farcaster, setFarcaster] = useState<FarcasterAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const { role, setRole } = useRole();
-  const { address, isConnected, isConnecting, connect } = useWallet();
+  const { isConnected, isConnecting, connect } = useWallet();
 
   useEffect(() => {
     Promise.allSettled([
@@ -130,6 +130,9 @@ export default function LandingPage() {
   const primaryAction = role === "seller"
     ? { href: "/market", label: "List asset", sub: "NFT collateral or digital property" }
     : { href: "/market", label: "Browse deals", sub: "Loans, apps, handles, and FIDs" };
+  const secondaryAction = role === "seller"
+    ? { href: "/miniapps", label: "Browse comps" }
+    : { href: "/market", label: "List collateral" };
 
   return (
     <main className="main">
@@ -355,15 +358,168 @@ export default function LandingPage() {
       {/* MOBILE */}
       <div className="show-mobile mobile-home">
         <section className="mobile-hero-panel">
-          <div className="mobile-kicker">
-            <span className="live-dot" />
-            <span>{loading ? "Syncing markets" : "Live escrow market"}</span>
+          <div className="mobile-kicker-row">
+            <div className="mobile-kicker">
+              <span className="live-dot" />
+              <span>{loading ? "Syncing markets" : "Live escrow market"}</span>
+            </div>
+            {!isConnected && (
+              <button className="mobile-connect-nudge" onClick={connect} disabled={isConnecting}>
+                {isConnecting ? "Connecting…" : "Connect →"}
+              </button>
+            )}
           </div>
+
+          <div className="mobile-hero-stats">
+            <div className="mobile-hero-stat">
+              <strong>{totalListings}</strong>
+              <span>Listings</span>
+            </div>
+            <div className="mobile-hero-stat">
+              <strong>{fmtETH(totalPrincipal)} Ξ</strong>
+              <span>NFT principal</span>
+            </div>
+            <div className="mobile-hero-stat">
+              <strong>{activeLoans}</strong>
+              <span>Active loans</span>
+            </div>
+          </div>
+
+          <h1>Berkshire Hathaway<br />of <em>on-chain</em> assets.</h1>
+
           <div className="mobile-role-switch" aria-label="Homepage role">
             <button className={role === "buyer" ? "active" : ""} onClick={() => setRole("buyer")}>Buy / lend</button>
             <button className={role === "seller" ? "active" : ""} onClick={() => setRole("seller")}>Sell / borrow</button>
           </div>
+
+          <Link
+            href={primaryAction.href}
+            className="btn primary"
+            style={{ width: "100%", justifyContent: "center", marginTop: 10 }}
+          >
+            {primaryAction.label} <Icon.arrow />
+          </Link>
         </section>
+
+        <div className="mobile-market-intro">
+          <div>
+            <span className="eyebrow">Markets</span>
+            <h2>Choose where to deploy capital.</h2>
+          </div>
+          <span>{totalListings} opportunities</span>
+        </div>
+
+        <div className="mobile-market-cards">
+          <Link href="/market" className="mobile-mkt-card">
+            <div className="mobile-mkt-cover" style={{ background: "linear-gradient(135deg, #2C3E8C, #4A6CF7)" }}>
+              <div className="mobile-mkt-cover-content">
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, overflow: "hidden" }}><NFTArt seed={4200} /></div>
+                  <span className="mobile-mkt-name">NFT Loans</span>
+                </div>
+                <span className="mobile-mkt-count">{loans.length} live</span>
+              </div>
+            </div>
+            {topLoan ? (
+              <div className="mobile-mkt-preview">
+                <div style={{ width: 36, height: 36, borderRadius: 7, overflow: "hidden", flexShrink: 0 }}><NFTArt seed={topLoan.coll} /></div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{COLLECTIONS[topLoan.coll]} {topLoan.token}</span>
+                  <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{fmtETH(topLoan.amt)} Ξ · {topLoan.apr}% APR</span>
+                </div>
+                <span className="mobile-mkt-price">{topLoan.term}d</span>
+              </div>
+            ) : (
+              <div className="mobile-mkt-empty">No NFT loans yet - <strong>be first</strong></div>
+            )}
+            <div className="mobile-mkt-viewall">View all NFT loans -&gt;</div>
+          </Link>
+
+          <Link href="/miniapps" className="mobile-mkt-card">
+            <div className="mobile-mkt-cover" style={{ background: "linear-gradient(135deg, #C2410C, #F97316)" }}>
+              <div className="mobile-mkt-cover-content">
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--display)", fontSize: 16, color: "#fff" }}>M</div>
+                  <span className="mobile-mkt-name">Mini Apps</span>
+                </div>
+                <span className="mobile-mkt-count">{miniApps.length} listed</span>
+              </div>
+            </div>
+            {topMiniApp ? (
+              <div className="mobile-mkt-preview">
+                <div style={{ width: 36, height: 36, borderRadius: 7, flexShrink: 0, background: `linear-gradient(135deg, ${appColor(topMiniApp.id, 0)}, ${appColor(topMiniApp.id, 1)})`, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--display)", fontSize: 16, color: "#fff" }}>{topMiniApp.name.slice(0, 1)}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{topMiniApp.name}</span>
+                  <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{fmtCompact(topMiniApp.dau)} DAU · {topMiniApp.mrr} Ξ MRR</span>
+                </div>
+                <span className="mobile-mkt-price">{topMiniApp.price} Ξ</span>
+              </div>
+            ) : (
+              <div className="mobile-mkt-empty">No mini apps yet - <strong>be first</strong></div>
+            )}
+            <div className="mobile-mkt-viewall">View all mini apps -&gt;</div>
+          </Link>
+
+          <Link href="/x" className="mobile-mkt-card">
+            <div className="mobile-mkt-cover" style={{ background: "linear-gradient(135deg, #18181B, #3F3F46)" }}>
+              <div className="mobile-mkt-cover-content">
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}><Icon.xlogo style={{ width: 18, height: 18 }} /></div>
+                  <span className="mobile-mkt-name">X Accounts</span>
+                </div>
+                <span className="mobile-mkt-count">{xAccounts.length} handles</span>
+              </div>
+            </div>
+            {topXAccount ? (
+              <div className="mobile-mkt-preview">
+                <div className="x-avatar" style={{ width: 36, height: 36, fontSize: 13, flexShrink: 0 }}>
+                  {topXAccount.imageUrl ? (
+                    <img src={topXAccount.imageUrl} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  ) : topXAccount.handle.slice(1, 3).toUpperCase()}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{topXAccount.handle}</span>
+                  <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{fmtCompact(topXAccount.followers)} followers</span>
+                </div>
+                <span className="mobile-mkt-price">{topXAccount.price} Ξ</span>
+              </div>
+            ) : (
+              <div className="mobile-mkt-empty">No X accounts yet - <strong>be first</strong></div>
+            )}
+            <div className="mobile-mkt-viewall">View all X accounts -&gt;</div>
+          </Link>
+
+          <Link href="/farcaster" className="mobile-mkt-card">
+            <div className="mobile-mkt-cover" style={{ background: "linear-gradient(135deg, #6D28D9, #A67EE5)" }}>
+              <div className="mobile-mkt-cover-content">
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}><Icon.cast style={{ width: 18, height: 18 }} /></div>
+                  <span className="mobile-mkt-name">Farcaster</span>
+                </div>
+                <span className="mobile-mkt-count">{farcaster.length} FIDs</span>
+              </div>
+            </div>
+            {topFarcaster ? (
+              <div className="mobile-mkt-preview">
+                <div className="x-avatar" style={{ width: 36, height: 36, fontSize: 13, flexShrink: 0, background: "linear-gradient(135deg, #6D28D9, #A67EE5)", color: "#fff" }}>
+                  {topFarcaster.imageUrl ? (
+                    <img src={topFarcaster.imageUrl} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  ) : topFarcaster.handle.slice(0, 2).toUpperCase()}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 1, minWidth: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    @{topFarcaster.handle} <span className="mono" style={{ fontSize: 11, opacity: 0.6 }}>#{topFarcaster.fid}</span>
+                  </span>
+                  <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{fmtCompact(topFarcaster.followers)} followers</span>
+                </div>
+                <span className="mobile-mkt-price">{topFarcaster.price} Ξ</span>
+              </div>
+            ) : (
+              <div className="mobile-mkt-empty">No FIDs listed yet - <strong>be first</strong></div>
+            )}
+            <div className="mobile-mkt-viewall">View all Farcaster FIDs -&gt;</div>
+          </Link>
+        </div>
       </div>
 
       <footer className="row between" style={{ padding: "48px 0 0", color: "var(--ink-4)", fontSize: 12 }}>
