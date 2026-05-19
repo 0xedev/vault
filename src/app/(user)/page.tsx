@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import VaultMark from "@/components/VaultMark";
 import Icon from "@/components/icons";
@@ -121,44 +121,11 @@ export default function LandingPage() {
 
   const totalPrincipal = loans.reduce((sum, loan) => sum + loan.amt, 0);
   const totalListings = loans.length + miniApps.length + xAccounts.length + farcaster.length;
+  const activeLoans = loans.filter((l) => l.status === "funded").length;
   const topLoan = loans[0];
   const topMiniApp = miniApps[0];
   const topXAccount = xAccounts[0];
   const topFarcaster = farcaster[0];
-  const featured = useMemo(() => [
-    topLoan && {
-      href: "/market",
-      label: "NFT loan",
-      title: `${COLLECTIONS[topLoan.coll] || "NFT"} ${topLoan.token}`,
-      meta: `${fmtETH(topLoan.amt)} ETH · ${topLoan.apr}% APR`,
-      value: `${topLoan.term}d`,
-      icon: <NFTArt seed={topLoan.coll} label={topLoan.token} />,
-    },
-    topMiniApp && {
-      href: "/miniapps",
-      label: "Mini app",
-      title: topMiniApp.name,
-      meta: `${fmtCompact(topMiniApp.dau)} DAU · ${topMiniApp.mrr} ETH MRR`,
-      value: `${topMiniApp.price} ETH`,
-      icon: <div className="mobile-app-art" style={{ background: `linear-gradient(135deg, ${appColor(topMiniApp.id, 0)}, ${appColor(topMiniApp.id, 1)})` }}>{topMiniApp.name.slice(0, 1)}</div>,
-    },
-    topXAccount && {
-      href: "/x",
-      label: "X account",
-      title: topXAccount.handle,
-      meta: `${fmtCompact(topXAccount.followers)} followers · ${topXAccount.engagement}%`,
-      value: `${topXAccount.price} ETH`,
-      icon: <div className="mobile-social-art"><Icon.xlogo /></div>,
-    },
-    topFarcaster && {
-      href: "/farcaster",
-      label: "Farcaster",
-      title: `@${topFarcaster.handle}`,
-      meta: `${fmtCompact(topFarcaster.followers)} followers · /${topFarcaster.channel || "fid"}`,
-      value: `${topFarcaster.price} ETH`,
-      icon: <div className="mobile-social-art cast"><Icon.cast /></div>,
-    },
-  ].filter(Boolean), [topLoan, topMiniApp, topXAccount, topFarcaster]);
 
   const primaryAction = role === "seller"
     ? { href: "/market", label: "List asset", sub: "NFT collateral or digital property" }
@@ -392,99 +359,9 @@ export default function LandingPage() {
             <span className="live-dot" />
             <span>{loading ? "Syncing markets" : "Live escrow market"}</span>
           </div>
-          <h1>The Berkshire Hathaway of <em>on-chain</em> assets.</h1>
-          <p>List collateral, fund loans, or buy digital property with settlement handled in one place.</p>
-
           <div className="mobile-role-switch" aria-label="Homepage role">
             <button className={role === "buyer" ? "active" : ""} onClick={() => setRole("buyer")}>Buy / lend</button>
             <button className={role === "seller" ? "active" : ""} onClick={() => setRole("seller")}>Sell / borrow</button>
-          </div>
-
-          <div className="mobile-action-card">
-            <div>
-              <span className="smallcaps">Next action</span>
-              <strong>{primaryAction.label}</strong>
-              <span>{primaryAction.sub}</span>
-            </div>
-            <Link href={primaryAction.href} className="btn primary">Start <Icon.arrow /></Link>
-          </div>
-
-          <div className="mobile-stat-row">
-            <div><strong>{totalListings}</strong><span>Listings</span></div>
-            <div><strong>{fmtETH(totalPrincipal)} ETH</strong><span>NFT principal</span></div>
-            <div><strong>{isConnected ? `${address?.slice(0, 6)}...` : "Guest"}</strong><span>{isConnected ? "Wallet" : "Mode"}</span></div>
-          </div>
-        </section>
-
-        {!isConnected && (
-          <section className="mobile-connect-strip">
-            <div>
-              <strong>Connect to list, offer, and track escrows.</strong>
-              <span>You can still browse every marketplace without signing in.</span>
-            </div>
-            <button className="btn" onClick={connect} disabled={isConnecting}>{isConnecting ? "Connecting..." : "Connect"}</button>
-          </section>
-        )}
-
-        <section className="mobile-market-strip" aria-label="Marketplaces">
-          {[
-            { t: "NFT Loans", d: `${loans.length} live`, href: "/market", icon: <NFTArt seed={4200} /> },
-            { t: "Mini Apps", d: `${miniApps.length} listed`, href: "/miniapps", icon: <div className="mobile-app-art" style={{ background: `linear-gradient(135deg, ${appColor("mini", 0)}, ${appColor("mini", 1)})` }}>M</div> },
-            { t: "X Accounts", d: `${xAccounts.length} handles`, href: "/x", icon: <div className="mobile-social-art"><Icon.xlogo /></div> },
-            { t: "Farcaster", d: `${farcaster.length} FIDs`, href: "/farcaster", icon: <div className="mobile-social-art cast"><Icon.cast /></div> },
-          ].map((x) => (
-            <Link key={x.t} href={x.href} className="mobile-market-card">
-              <span className="mobile-market-icon">{x.icon}</span>
-              <strong>{x.t}</strong>
-              <span>{x.d}</span>
-            </Link>
-          ))}
-        </section>
-
-        <section className="mobile-section">
-          <div className="mobile-section-head">
-            <div>
-              <span className="eyebrow">Featured</span>
-              <h2>Best places to start</h2>
-            </div>
-            <Link href="/market">View all</Link>
-          </div>
-          <div className="mobile-feature-list">
-            {featured.length === 0 ? (
-              <div className="mobile-empty">
-                <NFTArt seed={77} />
-                <strong>No approved listings yet.</strong>
-                <span>Submit an asset, then approve it from admin to publish it here.</span>
-              </div>
-            ) : featured.map((item) => (
-              <Link key={item.title} href={item.href} className="mobile-feature-row">
-                <span className="feature-thumb">{item.icon}</span>
-                <span className="feature-copy">
-                  <small>{item.label}</small>
-                  <strong>{item.title}</strong>
-                  <em>{item.meta}</em>
-                </span>
-                <span className="feature-price">{item.value}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className="mobile-steps">
-          <div>
-            <span>1</span>
-            <strong>List or offer</strong>
-            <p>Choose the asset and terms.</p>
-          </div>
-          <div>
-            <span>2</span>
-            <strong>Lock escrow</strong>
-            <p>Funds or collateral move to escrow.</p>
-          </div>
-          <div>
-            <span>3</span>
-            <strong>Release safely</strong>
-            <p>Complete transfer or dispute.</p>
           </div>
         </section>
       </div>
