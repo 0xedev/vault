@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import VaultMark from "@/components/VaultMark";
 import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
 import StatusPill from "@/components/StatusPill";
 import LoanCard from "@/components/LoanCard";
+import { useRole } from "@/components/RoleProvider";
+import { useWallet } from "@/components/WalletProvider";
 
 import { COLLECTIONS } from "@/lib/data";
-import { fmtETH } from "@/lib/utils";
-import type { Loan } from "@/lib/data";
+import { fmtETH, fmtCompact, appColor } from "@/lib/utils";
+import type { Loan, MiniApp, XAccount, FarcasterAccount } from "@/lib/data";
 
 
 function Sparkline() {
@@ -79,22 +81,88 @@ function DashboardPreview({ loans }: { loans: Loan[] }) {
 
 export default function LandingPage() {
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [miniApps, setMiniApps] = useState<MiniApp[]>([]);
+  const [xAccounts, setXAccounts] = useState<XAccount[]>([]);
+  const [farcaster, setFarcaster] = useState<FarcasterAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { role, setRole } = useRole();
+  const { address, isConnected, isConnecting, connect } = useWallet();
 
   useEffect(() => {
-    fetch("/api/listings?limit=4")
-      .then(async (res) => {
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "Unable to load live listings");
-        return json;
-      })
-      .then((json) => setLoans(json.data || []))
-      .catch((err) => setError(err instanceof Error ? err.message : "Unable to load live listings"))
-      .finally(() => setLoading(false));
+    Promise.allSettled([
+      fetch("/api/listings?limit=4").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error);
+        return (json.data || []) as Loan[];
+      }),
+      fetch("/api/marketplace/mini-apps").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error);
+        return (json.data || []) as MiniApp[];
+      }),
+      fetch("/api/marketplace/x-accounts").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error);
+        return (json.data || []) as XAccount[];
+      }),
+      fetch("/api/marketplace/farcaster").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error);
+        return (json.data || []) as FarcasterAccount[];
+      }),
+    ]).then((results) => {
+      if (results[0].status === "fulfilled") setLoans(results[0].value);
+      if (results[1].status === "fulfilled") setMiniApps(results[1].value);
+      if (results[2].status === "fulfilled") setXAccounts(results[2].value);
+      if (results[3].status === "fulfilled") setFarcaster(results[3].value);
+      setLoading(false);
+    });
   }, []);
 
   const totalPrincipal = loans.reduce((sum, loan) => sum + loan.amt, 0);
+  const totalListings = loans.length + miniApps.length + xAccounts.length + farcaster.length;
+  const topLoan = loans[0];
+  const topMiniApp = miniApps[0];
+  const topXAccount = xAccounts[0];
+  const topFarcaster = farcaster[0];
+  const featured = useMemo(() => [
+    topLoan && {
+      href: "/market",
+      label: "NFT loan",
+      title: `${COLLECTIONS[topLoan.coll] || "NFT"} ${topLoan.token}`,
+      meta: `${fmtETH(topLoan.amt)} ETH · ${topLoan.apr}% APR`,
+      value: `${topLoan.term}d`,
+      icon: <NFTArt seed={topLoan.coll} label={topLoan.token} />,
+    },
+    topMiniApp && {
+      href: "/miniapps",
+      label: "Mini app",
+      title: topMiniApp.name,
+      meta: `${fmtCompact(topMiniApp.dau)} DAU · ${topMiniApp.mrr} ETH MRR`,
+      value: `${topMiniApp.price} ETH`,
+      icon: <div className="mobile-app-art" style={{ background: `linear-gradient(135deg, ${appColor(topMiniApp.id, 0)}, ${appColor(topMiniApp.id, 1)})` }}>{topMiniApp.name.slice(0, 1)}</div>,
+    },
+    topXAccount && {
+      href: "/x",
+      label: "X account",
+      title: topXAccount.handle,
+      meta: `${fmtCompact(topXAccount.followers)} followers · ${topXAccount.engagement}%`,
+      value: `${topXAccount.price} ETH`,
+      icon: <div className="mobile-social-art"><Icon.xlogo /></div>,
+    },
+    topFarcaster && {
+      href: "/farcaster",
+      label: "Farcaster",
+      title: `@${topFarcaster.handle}`,
+      meta: `${fmtCompact(topFarcaster.followers)} followers · /${topFarcaster.channel || "fid"}`,
+      value: `${topFarcaster.price} ETH`,
+      icon: <div className="mobile-social-art cast"><Icon.cast /></div>,
+    },
+  ].filter(Boolean), [topLoan, topMiniApp, topXAccount, topFarcaster]);
+
+  const primaryAction = role === "seller"
+    ? { href: "/market", label: "List asset", sub: "NFT collateral or digital property" }
+    : { href: "/market", label: "Browse deals", sub: "Loans, apps, handles, and FIDs" };
 
   return (
     <main className="main">
@@ -127,37 +195,23 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section style={{ padding: "96px 0 48px" }}>
-          <div style={{ marginBottom: 56, maxWidth: "42ch" }}>
-            <div className="eyebrow">Three marketplaces, one settlement layer</div>
-            <h2 className="h2" style={{ marginTop: 12, fontSize: 38 }}>Built for high-value, contested transactions.</h2>
+        {/* ── NFT Loans showcase ── */}
+        <section style={{ padding: "48px 0 0" }}>
+          <div className="row between" style={{ marginBottom: 24 }}>
+            <div>
+              <div className="eyebrow">NFT-backed loans</div>
+              <h2 className="h2" style={{ margin: "6px 0 0" }}>Lend against blue-chip collateral.</h2>
+            </div>
+            <Link href="/market" className="btn ghost">View all <Icon.arrow /></Link>
           </div>
-          <div className="grid grid-4" style={{ gap: 1, background: "var(--line)", border: "1px solid var(--line)", borderRadius: "var(--radius)", overflow: "hidden" }}>
-            {[
-              { n: "01", t: "NFT-backed loans",   d: "Lend & borrow against your NFTs. Set your own terms, counter-offer, lock in escrow.", k: "/market" },
-              { n: "02", t: "Mini Apps",          d: "Buy & sell shipped Frame v2 apps, on-chain projects, and full-bundle takeovers.", k: "/miniapps" },
-              { n: "03", t: "X Accounts",         d: "Buy & sell X handles with verified follower history. OAuth pre-checks, 2FA handover.", k: "/x" },
-              { n: "04", t: "Farcaster FIDs",     d: "Buy & sell FIDs on-chain. One signed tx. Channel ownership transfers cleanly.", k: "/farcaster" },
-            ].map((x) => (
-              <Link key={x.t} href={x.k} style={{ padding: 28, background: "var(--bg)", border: 0, color: "inherit", textAlign: "left", cursor: "pointer", display: "flex", flexDirection: "column", gap: 0 }}>
-                <span className="mono muted-2" style={{ fontSize: 11, letterSpacing: "0.1em" }}>{x.n}</span>
-                <h3 className="serif" style={{ fontSize: 22, margin: "16px 0 10px" }}>{x.t}</h3>
-                <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, marginTop: 0, marginBottom: 18, maxWidth: "32ch", flex: 1 }}>{x.d}</p>
-                <span className="row" style={{ gap: 6, color: "var(--accent)", fontSize: 12.5 }}>Browse <Icon.arrow/></span>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section style={{ padding: "32px 0 24px" }}>
-          <div className="eyebrow">Live on BSH</div>
-          <h2 className="h2" style={{ margin: "8px 0 22px" }}>Lend & borrow against trending NFTs.</h2>
-          {loading ? (
-            <div className="muted" style={{ padding: 48, textAlign: "center" }}>Loading live listings…</div>
-          ) : error ? (
-            <div className="warn-banner" style={{ padding: 18 }}>{error}</div>
-          ) : loans.length === 0 ? (
-            <div className="muted" style={{ padding: 48, textAlign: "center" }}>No live NFT loan listings yet.</div>
+          {loans.length === 0 ? (
+            <div className="card" style={{ padding: 48, textAlign: "center" }}>
+              <div style={{ width: 80, height: 80, borderRadius: 10, margin: "0 auto", overflow: "hidden", opacity: 0.6 }}>
+                <NFTArt seed={420} />
+              </div>
+              <p className="muted" style={{ marginTop: 14, fontSize: 14 }}>No loan listings yet. Be the first.</p>
+              <Link href="/market" className="btn primary sm" style={{ marginTop: 12 }}>List your NFT</Link>
+            </div>
           ) : (
             <div className="grid grid-4">
               {loans.map((l) => <LoanCard key={l.id} l={l} />)}
@@ -165,6 +219,148 @@ export default function LandingPage() {
           )}
         </section>
 
+        {/* ── Mini Apps showcase ── */}
+        <section style={{ padding: "48px 0 0" }}>
+          <div className="row between" style={{ marginBottom: 24 }}>
+            <div>
+              <div className="eyebrow">Mini App marketplace</div>
+              <h2 className="h2" style={{ margin: "6px 0 0" }}>Acquire shipped products with revenue.</h2>
+            </div>
+            <Link href="/miniapps" className="btn ghost">View all <Icon.arrow /></Link>
+          </div>
+          {miniApps.length === 0 ? (
+            <div className="card" style={{ padding: 48, textAlign: "center" }}>
+              <div style={{ width: 64, height: 64, borderRadius: 12, margin: "0 auto", background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--ink-4)" strokeWidth="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              </div>
+              <p className="muted" style={{ marginTop: 14, fontSize: 14 }}>No mini apps yet. List your first project.</p>
+              <Link href="/miniapps" className="btn primary sm" style={{ marginTop: 12 }}>List Mini App</Link>
+            </div>
+          ) : (
+            <div className="grid grid-4">
+              {miniApps.slice(0, 4).map((a) => (
+                <Link href="/miniapps" key={a.id} className="loan-card">
+                  <div style={{ position: "relative", aspectRatio: "16/10", background: `linear-gradient(135deg, ${appColor(a.id, 0)}, ${appColor(a.id, 1)})`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                    {a.imageUrl ? (
+                      <img src={a.imageUrl} alt={a.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    ) : (
+                      <div style={{ fontFamily: "var(--display)", fontSize: 28, color: "#fff", letterSpacing: -0.5, textShadow: "0 2px 12px rgba(0,0,0,.3)", padding: "0 12px", textAlign: "center" }}>{a.name}</div>
+                    )}
+                    <span className="pill" style={{ position: "absolute", top: 8, left: 8, background: "rgba(0,0,0,0.45)", borderColor: "transparent" }}><span className="pdot"/>{a.kind}</span>
+                  </div>
+                  <div className="row between"><span className="nm trunc">{a.name}</span><span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{a.id}</span></div>
+                  <div className="row between">
+                    <div className="col" style={{ gap: 1 }}><span className="meta">DAU</span><span className="amt mono" style={{ fontSize: 14 }}>{fmtCompact(a.dau)}</span></div>
+                    <div className="col" style={{ gap: 1 }}><span className="meta">MRR</span><span className="amt mono" style={{ fontSize: 14 }}>{a.mrr} Ξ</span></div>
+                    <div className="col" style={{ gap: 1 }}><span className="meta">Price</span><span className="amt mono" style={{ fontSize: 14 }}>{a.price} Ξ</span></div>
+                  </div>
+                  <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 4 }}>
+                    {a.stack.slice(0, 3).map((s) => <span key={s} className="chip" style={{ pointerEvents: "none", padding: "2px 7px", fontSize: 10.5 }}>{s}</span>)}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── X Accounts showcase ── */}
+        <section style={{ padding: "48px 0 0" }}>
+          <div className="row between" style={{ marginBottom: 24 }}>
+            <div>
+              <div className="eyebrow">X Account marketplace</div>
+              <h2 className="h2" style={{ margin: "6px 0 0" }}>Buy & sell handles with verified history.</h2>
+            </div>
+            <Link href="/x" className="btn ghost">View all <Icon.arrow /></Link>
+          </div>
+          {xAccounts.length === 0 ? (
+            <div className="card" style={{ padding: 48, textAlign: "center" }}>
+              <Icon.xlogo style={{ width: 36, height: 36, color: "var(--ink-4)", margin: "0 auto" }} />
+              <p className="muted" style={{ marginTop: 14, fontSize: 14 }}>No X accounts listed yet. List yours.</p>
+              <Link href="/x" className="btn primary sm" style={{ marginTop: 12 }}>List X account</Link>
+            </div>
+          ) : (
+            <div className="grid grid-4">
+              {xAccounts.slice(0, 4).map((a) => (
+                <Link href="/x" key={a.id} className="loan-card">
+                  <div className="x-head" style={{ border: 0, padding: "14px 16px" }}>
+                    <div className="x-avatar" style={{ width: 40, height: 40, fontSize: 14 }}>
+                      {a.imageUrl ? (
+                        <img src={a.imageUrl} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      ) : (
+                        a.handle.slice(1, 3).toUpperCase()
+                      )}
+                    </div>
+                    <div className="col" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+                      <div className="row" style={{ gap: 4, alignItems: "center" }}>
+                        <span style={{ fontSize: 14, fontWeight: 500 }} className="trunc">{a.handle}</span>
+                        {a.verified && <Icon.check style={{ width: 12, height: 12, color: "var(--accent)" }} />}
+                      </div>
+                      <span className="muted-2" style={{ fontSize: 11 }}>{a.niche}</span>
+                    </div>
+                    <Icon.xlogo style={{ width: 16, height: 16, color: "var(--ink-4)" }} />
+                  </div>
+                  <div className="row between" style={{ padding: "0 2px" }}>
+                    <div className="col" style={{ gap: 1 }}><span className="meta">Followers</span><span className="amt mono" style={{ fontSize: 14 }}>{fmtCompact(a.followers)}</span></div>
+                    <div className="col" style={{ gap: 1 }}><span className="meta">Engage</span><span className="amt mono" style={{ fontSize: 14 }}>{a.engagement}%</span></div>
+                    <div className="col" style={{ gap: 1 }}><span className="meta">Price</span><span className="amt mono" style={{ fontSize: 14 }}>{a.price} Ξ</span></div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Farcaster showcase ── */}
+        <section style={{ padding: "48px 0 0" }}>
+          <div className="row between" style={{ marginBottom: 24 }}>
+            <div className="row" style={{ gap: 12, alignItems: "center" }}>
+              <img src="/farcaster.png" alt="Farcaster" style={{ width: 32, height: 16 }} />
+              <div>
+                <div className="eyebrow">Farcaster FID marketplace</div>
+                <h2 className="h2" style={{ margin: "6px 0 0" }}>Transfer FIDs on-chain in one transaction.</h2>
+              </div>
+            </div>
+            <Link href="/farcaster" className="btn ghost">View all <Icon.arrow /></Link>
+          </div>
+          {farcaster.length === 0 ? (
+            <div className="card" style={{ padding: 48, textAlign: "center" }}>
+              <img src="/farcaster.png" alt="Farcaster" style={{ width: 48, height: 48, margin: "0 auto", display: "block" }} />
+              <p className="muted" style={{ marginTop: 14, fontSize: 14 }}>No FIDs listed yet. List yours on-chain.</p>
+              <Link href="/farcaster" className="btn primary sm" style={{ marginTop: 12 }}>List FID</Link>
+            </div>
+          ) : (
+            <div className="grid grid-4">
+              {farcaster.slice(0, 4).map((a) => (
+                <Link href="/farcaster" key={a.id} className="loan-card">
+                  <div className="x-head" style={{ border: 0, padding: "14px 16px", background: "linear-gradient(135deg, rgba(138,99,210,0.1), rgba(166,126,229,0.06))" }}>
+                    <div className="x-avatar" style={{ width: 40, height: 40, fontSize: 14, background: a.imageUrl ? "transparent" : "linear-gradient(135deg, #8A63D2, #a67ee5)", color: "#fff" }}>
+                      {a.imageUrl ? (
+                        <img src={a.imageUrl} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      ) : (
+                        a.handle.slice(0, 2).toUpperCase()
+                      )}
+                    </div>
+                    <div className="col" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+                      <div className="row" style={{ gap: 4, alignItems: "center" }}>
+                        <span style={{ fontSize: 14, fontWeight: 500 }} className="trunc">@{a.handle}</span>
+                        {a.power_badge && <span className="pill" style={{ padding: "1px 6px", fontSize: 9, background: "color-mix(in oklab, var(--gold) 14%, transparent)", color: "var(--gold)" }}>Power</span>}
+                      </div>
+                      <span className="muted-2" style={{ fontSize: 11 }}>/{a.channel}</span>
+                    </div>
+                    <span className="mono" style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 500 }}>#{a.fid}</span>
+                  </div>
+                  <div className="row between" style={{ padding: "0 2px" }}>
+                    <div className="col" style={{ gap: 1 }}><span className="meta">Followers</span><span className="amt mono" style={{ fontSize: 14 }}>{fmtCompact(a.followers)}</span></div>
+                    <div className="col" style={{ gap: 1 }}><span className="meta">Casts/30d</span><span className="amt mono" style={{ fontSize: 14 }}>{a.casts_30d}</span></div>
+                    <div className="col" style={{ gap: 1 }}><span className="meta">Price</span><span className="amt mono" style={{ fontSize: 14 }}>{a.price} Ξ</span></div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Trust model ── */}
         <section style={{ padding: "48px 0 12px" }}>
           <div className="card" style={{ padding: 32, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 32, alignItems: "center" }}>
             <div>
@@ -190,42 +386,107 @@ export default function LandingPage() {
       </div>
 
       {/* MOBILE */}
-      <div className="show-mobile" style={{ display: "flex", flexDirection: "column", gap: 24, paddingTop: 12 }}>
-        <div>
-          <h1 className="h1" style={{ marginTop: 0 }}>
-            The Berkshire Hathaway<br />of <em>on-chain</em> assets.
-          </h1>
-          <p className="lede">
-            Lend & borrow against NFTs. Buy & sell mini-apps, X handles, and Farcaster FIDs.
-          </p>
-          <div className="row" style={{ gap: 10, flexWrap: "wrap", marginTop: 4 }}>
-            <Link href="/market" className="btn primary lg">Lend & borrow <Icon.arrow /></Link>
-            <Link href="/miniapps" className="btn lg ghost">Buy & sell <Icon.arrow /></Link>
+      <div className="show-mobile mobile-home">
+        <section className="mobile-hero-panel">
+          <div className="mobile-kicker">
+            <span className="live-dot" />
+            <span>{loading ? "Syncing markets" : "Live escrow market"}</span>
           </div>
-          <div className="row" style={{ marginTop: 32, gap: 32, flexWrap: "wrap" }}>
-            {[[`${fmtETH(totalPrincipal)} Ξ`, "Listed"], [String(loans.length), "Active loans"]].map(([v, k]) => (
-              <div key={k} className="col" style={{ gap: 2 }}>
-                <span className="mono" style={{ fontSize: 20 }}>{v}</span>
-                <span className="smallcaps">{k}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+          <h1>The Berkshire Hathaway of <em>on-chain</em> assets.</h1>
+          <p>List collateral, fund loans, or buy digital property with settlement handled in one place.</p>
 
-        <div className="grid grid-2" style={{ gap: 10 }}>
+          <div className="mobile-role-switch" aria-label="Homepage role">
+            <button className={role === "buyer" ? "active" : ""} onClick={() => setRole("buyer")}>Buy / lend</button>
+            <button className={role === "seller" ? "active" : ""} onClick={() => setRole("seller")}>Sell / borrow</button>
+          </div>
+
+          <div className="mobile-action-card">
+            <div>
+              <span className="smallcaps">Next action</span>
+              <strong>{primaryAction.label}</strong>
+              <span>{primaryAction.sub}</span>
+            </div>
+            <Link href={primaryAction.href} className="btn primary">Start <Icon.arrow /></Link>
+          </div>
+
+          <div className="mobile-stat-row">
+            <div><strong>{totalListings}</strong><span>Listings</span></div>
+            <div><strong>{fmtETH(totalPrincipal)} ETH</strong><span>NFT principal</span></div>
+            <div><strong>{isConnected ? `${address?.slice(0, 6)}...` : "Guest"}</strong><span>{isConnected ? "Wallet" : "Mode"}</span></div>
+          </div>
+        </section>
+
+        {!isConnected && (
+          <section className="mobile-connect-strip">
+            <div>
+              <strong>Connect to list, offer, and track escrows.</strong>
+              <span>You can still browse every marketplace without signing in.</span>
+            </div>
+            <button className="btn" onClick={connect} disabled={isConnecting}>{isConnecting ? "Connecting..." : "Connect"}</button>
+          </section>
+        )}
+
+        <section className="mobile-market-strip" aria-label="Marketplaces">
           {[
-            { t: "NFT Loans", d: "Lend & borrow against NFTs", k: "/market" },
-            { t: "Mini Apps", d: "Buy & sell shipped apps", k: "/miniapps" },
-            { t: "X Accounts", d: "Buy & sell X handles", k: "/x" },
-            { t: "Farcaster", d: "Buy & sell FIDs on-chain", k: "/farcaster" },
+            { t: "NFT Loans", d: `${loans.length} live`, href: "/market", icon: <NFTArt seed={4200} /> },
+            { t: "Mini Apps", d: `${miniApps.length} listed`, href: "/miniapps", icon: <div className="mobile-app-art" style={{ background: `linear-gradient(135deg, ${appColor("mini", 0)}, ${appColor("mini", 1)})` }}>M</div> },
+            { t: "X Accounts", d: `${xAccounts.length} handles`, href: "/x", icon: <div className="mobile-social-art"><Icon.xlogo /></div> },
+            { t: "Farcaster", d: `${farcaster.length} FIDs`, href: "/farcaster", icon: <div className="mobile-social-art cast"><Icon.cast /></div> },
           ].map((x) => (
-            <Link key={x.t} href={x.k} className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 6 }}>
-              <h3 className="serif" style={{ fontSize: 17, margin: 0 }}>{x.t}</h3>
-              <p className="muted" style={{ margin: 0, fontSize: 12 }}>{x.d}</p>
-              <span className="row" style={{ gap: 4, color: "var(--accent)", fontSize: 11 }}>Browse <Icon.arrow /></span>
+            <Link key={x.t} href={x.href} className="mobile-market-card">
+              <span className="mobile-market-icon">{x.icon}</span>
+              <strong>{x.t}</strong>
+              <span>{x.d}</span>
             </Link>
           ))}
-        </div>
+        </section>
+
+        <section className="mobile-section">
+          <div className="mobile-section-head">
+            <div>
+              <span className="eyebrow">Featured</span>
+              <h2>Best places to start</h2>
+            </div>
+            <Link href="/market">View all</Link>
+          </div>
+          <div className="mobile-feature-list">
+            {featured.length === 0 ? (
+              <div className="mobile-empty">
+                <NFTArt seed={77} />
+                <strong>No approved listings yet.</strong>
+                <span>Submit an asset, then approve it from admin to publish it here.</span>
+              </div>
+            ) : featured.map((item) => (
+              <Link key={item.title} href={item.href} className="mobile-feature-row">
+                <span className="feature-thumb">{item.icon}</span>
+                <span className="feature-copy">
+                  <small>{item.label}</small>
+                  <strong>{item.title}</strong>
+                  <em>{item.meta}</em>
+                </span>
+                <span className="feature-price">{item.value}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <section className="mobile-steps">
+          <div>
+            <span>1</span>
+            <strong>List or offer</strong>
+            <p>Choose the asset and terms.</p>
+          </div>
+          <div>
+            <span>2</span>
+            <strong>Lock escrow</strong>
+            <p>Funds or collateral move to escrow.</p>
+          </div>
+          <div>
+            <span>3</span>
+            <strong>Release safely</strong>
+            <p>Complete transfer or dispute.</p>
+          </div>
+        </section>
       </div>
 
       <footer className="row between" style={{ padding: "48px 0 0", color: "var(--ink-4)", fontSize: 12 }}>

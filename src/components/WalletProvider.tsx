@@ -44,13 +44,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     try {
-      return localStorage.getItem(STORAGE_KEY) || null;
-    } catch { return null; }
+      return localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return null;
+    }
   });
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // On mount, silently restore connection if already authorized
+  // On mount, restore connection if wallet already authorized
   useEffect(() => {
     if (typeof window === "undefined" || !window.ethereum) return;
     window.ethereum.request({ method: "eth_accounts" }).then((accounts) => {
