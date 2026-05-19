@@ -130,9 +130,6 @@ export default function LandingPage() {
   const primaryAction = role === "seller"
     ? { href: "/market", label: "List asset", sub: "NFT collateral or digital property" }
     : { href: "/market", label: "Browse deals", sub: "Loans, apps, handles, and FIDs" };
-  const secondaryAction = role === "seller"
-    ? { href: "/miniapps", label: "Browse comps" }
-    : { href: "/market", label: "List collateral" };
 
   return (
     <main className="main">
