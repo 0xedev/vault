@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { badRequest, databaseRequired, getDatabase, shortAddress } from "@/lib/api";
+import { badRequest, shortAddress } from "@/lib/api";
 import { writeAudit } from "@/lib/admin";
+import { requireAdmin } from "@/lib/auth";
 
 const patchSchema = z.object({
   id: z.string().min(1),
@@ -9,9 +10,10 @@ const patchSchema = z.object({
   reply: z.string().max(2000).optional(),
 });
 
-export async function GET() {
-  const db = getDatabase();
-  if (!db) return databaseRequired();
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if ("response" in auth) return auth.response;
+  const db = auth.db;
 
   const rows = await db`SELECT * FROM support_tickets ORDER BY updated_at DESC` as Record<string, unknown>[];
   const data = rows.map((row) => ({
@@ -32,8 +34,9 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const db = getDatabase();
-  if (!db) return databaseRequired();
+  const auth = await requireAdmin(req);
+  if ("response" in auth) return auth.response;
+  const db = auth.db;
 
   const parsed = patchSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid ticket update", parsed.error.flatten());
@@ -43,6 +46,8 @@ export async function PATCH(req: NextRequest) {
     parsed.data.status === "resolved" ? "TICKET_RESOLVED" : "TICKET_UPDATED",
     parsed.data.id,
     parsed.data.reply || `Ticket status changed to ${parsed.data.status}`,
+    "admin",
+    auth.user.address,
   );
 
   return NextResponse.json({ data: parsed.data });

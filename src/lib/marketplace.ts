@@ -26,6 +26,11 @@ export function mapLoanListing(row: ListingRow) {
     value: asNumber(data.value),
     borrower: shortAddress(row.seller_address),
     sellerAddress: String(row.seller_address || ""),
+    chainId: asNumber(row.chain_id),
+    contractAddress: asString(row.contract_address),
+    contractListingId: asString(row.contract_listing_id),
+    txHash: asString(row.tx_hash),
+    txStatus: asString(row.tx_status, "offchain"),
   };
 }
 
@@ -42,6 +47,7 @@ export function mapMiniAppListing(row: ListingRow) {
     verified: asBoolean(data.verified, row.status === "funded" || row.status === "completed"),
     source: asBoolean(data.source, false),
     age: asString(data.age, "Unverified"),
+    imageUrl: asString(data.imageUrl),
   };
 }
 
@@ -58,6 +64,7 @@ export function mapXAccountListing(row: ListingRow) {
     verified: asBoolean(data.verified, row.status === "funded" || row.status === "completed"),
     posts_30d: asNumber(data.posts_30d),
     growth: asString(data.growth, "0%"),
+    imageUrl: asString(data.imageUrl),
   };
 }
 
@@ -74,6 +81,7 @@ export function mapFarcasterListing(row: ListingRow) {
     power_badge: asBoolean(data.power_badge),
     verified: asBoolean(data.verified, row.status === "funded" || row.status === "completed"),
     rev_30d: asNumber(data.rev_30d),
+    imageUrl: asString(data.imageUrl),
   };
 }
 

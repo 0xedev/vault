@@ -1,25 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SiweMessage, generateNonce } from "siwe";
+import { createNonce, verifySiweSession } from "@/lib/auth";
 
 export async function GET() {
-  return NextResponse.json({ nonce: generateNonce() });
+  const result = await createNonce();
+  if ("response" in result) return result.response;
+  return NextResponse.json({ nonce: result.nonce });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, signature } = await req.json();
-
-    const siweMessage = new SiweMessage(message);
-    const { success, data } = await siweMessage.verify({ signature });
-
-    if (!success) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-    }
-
-    return NextResponse.json({
-      address: data.address,
-      chainId: data.chainId,
-    });
+    return await verifySiweSession(req);
   } catch {
     return NextResponse.json({ error: "Verification failed" }, { status: 400 });
   }

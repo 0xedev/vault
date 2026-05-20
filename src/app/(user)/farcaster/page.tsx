@@ -84,7 +84,7 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
       const metaHash = hashMetadata(metadata);
 
       // On-chain
-      await writeListMiniApp(address as Address, parseEther(price || "0"), metaHash);
+      const txHash = await writeListMiniApp(address as Address, parseEther(price || "0"), metaHash);
 
       // API
       const res = await fetch("/api/marketplace/farcaster", {
@@ -95,10 +95,12 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
           title: handle.startsWith("@") ? handle.slice(1) : handle,
           description: description || `Farcaster FID ${fid}${channel ? ` in /${channel}` : ""}`,
           price: Number(price),
-          imageUrl,
+          chainId: 8453,
+          txHash,
           data: {
             fid: Number(fid),
             handle: handle.replace(/^@/, ""),
+            imageUrl,
             channel: channel.replace(/^\//, "") || "general",
             followers: Number(followers || 0),
             casts_30d: 0,
@@ -106,7 +108,6 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
             power_badge: false,
             verified: false,
             includes: selectedDeliverables,
-            imageUrl,
             metadataHash: metaHash,
           },
         }),
@@ -253,7 +254,10 @@ export default function FarcasterPage() {
     <main className="main">
       <div className="row between" style={{ alignItems: "center", marginBottom: 22, gap: 24, rowGap: 16, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 320px", minWidth: 0 }}>
-          <div className="eyebrow">Farcaster FID Marketplace</div>
+          <div className="row" style={{ gap: 10, alignItems: "center", marginBottom: 4 }}>
+            <img src="/farcaster.png" alt="" style={{ width: 28, height: 28 }} />
+            <div className="eyebrow">Farcaster FID Marketplace</div>
+          </div>
           <h1 className="h2" style={{ marginTop: 8 }}>
             Transfer <em style={{ fontFamily: "var(--display)", fontStyle: "italic" }}>Farcaster FIDs</em> on-chain in one transaction.
           </h1>
@@ -314,7 +318,13 @@ export default function FarcasterPage() {
                 </td>
                 <td>
                   <div className="row" style={{ gap: 8 }}>
-                    <div className="x-avatar" style={{ width: 26, height: 26, fontSize: 11, background: `linear-gradient(135deg, ${appColor(a.handle, 0)}, ${appColor(a.handle, 1)})`, color: "#fff" }}>{a.handle.slice(0, 2).toUpperCase()}</div>
+                    <div className="x-avatar" style={{ width: 26, height: 26, fontSize: 11, background: a.imageUrl ? "transparent" : "linear-gradient(135deg, #8A63D2, #a67ee5)", color: "#fff" }}>
+                      {a.imageUrl ? (
+                        <img src={a.imageUrl} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      ) : (
+                        a.handle.slice(0, 2).toUpperCase()
+                      )}
+                    </div>
                     <span style={{ fontSize: 13 }}>@{a.handle}</span>
                   </div>
                 </td>

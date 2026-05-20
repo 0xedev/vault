@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
-import { databaseRequired, getDatabase } from "@/lib/api";
+import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 
-export async function GET() {
-  const db = getDatabase();
-  if (!db) return databaseRequired();
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if ("response" in auth) return auth.response;
+  const db = auth.db;
 
   const [escrowRows, disputeRows, listingRows, ticketRows, verificationRows] = await Promise.all([
     db`SELECT COUNT(*) AS count, COALESCE(SUM(amount), 0) AS locked FROM escrows WHERE stage NOT IN ('released', 'refunded')` as Promise<Record<string, unknown>[]>,

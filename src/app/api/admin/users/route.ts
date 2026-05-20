@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { badRequest, databaseRequired, getDatabase, shortAddress } from "@/lib/api";
+import { badRequest, shortAddress } from "@/lib/api";
 import { writeAudit } from "@/lib/admin";
+import { requireAdmin } from "@/lib/auth";
 
 const patchSchema = z.object({
   address: z.string().min(1),
   status: z.enum(["active", "frozen", "banned"]),
 });
 
-export async function GET() {
-  const db = getDatabase();
-  if (!db) return databaseRequired();
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if ("response" in auth) return auth.response;
+  const db = auth.db;
 
   const rows = await db`
     SELECT u.*, COALESCE(SUM(e.amount), 0) AS locked
@@ -36,14 +38,15 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const db = getDatabase();
-  if (!db) return databaseRequired();
+  const auth = await requireAdmin(req);
+  if ("response" in auth) return auth.response;
+  const db = auth.db;
 
   const parsed = patchSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid user status update", parsed.error.flatten());
 
   await db`UPDATE users SET status = ${parsed.data.status} WHERE address = ${parsed.data.address}`;
-  await writeAudit(`USER_${parsed.data.status.toUpperCase()}`, parsed.data.address, `User status changed to ${parsed.data.status}`);
+  await writeAudit(`USER_${parsed.data.status.toUpperCase()}`, parsed.data.address, `User status changed to ${parsed.data.status}`, "admin", auth.user.address);
 
   return NextResponse.json({ data: parsed.data });
 }

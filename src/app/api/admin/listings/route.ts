@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { badRequest, databaseRequired, getDatabase, shortAddress } from "@/lib/api";
+import { badRequest, shortAddress } from "@/lib/api";
 import { mapMarket, writeAudit } from "@/lib/admin";
+import { requireAdmin } from "@/lib/auth";
 
 const patchSchema = z.object({
   id: z.string().min(1),
   moderationStatus: z.enum(["pending", "approved", "rejected"]),
 });
 
-export async function GET() {
-  const db = getDatabase();
-  if (!db) return databaseRequired();
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if ("response" in auth) return auth.response;
+  const db = auth.db;
 
   const rows = await db`SELECT * FROM listings ORDER BY created_at DESC` as Record<string, unknown>[];
   const data = rows.map((row) => ({
@@ -31,8 +33,9 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const db = getDatabase();
-  if (!db) return databaseRequired();
+  const auth = await requireAdmin(req);
+  if ("response" in auth) return auth.response;
+  const db = auth.db;
 
   const parsed = patchSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid listing moderation update", parsed.error.flatten());
@@ -40,7 +43,7 @@ export async function PATCH(req: NextRequest) {
   const { id, moderationStatus } = parsed.data;
   const listingStatus = moderationStatus === "rejected" ? "cancelled" : "active";
   await db`UPDATE listings SET moderation_status = ${moderationStatus}, status = ${listingStatus}, updated_at = NOW() WHERE id = ${id}`;
-  await writeAudit(`LISTING_${moderationStatus.toUpperCase()}`, id, `Moderation status changed to ${moderationStatus}`);
+  await writeAudit(`LISTING_${moderationStatus.toUpperCase()}`, id, `Moderation status changed to ${moderationStatus}`, "admin", auth.user.address);
 
   return NextResponse.json({ data: { id, moderationStatus } });
 }
