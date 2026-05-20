@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties, ReactElement } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import VaultMark from "@/components/VaultMark";
 import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
@@ -320,6 +321,9 @@ export default function LandingPage() {
               <Link href="/miniapps">Mini Apps</Link>
               <Link href="/x">X accounts</Link>
               <Link href="/farcaster">Farcaster</Link>
+              <Link href="/market" className="market-carousel-cta">
+                List an asset <Icon.arrow />
+              </Link>
             </div>
           </div>
 
@@ -335,6 +339,9 @@ export default function LandingPage() {
                     List the first asset, then approve it from admin to publish
                     it here.
                   </span>
+                  <Link href="/market" className="market-empty-cta">
+                    Create listing <Icon.arrow />
+                  </Link>
                 </div>
               </div>
             ) : (
@@ -550,7 +557,7 @@ export default function LandingPage() {
           <div className="mobile-categories-list">
             <Link href="/market" className="mobile-category-card">
               <div className="mobile-category-img-container">
-                <img src="/ethereum.svg" alt="NFT Loans" />
+                <Image src="/nft.png" alt="NFT Loans" fill sizes="160px" />
               </div>
               <div className="mobile-category-info">
                 <h3>NFT Loans</h3>
@@ -562,7 +569,7 @@ export default function LandingPage() {
 
             <Link href="/miniapps" className="mobile-category-card">
               <div className="mobile-category-img-container">
-                <img src="/category_apps.png" alt="Apps & Websites" />
+                <Image src="/miniapp.png" alt="Apps & Websites" fill sizes="160px" />
               </div>
               <div className="mobile-category-info">
                 <h3>Apps & Websites</h3>
@@ -574,7 +581,7 @@ export default function LandingPage() {
 
             <Link href="/x" className="mobile-category-card">
               <div className="mobile-category-img-container">
-                <img src="/x.svg" alt="X Handles" />
+                <Image src="/x.svg" alt="X Handles" fill sizes="160px" />
               </div>
               <div className="mobile-category-info">
                 <h3>X Handles</h3>
@@ -586,7 +593,7 @@ export default function LandingPage() {
 
             <Link href="/farcaster" className="mobile-category-card">
               <div className="mobile-category-img-container">
-                <img src="/farcaster.png" alt="Farcaster" />
+                <Image src="/farcaster.png" alt="Farcaster" fill sizes="160px" />
               </div>
               <div className="mobile-category-info">
                 <h3>Farcaster IDs</h3>

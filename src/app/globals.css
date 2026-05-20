@@ -450,6 +450,25 @@ a { color: inherit; text-decoration: none; }
   color: var(--ink);
   border-color: var(--line-strong);
 }
+.market-carousel-links .market-carousel-cta {
+  height: 34px;
+  padding: 0 13px;
+  gap: 7px;
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.market-carousel-links .market-carousel-cta:hover {
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.market-carousel-cta svg,
+.market-empty-cta svg {
+  width: 14px;
+  height: 14px;
+}
 .market-carousel-shell {
   position: relative;
   overflow: hidden;
@@ -610,7 +629,8 @@ a { color: inherit; text-decoration: none; }
 .market-carousel-empty div:last-child {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 6px;
 }
 .market-carousel-empty strong {
   font-size: 16px;
@@ -619,6 +639,22 @@ a { color: inherit; text-decoration: none; }
 .market-carousel-empty span {
   color: var(--ink-3);
   font-size: 13px;
+}
+.market-empty-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  margin-top: 8px;
+  padding: 0 13px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+.market-empty-cta:hover {
+  transform: translateY(-1px);
 }
 
 /* gauge / bar */
@@ -1711,6 +1747,7 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 4px 12px rgba(0, 82, 255, 0.02);
 }
 .mobile-category-img-container {
+  position: relative;
   width: 100%;
   height: 100px;
   overflow: hidden;
