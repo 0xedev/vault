@@ -280,9 +280,9 @@ export default function LandingPage() {
               <Link href="/market" className="btn primary lg">
                 Explore Markets <Icon.arrow />
               </Link>
-              <Link href="/market" className="btn lg ghost">
+              {/* <Link href="/market" className="btn lg ghost">
                 List an Asset
-              </Link>
+              </Link> */}
             </div>
             <div
               className="row"
@@ -476,9 +476,9 @@ export default function LandingPage() {
             <Link href="/market" className="primary">
               Explore Markets
             </Link>
-            <Link href="/market" className="secondary">
+            {/* <Link href="/market" className="secondary">
               List an Asset
-            </Link>
+            </Link> */}
           </div>
 
           <div className="mobile-command-tape">
@@ -496,7 +496,86 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+        <section className="mobile-categories-section">
+          <div className="mobile-feed-head" style={{ marginBottom: 12 }}>
+            <div>
+              <span className="eyebrow">Market place</span>
+              {/* <h2>Browse categories</h2> */}
+            </div>
+          </div>
 
+          <div className="mobile-categories-list">
+            <Link href="/market" className="mobile-category-card">
+              <div className="mobile-category-img-container">
+                <Image src="/nft.png" alt="NFT Loans" fill sizes="160px" />
+              </div>
+              <div className="mobile-category-info">
+                <h3>NFT Loans</h3>
+                <span className="mobile-category-badge">
+                  {loans.length} active
+                </span>
+                <span className="mobile-category-cta">
+                  Borrow/lend <Icon.arrow />
+                </span>
+              </div>
+            </Link>
+
+            <Link href="/miniapps" className="mobile-category-card">
+              <div className="mobile-category-img-container">
+                <Image
+                  src="/miniapp.png"
+                  alt="Apps & Websites"
+                  fill
+                  sizes="160px"
+                />
+              </div>
+              <div className="mobile-category-info">
+                <h3>Apps & Websites</h3>
+                <span className="mobile-category-badge">
+                  {miniApps.length} active
+                </span>
+                <span className="mobile-category-cta">
+                  Buy/sell <Icon.arrow />
+                </span>
+              </div>
+            </Link>
+
+            <Link href="/x" className="mobile-category-card">
+              <div className="mobile-category-img-container">
+                <Image src="/x.svg" alt="X Handles" fill sizes="160px" />
+              </div>
+              <div className="mobile-category-info">
+                <h3>X Handles</h3>
+                <span className="mobile-category-badge">
+                  {xAccounts.length} active
+                </span>
+                <span className="mobile-category-cta">
+                  Buy/sell <Icon.arrow />
+                </span>
+              </div>
+            </Link>
+
+            <Link href="/farcaster" className="mobile-category-card">
+              <div className="mobile-category-img-container">
+                <Image
+                  src="/farcaster.png"
+                  alt="Farcaster"
+                  fill
+                  sizes="160px"
+                />
+              </div>
+              <div className="mobile-category-info">
+                <h3>Farcaster IDs</h3>
+                <span className="mobile-category-badge">
+                  {farcaster.length} active
+                </span>
+                <span className="mobile-category-cta">
+                  Buy/sell <Icon.arrow />
+                </span>
+              </div>
+            </Link>
+          </div>
+        </section>
         <section className="mobile-feed">
           <div className="mobile-feed-head" style={{ alignItems: "center" }}>
             <div>
@@ -545,65 +624,6 @@ export default function LandingPage() {
             )}
           </div>
         </section>
-
-        <section className="mobile-categories-section">
-          <div className="mobile-feed-head" style={{ marginBottom: 12 }}>
-            <div>
-              <span className="eyebrow">Market place</span>
-              {/* <h2>Browse categories</h2> */}
-            </div>
-          </div>
-
-          <div className="mobile-categories-list">
-            <Link href="/market" className="mobile-category-card">
-              <div className="mobile-category-img-container">
-                <Image src="/nft.png" alt="NFT Loans" fill sizes="160px" />
-              </div>
-              <div className="mobile-category-info">
-                <h3>NFT Loans</h3>
-                <span className="mobile-category-badge">
-                  {loans.length} active
-                </span>
-              </div>
-            </Link>
-
-            <Link href="/miniapps" className="mobile-category-card">
-              <div className="mobile-category-img-container">
-                <Image src="/miniapp.png" alt="Apps & Websites" fill sizes="160px" />
-              </div>
-              <div className="mobile-category-info">
-                <h3>Apps & Websites</h3>
-                <span className="mobile-category-badge">
-                  {miniApps.length} active
-                </span>
-              </div>
-            </Link>
-
-            <Link href="/x" className="mobile-category-card">
-              <div className="mobile-category-img-container">
-                <Image src="/x.svg" alt="X Handles" fill sizes="160px" />
-              </div>
-              <div className="mobile-category-info">
-                <h3>X Handles</h3>
-                <span className="mobile-category-badge">
-                  {xAccounts.length} active
-                </span>
-              </div>
-            </Link>
-
-            <Link href="/farcaster" className="mobile-category-card">
-              <div className="mobile-category-img-container">
-                <Image src="/farcaster.png" alt="Farcaster" fill sizes="160px" />
-              </div>
-              <div className="mobile-category-info">
-                <h3>Farcaster IDs</h3>
-                <span className="mobile-category-badge">
-                  {farcaster.length} active
-                </span>
-              </div>
-            </Link>
-          </div>
-        </section>
       </div>
 
       <footer
@@ -613,17 +633,6 @@ export default function LandingPage() {
         <div className="row" style={{ gap: 8 }}>
           <VaultMark size={16} />{" "}
           <span className="mono">baseshire.fi · v0.5.0</span>
-        </div>
-        <div className="row" style={{ gap: 18 }}>
-          <a className="lnk" href="#">
-            Docs
-          </a>
-          <a className="lnk" href="#">
-            Risk
-          </a>
-          <a className="lnk" href="#">
-            Discord
-          </a>
         </div>
       </footer>
     </main>
