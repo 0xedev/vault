@@ -18,6 +18,7 @@ declare global {
 
 type WalletState = {
   address: string | null;
+  role: "user" | "admin" | null;
   isConnected: boolean;
   isConnecting: boolean;
   chainId: number | null;
@@ -27,6 +28,7 @@ type WalletState = {
 
 const WalletContext = createContext<WalletState>({
   address: null,
+  role: null,
   isConnected: false,
   isConnecting: false,
   chainId: null,
@@ -41,20 +43,25 @@ export function useWallet() {
 const STORAGE_KEY = "vault-wallet";
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
-  const [address, setAddress] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    try {
-      return localStorage.getItem(STORAGE_KEY);
-    } catch {
-      return null;
-    }
-  });
+  const [address, setAddress] = useState<string | null>(null);
+  const [role, setRole] = useState<"user" | "admin" | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // On mount, restore connection if wallet already authorized
+  // On mount, restore wallet + server session if already authorized.
   useEffect(() => {
-    if (typeof window === "undefined" || !window.ethereum) return;
+    if (typeof window === "undefined") return;
+    fetch("/api/auth/session")
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => {
+        if (json?.user?.address) {
+          setAddress(json.user.address);
+          setRole(json.user.role === "admin" ? "admin" : "user");
+        }
+      })
+      .catch(() => {});
+
+    if (!window.ethereum) return;
     window.ethereum.request({ method: "eth_accounts" }).then((accounts) => {
       if (Array.isArray(accounts) && accounts.length > 0) {
         setAddress(accounts[0]);
@@ -64,9 +71,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         });
       } else {
         setAddress(null);
+        setRole(null);
         try { localStorage.removeItem(STORAGE_KEY); } catch {}
       }
-    });
+    }).catch(() => {});
   }, []);
 
   const connect = useCallback(async () => {
@@ -84,7 +92,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const siweAddr = getAddress(accounts[0]);
 
         // SIWE flow: get nonce, create message, sign, verify
-        const nonceRes = await fetch("/api/auth");
+        const nonceRes = await fetch("/api/auth/nonce");
         const { nonce } = await nonceRes.json();
 
         const message = new SiweMessage({
@@ -102,11 +110,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           params: [message.prepareMessage(), accounts[0]],
         });
 
-        await fetch("/api/auth", {
+        const verifyRes = await fetch("/api/auth/verify", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message, signature }),
         });
+        if (!verifyRes.ok) throw new Error("SIWE verification failed");
+        const session = await verifyRes.json();
+        setAddress(session.address || accounts[0]);
+        setRole(session.role === "admin" ? "admin" : "user");
       }
     } catch (err) {
       console.error("Wallet connection failed:", err);
@@ -117,8 +129,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const disconnect = useCallback(() => {
     setAddress(null);
+    setRole(null);
     setChainId(null);
     try { localStorage.removeItem(STORAGE_KEY); } catch {}
+    fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
   }, []);
 
   // Listen for account/chain changes
@@ -147,6 +161,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     <WalletContext.Provider
       value={{
         address,
+        role,
         isConnected: !!address,
         isConnecting,
         chainId,

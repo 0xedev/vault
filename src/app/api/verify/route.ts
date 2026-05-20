@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { promises as dns } from "dns";
 import { assertSafeUrl } from "@/lib/ssrf";
+import { requireUser, type AuthUser } from "@/lib/auth";
+import type { DbClient } from "@/lib/api";
 
 /**
  * GET /api/verify?type=dns&domain=example.com&code=ABCD1234
@@ -8,21 +10,44 @@ import { assertSafeUrl } from "@/lib/ssrf";
  * GET /api/verify?type=farcaster&fid=12345&address=0x...
  */
 export async function GET(req: NextRequest) {
+  const auth = await requireUser(req);
+  if ("response" in auth) return auth.response;
+
   const params = req.nextUrl.searchParams;
   const type = params.get("type");
 
   switch (type) {
-    case "dns": return verifyDns(params);
-    case "x": return verifyX(params);
-    case "farcaster": return verifyFarcaster(params);
+    case "dns": return verifyDns(params, auth.db, auth.user);
+    case "x": return verifyX(params, auth.db, auth.user);
+    case "farcaster": return verifyFarcaster(params, auth.db, auth.user);
     default:
       return NextResponse.json({ error: "Unknown type. Use dns, x, or farcaster." }, { status: 400 });
   }
 }
 
+async function recordAttempt(db: DbClient, user: AuthUser, method: string, target: string, verified: boolean, result: Record<string, unknown>) {
+  const attemptId = `VA-${Date.now()}`;
+  const verificationRows = await db`
+    SELECT id, listing_id FROM verifications
+    WHERE owner_address = ${user.address} AND method IN (${method}, ${method.replace("_", "-")}) AND target = ${target}
+    ORDER BY created_at DESC
+    LIMIT 1
+  ` as Record<string, unknown>[];
+  const verificationId = verificationRows[0]?.id ? String(verificationRows[0].id) : null;
+  const listingId = verificationRows[0]?.listing_id ? String(verificationRows[0].listing_id) : null;
+  await db`INSERT INTO verification_attempts (id, verification_id, listing_id, owner_address, method, target, status, result)
+    VALUES (${attemptId}, ${verificationId}, ${listingId}, ${user.address}, ${method}, ${target}, ${verified ? "approved" : "failed"}, ${JSON.stringify(result)})`;
+  if (verificationId) {
+    await db`UPDATE verifications SET status = ${verified ? "approved" : "pending"}, checks = ${JSON.stringify([result])}, updated_at = NOW() WHERE id = ${verificationId}`;
+  }
+  if (verified && listingId) {
+    await db`UPDATE listings SET collateral_data = COALESCE(collateral_data, '{}'::jsonb) || '{"verified": true}'::jsonb, updated_at = NOW() WHERE id = ${listingId}`;
+  }
+}
+
 // ── DNS TXT verification ────────────────────────────────────
 
-async function verifyDns(params: URLSearchParams) {
+async function verifyDns(params: URLSearchParams, db: DbClient, user: AuthUser) {
   const domain = params.get("domain");
   const code = params.get("code");
 
@@ -46,20 +71,24 @@ async function verifyDns(params: URLSearchParams) {
       return match && match[1].trim().toUpperCase() === code.toUpperCase();
     });
 
-    return NextResponse.json({
+    const result = {
       verified: found,
       domain: cleanDomain,
       recordsCount: allRecords.length,
-    });
+    };
+    await recordAttempt(db, user, "dns", cleanDomain, found, result);
+    return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "DNS lookup failed";
-    return NextResponse.json({ verified: false, reason: message, domain: cleanDomain });
+    const result = { verified: false, reason: message, domain: cleanDomain };
+    await recordAttempt(db, user, "dns", cleanDomain, false, result);
+    return NextResponse.json(result);
   }
 }
 
 // ── X tweet verification ────────────────────────────────────
 
-async function verifyX(params: URLSearchParams) {
+async function verifyX(params: URLSearchParams, db: DbClient, user: AuthUser) {
   const handle = params.get("handle")?.replace(/^@/, "").toLowerCase();
   const tweetUrl = params.get("tweetUrl");
 
@@ -108,22 +137,26 @@ async function verifyX(params: URLSearchParams) {
     const code = params.get("code") || "";
     const codeFound = !code || html.toLowerCase().includes(code.toLowerCase());
 
-    return NextResponse.json({
+    const result = {
       verified: codeFound,
       handle: `@${handle}`,
       tweetUrl,
-    });
+    };
+    await recordAttempt(db, user, "x_tweet", `@${handle}`, codeFound, result);
+    return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error && err.name === "AbortError"
       ? "Request timed out"
       : "Could not verify tweet";
-    return NextResponse.json({ verified: false, reason: message });
+    const result = { verified: false, reason: message };
+    await recordAttempt(db, user, "x_tweet", `@${handle || ""}`, false, result);
+    return NextResponse.json(result);
   }
 }
 
 // ── Farcaster FID verification ──────────────────────────────
 
-async function verifyFarcaster(params: URLSearchParams) {
+async function verifyFarcaster(params: URLSearchParams, db: DbClient, user: AuthUser) {
   const fid = params.get("fid");
   const address = params.get("address");
 
@@ -170,7 +203,7 @@ async function verifyFarcaster(params: URLSearchParams) {
     const custodyMatch = custodyAddr?.toLowerCase() === addrLower;
     const idMatch = ownedFid === parseInt(fid);
 
-    return NextResponse.json({
+    const result = {
       verified: custodyMatch || idMatch,
       fid: parseInt(fid),
       address: addrLower,
@@ -178,10 +211,14 @@ async function verifyFarcaster(params: URLSearchParams) {
       ownedFid,
       custodyMatch,
       idMatch,
-    });
+    };
+    await recordAttempt(db, user, "farcaster_registry", fid, custodyMatch || idMatch, result);
+    return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "On-chain verification failed";
-    return NextResponse.json({ verified: false, reason: message });
+    const result = { verified: false, reason: message };
+    await recordAttempt(db, user, "farcaster_registry", fid || "", false, result);
+    return NextResponse.json(result);
   }
 }
 

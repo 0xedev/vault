@@ -103,7 +103,7 @@ export default function XAccountsPage() {
       const metaHash = hashMetadata(metadata);
 
       // On-chain
-      await writeListMiniApp(address as Address, parseEther(price || "0"), metaHash);
+      const txHash = await writeListMiniApp(address as Address, parseEther(price || "0"), metaHash);
 
       // API
       const res = await fetch("/api/marketplace/x-accounts", {
@@ -114,10 +114,12 @@ export default function XAccountsPage() {
           title: normalized,
           price: Number(price),
           description,
-          imageUrl,
+          chainId: 8453,
+          txHash,
           data: {
             handle: normalized,
             followers: Number(followers || 0),
+            imageUrl,
             niche: "Pending review",
             age: "Unverified",
             engagement: 0,
@@ -125,7 +127,6 @@ export default function XAccountsPage() {
             growth: "0%",
             verified: false,
             includes: selectedDeliverables,
-            imageUrl,
             metadataHash: metaHash,
           },
         }),

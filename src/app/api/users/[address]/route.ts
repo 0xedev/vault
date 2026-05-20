@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { databaseRequired, getDatabase } from "@/lib/api";
+import { requireUser } from "@/lib/auth";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ address: string }> }
 ) {
   const { address } = await params;
-  const db = getDatabase();
-
-  if (!db) return databaseRequired();
+  const auth = await requireUser(_req);
+  if ("response" in auth) return auth.response;
+  if (auth.user.role !== "admin" && auth.user.address !== address.toLowerCase()) {
+    return NextResponse.json({ error: "Profile access denied" }, { status: 403 });
+  }
+  const db = auth.db;
 
   const rows = await db`SELECT * FROM users WHERE address = ${address}` as Record<string, unknown>[];
   if (rows.length === 0) {

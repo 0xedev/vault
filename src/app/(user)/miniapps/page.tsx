@@ -113,7 +113,7 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
       const priceWei = parseEther(price || "0");
 
       // 2. Store on-chain
-      await writeListMiniApp(address as Address, priceWei, metaHash);
+      const txHash = await writeListMiniApp(address as Address, priceWei, metaHash);
 
       // 3. POST to API
       const res = await fetch("/api/marketplace/mini-apps", {
@@ -124,12 +124,14 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
           title: name,
           description,
           price: Number(price),
-          imageUrl,
+          chainId: 8453,
+          txHash,
           data: {
             name,
             kind: "Mini App",
             dau: Number(dau || 0),
             mrr: Number(mrr || 0),
+            imageUrl,
             stack: metadata.stack,
             source: Boolean(repo),
             verified: false,
@@ -137,7 +139,6 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
             url,
             repo,
             includes: selectedDeliverables,
-            imageUrl,
             metadataHash: metaHash,
           },
         }),

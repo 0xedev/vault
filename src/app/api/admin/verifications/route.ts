@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { badRequest, databaseRequired, getDatabase, jsonArray, shortAddress } from "@/lib/api";
+import { badRequest, jsonArray, shortAddress } from "@/lib/api";
 import { mapMarket, writeAudit } from "@/lib/admin";
+import { requireAdmin } from "@/lib/auth";
 
 const patchSchema = z.object({
   id: z.string().min(1),
   status: z.enum(["pending", "approved", "rejected", "needs_info"]),
 });
 
-export async function GET() {
-  const db = getDatabase();
-  if (!db) return databaseRequired();
+export async function GET(req: NextRequest) {
+  const auth = await requireAdmin(req);
+  if ("response" in auth) return auth.response;
+  const db = auth.db;
 
   const rows = await db`SELECT * FROM verifications ORDER BY created_at DESC` as Record<string, unknown>[];
   const data = rows.map((row) => ({
@@ -29,14 +31,23 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const db = getDatabase();
-  if (!db) return databaseRequired();
+  const auth = await requireAdmin(req);
+  if ("response" in auth) return auth.response;
+  const db = auth.db;
 
   const parsed = patchSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid verification update", parsed.error.flatten());
 
   await db`UPDATE verifications SET status = ${parsed.data.status}, updated_at = NOW() WHERE id = ${parsed.data.id}`;
-  await writeAudit(`VERIFICATION_${parsed.data.status.toUpperCase()}`, parsed.data.id, `Verification status changed to ${parsed.data.status}`);
+  if (parsed.data.status === "approved") {
+    await db`
+      UPDATE listings
+      SET collateral_data = COALESCE(collateral_data, '{}'::jsonb) || '{"verified": true}'::jsonb,
+          updated_at = NOW()
+      WHERE id = (SELECT listing_id FROM verifications WHERE id = ${parsed.data.id})
+    `;
+  }
+  await writeAudit(`VERIFICATION_${parsed.data.status.toUpperCase()}`, parsed.data.id, `Verification status changed to ${parsed.data.status}`, "admin", auth.user.address);
 
   return NextResponse.json({ data: parsed.data });
 }

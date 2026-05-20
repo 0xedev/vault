@@ -16,9 +16,14 @@ interface IERC721 {
     function safeTransferFrom(address from, address to, uint256 tokenId) external;
 }
 
-contract VaultEscrow {
+interface IERC721Receiver {
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4);
+}
+
+contract VaultEscrow is IERC721Receiver {
     address public admin;
     uint256 public platformFeeBps; // basis points (150 = 1.5%)
+    bool private _entered;
 
     enum Stage { LISTED, FUNDED, ACTIVE, REPAID, DEFAULTED, CANCELLED, DISPUTED }
 
@@ -42,6 +47,9 @@ contract VaultEscrow {
 
     // Track ETH deposits per listing per lender
     mapping(uint256 => mapping(address => uint256)) public lenderDeposits;
+    // ETH currently attributable to a listing. This prevents dispute resolution
+    // from using unrelated contract balance.
+    mapping(uint256 => uint256) public listingEscrowBalance;
     // List of lenders who have active offers on a listing
     mapping(uint256 => address[]) private _offerLenders;
     // Quick lookup: is lender in _offerLenders for a listing?
@@ -58,6 +66,8 @@ contract VaultEscrow {
     event Disputed(uint256 indexed listingId);
     event Resolved(uint256 indexed listingId, Stage outcome, uint256 borrowerAmount, uint256 lenderAmount);
     event PlatformFeeUpdated(uint256 newFee);
+    event ListingUpdated(uint256 indexed listingId, uint256 amount, uint256 apr, uint256 term);
+    event AdminTransferred(address indexed oldAdmin, address indexed newAdmin);
 
     // ── Errors ────────────────────────────────────────────────
     error NotAdmin();
@@ -88,6 +98,13 @@ contract VaultEscrow {
         _;
     }
 
+    modifier nonReentrant() {
+        require(!_entered, "Reentrant call");
+        _entered = true;
+        _;
+        _entered = false;
+    }
+
     // ── Constructor ───────────────────────────────────────────
     constructor(uint256 _platformFeeBps) {
         admin = msg.sender;
@@ -106,7 +123,7 @@ contract VaultEscrow {
         uint256 amount,
         uint256 apr,
         uint256 term
-    ) external returns (uint256) {
+    ) external nonReentrant returns (uint256) {
         require(amount > 0, "Amount must be > 0");
         require(term > 0, "Term must be > 0");
 
@@ -139,6 +156,7 @@ contract VaultEscrow {
     /// @notice Borrower cancels listing if no offer has been accepted yet.
     function cancelListing(uint256 listingId)
         external
+        nonReentrant
         onlyBorrower(listingId)
         atStage(listingId, Stage.LISTED)
     {
@@ -168,6 +186,7 @@ contract VaultEscrow {
         l.principal = newAmount;
         l.apr = newApr;
         l.term = newTerm;
+        emit ListingUpdated(listingId, newAmount, newApr, newTerm);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -185,6 +204,7 @@ contract VaultEscrow {
     )
         external
         payable
+        nonReentrant
         atStage(listingId, Stage.LISTED)
     {
         require(msg.value == amount, "ETH sent must equal offer amount");
@@ -192,6 +212,7 @@ contract VaultEscrow {
         if (_hasOffer[listingId][msg.sender]) revert AlreadyOffered();
 
         lenderDeposits[listingId][msg.sender] = msg.value;
+        listingEscrowBalance[listingId] += msg.value;
         _offerLenders[listingId].push(msg.sender);
         _hasOffer[listingId][msg.sender] = true;
 
@@ -199,7 +220,7 @@ contract VaultEscrow {
     }
 
     /// @notice Lender withdraws their ETH if their offer was not accepted.
-    function withdrawOffer(uint256 listingId) external {
+    function withdrawOffer(uint256 listingId) external nonReentrant {
         uint256 deposited = lenderDeposits[listingId][msg.sender];
         require(deposited > 0, "No deposit for this listing");
 
@@ -210,6 +231,7 @@ contract VaultEscrow {
         );
 
         lenderDeposits[listingId][msg.sender] = 0;
+        listingEscrowBalance[listingId] -= deposited;
         _hasOffer[listingId][msg.sender] = false;
 
         (bool sent,) = msg.sender.call{value: deposited}("");
@@ -235,6 +257,7 @@ contract VaultEscrow {
         uint256 acceptedTerm
     )
         external
+        nonReentrant
         onlyBorrower(listingId)
         atStage(listingId, Stage.LISTED)
     {
@@ -248,6 +271,7 @@ contract VaultEscrow {
         uint256 excess = deposited - acceptedAmount;
         if (excess > 0) {
             lenderDeposits[listingId][lender] = 0;
+            listingEscrowBalance[listingId] -= excess;
             (bool refunded,) = lender.call{value: excess}("");
             if (!refunded) revert TransferFailed();
         } else {
@@ -265,6 +289,7 @@ contract VaultEscrow {
         // Send loan amount to borrower (minus platform fee)
         uint256 fee = (acceptedAmount * platformFeeBps) / 10000;
         uint256 net = acceptedAmount - fee;
+        listingEscrowBalance[listingId] -= acceptedAmount;
 
         (bool sent,) = msg.sender.call{value: net}("");
         if (!sent) revert TransferFailed();
@@ -285,6 +310,7 @@ contract VaultEscrow {
     function repay(uint256 listingId)
         external
         payable
+        nonReentrant
         onlyBorrower(listingId)
         atStage(listingId, Stage.ACTIVE)
     {
@@ -323,6 +349,7 @@ contract VaultEscrow {
     /// @notice Lender claims the NFT collateral after the loan deadline has passed.
     function claimCollateral(uint256 listingId)
         external
+        nonReentrant
         atStage(listingId, Stage.ACTIVE)
     {
         Listing storage l = listings[listingId];
@@ -357,10 +384,11 @@ contract VaultEscrow {
     function resolve(uint256 listingId, uint256 returnPrincipalToLender)
         external
         onlyAdmin
+        nonReentrant
         atStage(listingId, Stage.DISPUTED)
     {
         Listing storage l = listings[listingId];
-        uint256 contractBalance = address(this).balance;
+        uint256 contractBalance = listingEscrowBalance[listingId];
 
         require(returnPrincipalToLender <= contractBalance, "Insufficient balance");
 
@@ -370,6 +398,7 @@ contract VaultEscrow {
         }
 
         uint256 remainder = contractBalance - returnPrincipalToLender;
+        listingEscrowBalance[listingId] = 0;
         if (remainder > 0) {
             uint256 fee = (remainder * platformFeeBps) / 10000;
             uint256 net = remainder - fee;
@@ -400,7 +429,13 @@ contract VaultEscrow {
 
     function transferAdmin(address newAdmin) external onlyAdmin {
         require(newAdmin != address(0), "Invalid address");
+        address oldAdmin = admin;
         admin = newAdmin;
+        emit AdminTransferred(oldAdmin, newAdmin);
+    }
+
+    function onERC721Received(address, address, uint256, bytes calldata) external pure override returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     // ── View helpers ──────────────────────────────────────────

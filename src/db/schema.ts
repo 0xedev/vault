@@ -46,6 +46,11 @@ export const listings = pgTable("listings", {
   moderationStatus: text("moderation_status").default("approved").notNull(),
   flaggedCount: integer("flagged_count").default(0).notNull(),
   riskScore: integer("risk_score").default(0).notNull(),
+  chainId: integer("chain_id"),
+  contractAddress: text("contract_address"),
+  contractListingId: text("contract_listing_id"),
+  txHash: text("tx_hash"),
+  txStatus: text("tx_status").default("offchain").notNull(),
   terms: jsonb("terms"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -66,6 +71,7 @@ export const supportTickets = pgTable("support_tickets", {
 
 export const verifications = pgTable("verifications", {
   id: text("id").primaryKey(),
+  listingId: text("listing_id").references(() => listings.id),
   marketplace: marketplaceKind("marketplace").notNull(),
   target: text("target").notNull(),
   ownerAddress: text("owner_address").references(() => users.address).notNull(),
@@ -79,9 +85,11 @@ export const verifications = pgTable("verifications", {
 export const auditLogs = pgTable("audit_logs", {
   id: text("id").primaryKey(),
   actor: text("actor").default("system").notNull(),
+  actorAddress: text("actor_address"),
   action: text("action").notNull(),
   target: text("target").notNull(),
   note: text("note"),
+  txHash: text("tx_hash"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -94,6 +102,9 @@ export const offers = pgTable("offers", {
   termDays: integer("term_days"),
   expiresAt: timestamp("expires_at"),
   status: text("status").default("pending").notNull(),
+  chainId: integer("chain_id"),
+  txHash: text("tx_hash"),
+  txStatus: text("tx_status").default("pending").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -106,7 +117,10 @@ export const escrows = pgTable("escrows", {
   currency: text("currency").default("ETH").notNull(),
   stage: escrowStage("stage").default("awaiting_deposit").notNull(),
   contractAddress: text("contract_address"),
+  chainId: integer("chain_id"),
+  contractListingId: text("contract_listing_id"),
   txHash: text("tx_hash"),
+  txStatus: text("tx_status").default("pending").notNull(),
   deadline: timestamp("deadline"),
   deliverables: jsonb("deliverables"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -130,11 +144,69 @@ export const disputes = pgTable("disputes", {
 export const transactions = pgTable("transactions", {
   id: text("id").primaryKey(),
   escrowId: text("escrow_id").references(() => escrows.id),
+  listingId: text("listing_id").references(() => listings.id),
   fromAddress: text("from_address").notNull(),
   toAddress: text("to_address"),
   amount: real("amount").notNull(),
   currency: text("currency").default("ETH").notNull(),
   txType: text("tx_type").notNull(),
   txHash: text("tx_hash"),
+  chainId: integer("chain_id"),
+  status: text("status").default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const authNonces = pgTable("auth_nonces", {
+  nonce: text("nonce").primaryKey(),
+  address: text("address"),
+  consumedAt: timestamp("consumed_at"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const sessions = pgTable("sessions", {
+  id: text("id").primaryKey(),
+  address: text("address").references(() => users.address).notNull(),
+  role: userRole("role").default("user").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const syncCursors = pgTable("sync_cursors", {
+  id: text("id").primaryKey(),
+  chainId: integer("chain_id").notNull(),
+  contractAddress: text("contract_address").notNull(),
+  lastSyncedBlock: text("last_synced_block").default("0").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const escrowProofs = pgTable("escrow_proofs", {
+  id: text("id").primaryKey(),
+  escrowId: text("escrow_id").references(() => escrows.id).notNull(),
+  actorAddress: text("actor_address").references(() => users.address).notNull(),
+  proofType: text("proof_type").notNull(),
+  url: text("url").notNull(),
+  contentHash: text("content_hash").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const dealMessages = pgTable("deal_messages", {
+  id: text("id").primaryKey(),
+  escrowId: text("escrow_id").references(() => escrows.id).notNull(),
+  senderAddress: text("sender_address").references(() => users.address).notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const verificationAttempts = pgTable("verification_attempts", {
+  id: text("id").primaryKey(),
+  verificationId: text("verification_id").references(() => verifications.id),
+  listingId: text("listing_id").references(() => listings.id),
+  ownerAddress: text("owner_address").references(() => users.address).notNull(),
+  method: text("method").notNull(),
+  target: text("target").notNull(),
+  status: text("status").notNull(),
+  result: jsonb("result"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

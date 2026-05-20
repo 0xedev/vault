@@ -100,18 +100,17 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       const aprBps = Math.round(Number(apr) * 100); // e.g. 14.2 → 1420
       const termDays = Number(term);
 
-      if (selectedContract) {
-        const escrowAddr = getEscrowAddress();
-        await approveNft(address as `0x${string}`, selectedContract as `0x${string}`, nftTokenId, escrowAddr);
-        await writeListNFT(
-          address as `0x${string}`,
-          selectedContract as `0x${string}`,
-          nftTokenId,
-          amountWei,
-          aprBps,
-          termDays,
-        );
-      }
+      if (!selectedContract) throw new Error("Select a detected NFT before listing on-chain.");
+      const escrowAddr = getEscrowAddress();
+      await approveNft(address as `0x${string}`, selectedContract as `0x${string}`, nftTokenId, escrowAddr);
+      const listTxHash = await writeListNFT(
+        address as `0x${string}`,
+        selectedContract as `0x${string}`,
+        nftTokenId,
+        amountWei,
+        aprBps,
+        termDays,
+      );
 
       // 3. POST to API
       const res = await fetch("/api/listings", {
@@ -126,6 +125,9 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           collection,
           tokenId,
           ltv: impliedLtv,
+          chainId: 8453,
+          contractAddress: getEscrowAddress(),
+          txHash: listTxHash,
         }),
       });
 

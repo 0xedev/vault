@@ -15,6 +15,11 @@ export interface Loan {
   bid: number;
   value: number;
   borrower: string;
+  chainId?: number;
+  contractAddress?: string;
+  contractListingId?: string;
+  txHash?: string;
+  txStatus?: string;
 }
 
 export interface DigitalDeal {

@@ -40,11 +40,12 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
     if (!address) return;
     setSubmitting(true);
     try {
+      if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       // 1. Deposit ETH into escrow contract
       const aprBps = Math.round(apr * 100);
-      await writeSubmitOffer(
+      const txHash = await writeSubmitOffer(
         address as Address,
-        BigInt(parseInt(l.id.replace("L-", "")) || 1),
+        BigInt(l.contractListingId),
         parseEther(amt.toFixed(4)),
         aprBps,
         term,
@@ -61,6 +62,8 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
           apr,
           termDays: term,
           expiresInHours: exp,
+          chainId: 8453,
+          txHash,
         }),
       });
       if (!res.ok) throw new Error("Counter submission failed");
@@ -156,11 +159,12 @@ function LoanDetailContent() {
     if (!address || !loan) return;
     setMatching(o.id);
     try {
+      if (!loan.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       // 1. Deposit ETH via contract
       const aprBps = Math.round(o.apr * 100);
-      await writeSubmitOffer(
+      const txHash = await writeSubmitOffer(
         address as Address,
-        BigInt(parseInt(loan.id.replace("L-", "")) || 1),
+        BigInt(loan.contractListingId),
         parseEther(o.amt.toFixed(4)),
         aprBps,
         o.term,
@@ -176,6 +180,8 @@ function LoanDetailContent() {
           amount: o.amt,
           apr: o.apr,
           termDays: o.term,
+          chainId: 8453,
+          txHash,
         }),
       });
       if (!res.ok) throw new Error("Match failed");
@@ -230,10 +236,11 @@ function LoanDetailContent() {
     try {
       // 1. If accepting, call contract to release ETH to borrower
       if (status === "accepted" && address && offer.offererAddress) {
+        if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
         const aprBps = Math.round(offer.apr * 100);
         await writeAcceptOffer(
           address as Address,
-          BigInt(parseInt(l.id.replace("L-", "")) || 1),
+          BigInt(l.contractListingId),
           offer.offererAddress as Address,
           parseEther(offer.amt.toFixed(4)),
           aprBps,
@@ -288,9 +295,10 @@ function LoanDetailContent() {
     setRepaying(true);
     try {
       const repaymentDue = l.amt * (1 + l.apr / 100 * l.term / 365);
+      if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       await writeRepay(
         address as Address,
-        BigInt(parseInt(l.id.replace("L-", "")) || 1),
+        BigInt(l.contractListingId),
         parseEther(repaymentDue.toFixed(4)),
       );
       setLoan((prev) => prev ? { ...prev, status: "open" as Loan["status"] } : prev);
@@ -305,9 +313,10 @@ function LoanDetailContent() {
     if (!address || !loan) return;
     setClaiming(true);
     try {
+      if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       await writeClaimCollateral(
         address as Address,
-        BigInt(parseInt(l.id.replace("L-", "")) || 1),
+        BigInt(l.contractListingId),
       );
       setLoan((prev) => prev ? { ...prev, status: "default" as Loan["status"] } : prev);
     } catch (err) {
