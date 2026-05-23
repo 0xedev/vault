@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 
 type Role = "buyer" | "seller";
 
@@ -12,16 +12,21 @@ interface RoleContextType {
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
 export function RoleProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRoleState] = useState<Role>(() => {
-    if (typeof window === "undefined") return "buyer";
-    const saved = localStorage.getItem("vault-role") as Role;
-    return saved === "buyer" || saved === "seller" ? saved : "buyer";
-  });
+  const [role, setRoleState] = useState<Role>("buyer");
 
-  const setRole = (newRole: Role) => {
+  useEffect(() => {
+    const saved = localStorage.getItem("vault-role") as Role | null;
+    if (saved === "buyer" || saved === "seller") {
+      queueMicrotask(() => setRoleState(saved));
+    }
+  }, []);
+
+  const setRole = useCallback((newRole: Role) => {
     setRoleState(newRole);
-    localStorage.setItem("vault-role", newRole);
-  };
+    try {
+      localStorage.setItem("vault-role", newRole);
+    } catch { /* private browsing may block localStorage */ }
+  }, []);
 
   return (
     <RoleContext.Provider value={{ role, setRole }}>

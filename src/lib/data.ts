@@ -1,3 +1,20 @@
+export interface ClankerToken {
+  id: string;
+  name: string;
+  symbol: string;
+  tokenAddress: string;
+  chain: string;
+  totalSupply: number;
+  remainingSupply: number;
+  vaultedAmount: number;
+  vaultUnlock: string;
+  feeEarnings: number;
+  price: number;
+  poolAddress: string;
+  imageUrl?: string;
+  verified: boolean;
+}
+
 export const COLLECTIONS = [
   "Meridian Genesis", "Aperture", "Hollow Forms", "Cipher Drones",
   "Solene Mirrors", "Halo Pass", "Strata Index", "Veil Quartet",

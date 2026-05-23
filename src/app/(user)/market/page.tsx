@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import Icon from "@/components/icons";
 import LoanCard from "@/components/LoanCard";
 import Dropdown from "@/components/Dropdown";
@@ -10,9 +11,19 @@ import { getNFTsForOwner } from "@/lib/alchemy";
 import { useWallet } from "@/components/WalletProvider";
 import { approveNft, getEscrowAddress, writeListNFT, parseContractError } from "@/lib/contract";
 import { parseEther } from "viem";
-import type { Loan } from "@/lib/data";
+import type { ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount } from "@/lib/data";
 
 type LoanWithSeller = Loan & { sellerAddress?: string };
+type MarketTab = "all" | "nft" | "miniapps" | "x" | "farcaster" | "clanker";
+
+const marketTabs: { key: MarketTab; label: string }[] = [
+  { key: "all", label: "All Markets" },
+  { key: "nft", label: "NFT Loans" },
+  { key: "miniapps", label: "Mini Apps" },
+  { key: "x", label: "X Accounts" },
+  { key: "farcaster", label: "Farcaster" },
+  { key: "clanker", label: "Clanker" },
+];
 
 function ListNFTModal({ onClose }: { onClose: () => void }) {
   const { address } = useWallet();
@@ -290,7 +301,12 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function MarketplacePage() {
+  const [activeMarket, setActiveMarket] = useState<MarketTab>("all");
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [miniApps, setMiniApps] = useState<MiniApp[]>([]);
+  const [xAccounts, setXAccounts] = useState<XAccount[]>([]);
+  const [farcaster, setFarcaster] = useState<FarcasterAccount[]>([]);
+  const [clankerTokens, setClankerTokens] = useState<ClankerToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
@@ -300,13 +316,44 @@ export default function MarketplacePage() {
   const { isConnected, connect, isConnecting, address } = useWallet();
 
   useEffect(() => {
-    fetch("/api/listings")
-      .then(async (r) => {
+    Promise.allSettled([
+      fetch("/api/listings").then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error || "Unable to load listings");
-        return json;
-      }).then((j) => { setLoans(j.data || []); setLoading(false); })
-      .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load listings"); setLoading(false); });
+        return (json.data || []) as Loan[];
+      }),
+      fetch("/api/marketplace/mini-apps").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load mini apps");
+        return (json.data || []) as MiniApp[];
+      }),
+      fetch("/api/marketplace/x-accounts").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load X accounts");
+        return (json.data || []) as XAccount[];
+      }),
+      fetch("/api/marketplace/farcaster").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load Farcaster listings");
+        return (json.data || []) as FarcasterAccount[];
+      }),
+      fetch("/api/marketplace/clanker").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load Clanker listings");
+        return (json.data || []) as ClankerToken[];
+      }),
+    ]).then((results) => {
+      if (results[0].status === "fulfilled") setLoans(results[0].value);
+      if (results[1].status === "fulfilled") setMiniApps(results[1].value);
+      if (results[2].status === "fulfilled") setXAccounts(results[2].value);
+      if (results[3].status === "fulfilled") setFarcaster(results[3].value);
+      if (results[4].status === "fulfilled") setClankerTokens(results[4].value);
+      const failed = results.find((result) => result.status === "rejected");
+      if (failed && results.every((result) => result.status === "rejected")) {
+        setError(failed.reason instanceof Error ? failed.reason.message : "Unable to load marketplaces");
+      }
+      setLoading(false);
+    });
   }, []);
 
   const filtered = useMemo(() => {
@@ -339,61 +386,236 @@ export default function MarketplacePage() {
     setShowListModal(true);
   };
 
+
   return (
     <main className="main">
-      <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22 }}>
+      <div className="market-page-head row between" style={{ alignItems: "flex-end", marginBottom: 22 }}>
         <div>
-          <div className="eyebrow">Lend & Borrow</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>Lend against {loans.length} listed NFTs.</h1>
+          <div className="eyebrow">Marketplace</div>
+          <h1 className="h2" style={{ marginTop: 8 }}>
+            {activeMarket === "all"      && "Browse every escrow market."}
+            {activeMarket === "nft"      && "NFT Loans"}
+            {activeMarket === "miniapps" && "Mini Apps"}
+            {activeMarket === "x"        && "X Accounts"}
+            {activeMarket === "farcaster"&& "Farcaster"}
+            {activeMarket === "clanker"  && "Clanker Tokens"}
+          </h1>
         </div>
-        <div className="row" style={{ gap: 10 }}>
-          <button className="btn primary" onClick={handleListClick} disabled={isConnecting}>
-            {isConnected ? "List your NFT" : isConnecting ? "Connecting…" : "Connect & list"}
-          </button>
-        </div>
+        {activeMarket === "all"       && <button className="btn primary" onClick={handleListClick} disabled={isConnecting}>{isConnected ? "List your NFT" : isConnecting ? "Connecting…" : "Connect & list"}</button>}
+        {activeMarket === "nft"       && <button className="btn primary" onClick={handleListClick} disabled={isConnecting}>{isConnected ? "List your NFT" : isConnecting ? "Connecting…" : "Connect & list"}</button>}
+        {activeMarket === "miniapps"  && <button className="btn primary" onClick={handleListClick} disabled={isConnecting}>{isConnected ? "List your App" : isConnecting ? "Connecting…" : "Connect & list"}</button>}
+        {activeMarket === "x"         && <button className="btn primary" onClick={handleListClick} disabled={isConnecting}>{isConnected ? "List your X Account" : isConnecting ? "Connecting…" : "Connect & list"}</button>}
+        {activeMarket === "farcaster" && <button className="btn primary" onClick={handleListClick} disabled={isConnecting}>{isConnected ? "List your Identity" : isConnecting ? "Connecting…" : "Connect & list"}</button>}
+        {activeMarket === "clanker"   && <Link href="/clanker" className="btn primary">List your Clanker token</Link>}
       </div>
 
-      <div className="card" style={{ padding: 12, marginBottom: 18 }}>
-        <div className="row" style={{ gap: 16, flexWrap: "wrap" }}>
-          <div className="row" style={{ gap: 6 }}>
-            <Icon.filter style={{ color: "var(--ink-4)" }} />
-            <span className="smallcaps" style={{ marginRight: 8 }}>Filter</span>
+      <div className="market-tabs" role="tablist" aria-label="Marketplace tabs">
+        {marketTabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={activeMarket === tab.key}
+            className={activeMarket === tab.key ? "active" : ""}
+            onClick={() => setActiveMarket(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ALL MARKETS — one section per category */}
+      {activeMarket === "all" && (
+        <>
+          <div className="market-section-head">
+            <span className="market-section-icon"><NFTArt seed={2} /></span>
+            <strong>NFT Loans</strong>
+            <span className="market-section-count">{loans.length}</span>
+            <button className="market-section-cta" onClick={() => setActiveMarket("nft")}>View all <Icon.arrow /></button>
           </div>
-          <div className="chips">
-            {chipData.map(([k, t, n]) => (
-              <button key={k} className={"chip" + (filter === k ? " active" : "")} onClick={() => setFilter(k)}>{t} <span className="count">{n}</span></button>
+          {loading ? (
+            <div className="muted" style={{ padding: 32, textAlign: "center" }}>Loading…</div>
+          ) : (
+            <div className="grid grid-4">
+              {loans.slice(0, 4).map((l) => <LoanCard key={l.id} l={l} />)}
+            </div>
+          )}
+
+          <div className="market-section-head">
+            <span className="market-section-icon"><Icon.app /></span>
+            <strong>Mini Apps</strong>
+            <span className="market-section-count">{miniApps.length}</span>
+            <button className="market-section-cta" onClick={() => setActiveMarket("miniapps")}>View all <Icon.arrow /></button>
+          </div>
+          <div className="market-listing-grid">
+            {miniApps.slice(0, 4).map((app) => (
+              <Link href="/miniapps" key={app.id} className="market-listing-card">
+                <span className="market-listing-icon"><Icon.app /></span>
+                <strong>{app.name}</strong>
+                <small>{app.kind} · {app.dau.toLocaleString()} DAU · {app.mrr} Ξ MRR</small>
+                <em>{app.price} Ξ <Icon.arrow /></em>
+              </Link>
             ))}
           </div>
-          <div className="vsep" />
-          <div className="row" style={{ gap: 8 }}>
-            <span className="smallcaps">Collection</span>
-            <Dropdown value={collectionFilter} options={["all", ...COLLECTIONS].map(c => ({ value: c, label: c === "all" ? "All collections" : c }))} onChange={setCollectionFilter} style={{ minWidth: 170 }} />
+
+          <div className="market-section-head">
+            <span className="market-section-icon"><Icon.xlogo /></span>
+            <strong>X Accounts</strong>
+            <span className="market-section-count">{xAccounts.length}</span>
+            <button className="market-section-cta" onClick={() => setActiveMarket("x")}>View all <Icon.arrow /></button>
           </div>
-          <div className="row" style={{ gap: 8 }}>
-            <span className="smallcaps">Amount</span>
-            <input className="input" placeholder="0 — 100 Ξ" style={{ width: 130, height: 32 }} />
+          <div className="market-listing-grid">
+            {xAccounts.slice(0, 4).map((account) => (
+              <Link href="/x" key={account.id} className="market-listing-card">
+                <span className="market-listing-icon"><Icon.xlogo /></span>
+                <strong>{account.handle}</strong>
+                <small>{account.followers.toLocaleString()} followers · {account.engagement}% engagement</small>
+                <em>{account.price} Ξ <Icon.arrow /></em>
+              </Link>
+            ))}
           </div>
-          <div style={{ flex: 1 }} />
-          <div className="row" style={{ gap: 6 }}>
-            <span className="smallcaps">Sort</span>
-            <div className="seg">
-              {[["apr", "APR ↓"], ["amt", "Amount"], ["ltv", "LTV"]].map(([k, t]) => (
-                <button key={k} className={sort === k ? "active" : ""} onClick={() => setSort(k)}>{t}</button>
-              ))}
+
+          <div className="market-section-head">
+            <span className="market-section-icon"><Icon.cast /></span>
+            <strong>Farcaster</strong>
+            <span className="market-section-count">{farcaster.length}</span>
+            <button className="market-section-cta" onClick={() => setActiveMarket("farcaster")}>View all <Icon.arrow /></button>
+          </div>
+          <div className="market-listing-grid">
+            {farcaster.slice(0, 4).map((account) => (
+              <Link href="/farcaster" key={account.id} className="market-listing-card">
+                <span className="market-listing-icon"><Icon.cast /></span>
+                <strong>@{account.handle}</strong>
+                <small>{account.followers.toLocaleString()} followers · FID #{account.fid}</small>
+                <em>{account.price} Ξ <Icon.arrow /></em>
+              </Link>
+            ))}
+          </div>
+
+          <div className="market-section-head">
+            <span className="market-section-icon"><Icon.token /></span>
+            <strong>Clanker Tokens</strong>
+            <span className="market-section-count">{clankerTokens.length}</span>
+            <button className="market-section-cta" onClick={() => setActiveMarket("clanker")}>View all <Icon.arrow /></button>
+          </div>
+          <div className="market-listing-grid">
+            {clankerTokens.slice(0, 4).map((token) => (
+              <Link href="/clanker" key={token.id} className="market-listing-card">
+                <span className="market-listing-icon"><Icon.token /></span>
+                <strong>{token.name} (${token.symbol})</strong>
+                <small>{token.chain} · {token.totalSupply.toLocaleString()} supply</small>
+                <em>{token.price} Ξ <Icon.arrow /></em>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* NFT LOANS TAB — filter + full grid */}
+      {activeMarket === "nft" && (
+        <>
+          <div id="nft-market" className="card" style={{ padding: 12, marginBottom: 18 }}>
+            <div className="market-filter-bar row" style={{ gap: 16, flexWrap: "wrap" }}>
+              <div className="chips">
+                {chipData.map(([k, t, n]) => (
+                  <button key={k} className={"chip" + (filter === k ? " active" : "")} onClick={() => setFilter(k)}>{t} <span className="count">{n}</span></button>
+                ))}
+              </div>
+              <div className="vsep" />
+              <div className="row" style={{ gap: 8 }}>
+                <span className="smallcaps">Collection</span>
+                <Dropdown value={collectionFilter} options={["all", ...COLLECTIONS].map(c => ({ value: c, label: c === "all" ? "All collections" : c }))} onChange={setCollectionFilter} style={{ minWidth: 170 }} />
+              </div>
+              <div className="row" style={{ gap: 8 }}>
+                <span className="smallcaps">Amount</span>
+                <input className="input" placeholder="0 — 100 Ξ" style={{ width: 130, height: 32 }} />
+              </div>
+              <div style={{ flex: 1 }} />
+              <div className="row" style={{ gap: 6 }}>
+                <span className="smallcaps">Sort</span>
+                <div className="seg">
+                  {[["apr", "APR ↓"], ["amt", "Amount"], ["ltv", "LTV"]].map(([k, t]) => (
+                    <button key={k} className={sort === k ? "active" : ""} onClick={() => setSort(k)}>{t}</button>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+          {loading ? (
+            <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading listings…</div>
+          ) : error ? (
+            <div className="warn-banner" style={{ padding: 18 }}>{error}</div>
+          ) : filtered.length === 0 ? (
+            <div className="muted" style={{ padding: 80, textAlign: "center" }}>No loans match this filter.</div>
+          ) : (
+            <div className="grid grid-4">
+              {filtered.map((l) => <LoanCard key={l.id} l={l} />)}
+            </div>
+          )}
+        </>
+      )}
 
-      {loading ? (
-        <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading listings…</div>
-      ) : error ? (
-        <div className="warn-banner" style={{ padding: 18 }}>{error}</div>
-      ) : filtered.length === 0 ? (
-        <div className="muted" style={{ padding: 80, textAlign: "center" }}>No loans match this filter.</div>
-      ) : (
-        <div className="grid grid-4">
-          {filtered.map((l) => <LoanCard key={l.id} l={l} />)}
+      {/* MINI APPS TAB */}
+      {activeMarket === "miniapps" && (
+        <div className="market-listing-grid">
+          {miniApps.length === 0 ? (
+            <div className="muted" style={{ padding: 40, textAlign: "center" }}>No Mini App listings yet.</div>
+          ) : miniApps.map((app) => (
+            <Link href="/miniapps" key={app.id} className="market-listing-card">
+              <span className="market-listing-icon"><Icon.app /></span>
+              <strong>{app.name}</strong>
+              <small>{app.kind} · {app.dau.toLocaleString()} DAU · {app.mrr} Ξ MRR</small>
+              <em>{app.price} Ξ <Icon.arrow /></em>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* X ACCOUNTS TAB */}
+      {activeMarket === "x" && (
+        <div className="market-listing-grid">
+          {xAccounts.length === 0 ? (
+            <div className="muted" style={{ padding: 40, textAlign: "center" }}>No X account listings yet.</div>
+          ) : xAccounts.map((account) => (
+            <Link href="/x" key={account.id} className="market-listing-card">
+              <span className="market-listing-icon"><Icon.xlogo /></span>
+              <strong>{account.handle}</strong>
+              <small>{account.followers.toLocaleString()} followers · {account.engagement}% engagement</small>
+              <em>{account.price} Ξ <Icon.arrow /></em>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* FARCASTER TAB */}
+      {activeMarket === "farcaster" && (
+        <div className="market-listing-grid">
+          {farcaster.length === 0 ? (
+            <div className="muted" style={{ padding: 40, textAlign: "center" }}>No Farcaster listings yet.</div>
+          ) : farcaster.map((account) => (
+            <Link href="/farcaster" key={account.id} className="market-listing-card">
+              <span className="market-listing-icon"><Icon.cast /></span>
+              <strong>@{account.handle}</strong>
+              <small>{account.followers.toLocaleString()} followers · FID #{account.fid}</small>
+              <em>{account.price} Ξ <Icon.arrow /></em>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* CLANKER TAB */}
+      {activeMarket === "clanker" && (
+        <div className="market-listing-grid">
+          {clankerTokens.length === 0 ? (
+            <div className="muted" style={{ padding: 40, textAlign: "center" }}>No Clanker token listings yet.</div>
+          ) : clankerTokens.map((token) => (
+            <Link href="/clanker" key={token.id} className="market-listing-card">
+              <span className="market-listing-icon"><Icon.token /></span>
+              <strong>{token.name} (${token.symbol})</strong>
+              <small>{token.chain} · {token.totalSupply.toLocaleString()} supply</small>
+              <em>{token.price} Ξ <Icon.arrow /></em>
+            </Link>
+          ))}
         </div>
       )}
 

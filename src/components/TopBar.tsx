@@ -11,7 +11,8 @@ const topNavItems: [string, string][] = [
   ["/miniapps",  "Mini Apps"],
   ["/x",         "X Accounts"],
   ["/farcaster", "Farcaster"],
-  ["/escrow",    "Escrow"],
+  ["/clanker",   "Clanker"],
+  ["/deals",     "Profile"],
 ];
 
 export default function TopBar({ onMenu }: { onMenu: () => void }) {
@@ -25,7 +26,7 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
           <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
         </button>
         <Link href="/" className="brand" style={{ background: "transparent", border: 0, color: "inherit", padding: 0 }}>
-          <VaultMark size={26} className="mark-glow"/>
+          <VaultMark size={26} className="mark-glow" priority/>
           <span className="name hide-mobile">Baseshire Hathaway<em></em></span>
         </Link>
         <nav className="topnav">

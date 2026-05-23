@@ -30,18 +30,12 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(url.searchParams.get("limit") || "20");
   const offset = parseInt(url.searchParams.get("offset") || "0");
 
-  let rows: Record<string, unknown>[];
-  let countRows: Record<string, unknown>[];
+  const rows = (status === "all"
+    ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' LIMIT ${limit} OFFSET ${offset}`
+    : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} LIMIT ${limit} OFFSET ${offset}`
+  ) as Record<string, unknown>[];
 
-  if (status === "all") {
-    rows = await db`SELECT * FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' LIMIT ${limit} OFFSET ${offset}` as Record<string, unknown>[];
-    countRows = await db`SELECT COUNT(*) as count FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled'` as Record<string, unknown>[];
-  } else {
-    rows = await db`SELECT * FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} LIMIT ${limit} OFFSET ${offset}` as Record<string, unknown>[];
-    countRows = await db`SELECT COUNT(*) as count FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' AND collateral_data->>'status' = ${status}` as Record<string, unknown>[];
-  }
-
-  const total = parseInt(countRows[0]?.count as string || "0");
+  const total = parseInt(rows[0]?.total_count as string || "0");
 
   const data = rows.map(mapLoanListing);
 

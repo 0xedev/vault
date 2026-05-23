@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
-import { mapFarcasterListing, mapLoanListing, mapMiniAppListing, mapXAccountListing } from "@/lib/marketplace";
+import { mapClankerListing, mapFarcasterListing, mapLoanListing, mapMiniAppListing, mapXAccountListing } from "@/lib/marketplace";
 import { requireUser } from "@/lib/auth";
 
 const dbKindMap: Record<string, string> = {
@@ -9,6 +9,7 @@ const dbKindMap: Record<string, string> = {
   "mini-apps": "mini_app",
   "x-accounts": "x_account",
   farcaster: "farcaster",
+  clanker: "clanker",
 };
 
 const marketplaceListingSchema = z.object({
@@ -39,6 +40,7 @@ export async function GET(
     kind === "nft-loans" ? rows.map(mapLoanListing) :
     kind === "mini-apps" ? rows.map(mapMiniAppListing) :
     kind === "x-accounts" ? rows.map(mapXAccountListing) :
+    kind === "clanker" ? rows.map(mapClankerListing) :
     rows.map(mapFarcasterListing);
 
   return NextResponse.json({ data, total: data.length });
@@ -60,7 +62,7 @@ export async function POST(
 
   const db = auth.db;
 
-  const idPrefix = kind === "mini-apps" ? "M" : kind === "x-accounts" ? "X" : "F";
+  const idPrefix = kind === "mini-apps" ? "M" : kind === "x-accounts" ? "X" : kind === "clanker" ? "C" : "F";
   const id = `${idPrefix}-${Date.now()}`;
   const data = JSON.stringify(parsed.data.data);
 

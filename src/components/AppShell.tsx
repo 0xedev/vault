@@ -14,9 +14,7 @@ import Icon from "./icons";
 const mobileNavItems = [
   { href: "/", label: "Home", icon: <Icon.home /> },
   { href: "/market", label: "Market", icon: <Icon.market /> },
-  { href: "/escrow", label: "Escrow", icon: <Icon.escrow /> },
-  { href: "/deals", label: "Deals", icon: <Icon.deal /> },
-  { href: "/portfolio", label: "You", icon: <Icon.shield /> },
+  { href: "/deals", label: "Profile", icon: <Icon.escrow /> },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
