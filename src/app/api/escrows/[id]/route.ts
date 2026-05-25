@@ -25,7 +25,7 @@ export async function GET(
       kind: String(r.marketplace || "Escrow").replace(/_/g, " "),
       name: asString(r.title, asString(collateral.name, String(r.listing_id || "Unlisted asset"))),
       type: asString(collateral.kind, asString(collateral.type, "Asset sale")),
-      asset: asString(r.title, r.listing_id || "Unlisted asset"),
+      asset: asString(r.title, String(r.listing_id || "Unlisted asset")),
       amount: asNumber(r.amount),
       price: asNumber(r.price, asNumber(r.amount)),
       mrr: asNumber(collateral.mrr),

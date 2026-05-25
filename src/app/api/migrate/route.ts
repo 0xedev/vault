@@ -18,8 +18,8 @@ export async function GET() {
     try {
       await sql.query(stmt);
       ok++;
-    } catch (e: unknown) {
-      const msg = e?.message || String(e);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("already exists") || msg.includes("duplicate")) {
         skip++;
       } else {
