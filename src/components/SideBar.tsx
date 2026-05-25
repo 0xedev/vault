@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "./icons";
-import { useRole } from "./RoleProvider";
 
 interface SidebarItem {
   sec?: string;
@@ -19,30 +18,19 @@ const items: SidebarItem[] = [
   { k: "/miniapps",  t: "Mini Apps",         icon: <Icon.app/>,    badge: "62" },
   { k: "/x",         t: "X Accounts",        icon: <Icon.xlogo/>,  badge: "118" },
   { k: "/farcaster", t: "Farcaster",         icon: <Icon.cast/>,   badge: "44" },
-  { sec: "Settlement" },
-  { k: "/escrow",    t: "Escrow Center",     icon: <Icon.escrow/>, badge: "6" },
-  { k: "/deals",     t: "Deal Room",         icon: <Icon.deal/> },
-  { sec: "You" },
-  { k: "/portfolio", t: "Portfolio",         icon: <Icon.shield/> },
-  { k: "/history",   t: "History",           icon: <Icon.clock/> },
+  { k: "/clanker",   t: "Clanker Tokens",    icon: <Icon.token/>,  badge: "12" },
+  { sec: "Account" },
+  { k: "/deals",     t: "Profile",           icon: <Icon.escrow/>, badge: "6" },
 ];
 
 export default function SideBar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  const { role, setRole } = useRole();
 
   return (
     <aside className={"sidebar" + (open ? " open" : "")}>
       <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
         <Icon.x />
       </button>
-
-      <div style={{ padding: "0 14px 20px" }}>
-        <div className="seg" style={{ width: "100%" }}>
-          <button className={role === "buyer" ? "active" : ""} onClick={() => setRole("buyer")} style={{ flex: 1, fontSize: 11 }}>Lender/Buyer</button>
-          <button className={role === "seller" ? "active" : ""} onClick={() => setRole("seller")} style={{ flex: 1, fontSize: 11 }}>Borrower/Seller</button>
-        </div>
-      </div>
 
       {items.map((it, i) =>
         it.sec ? (

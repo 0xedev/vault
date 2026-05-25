@@ -98,3 +98,23 @@ export function mapDigitalDeal(row: ListingRow) {
     includes: jsonArray(data.includes).map(String),
   };
 }
+
+export function mapClankerListing(row: ListingRow) {
+  const data = jsonRecord(row.collateral_data);
+  return {
+    id: String(row.id),
+    name: asString(data.name, asString(row.title, "Untitled token")),
+    symbol: asString(data.symbol, ""),
+    tokenAddress: asString(data.tokenAddress, asString(row.contract_address, "")),
+    chain: asString(data.chain, asString(row.chain_id, "Base")),
+    totalSupply: asNumber(data.totalSupply),
+    remainingSupply: asNumber(data.remainingSupply),
+    vaultedAmount: asNumber(data.vaultedAmount),
+    vaultUnlock: asString(data.vaultUnlock, ""),
+    feeEarnings: asNumber(data.feeEarnings),
+    price: asNumber(row.price),
+    poolAddress: asString(data.poolAddress, ""),
+    imageUrl: asString(data.imageUrl),
+    verified: asBoolean(data.verified, row.status === "funded" || row.status === "completed"),
+  };
+}

@@ -62,7 +62,10 @@ const icons = {
     <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" {...p}><path d="M11.7 2H13.8L9.3 7.1L14.6 14H10.5L7.2 9.7L3.5 14H1.4L6.2 8.5L1.1 2H5.3L8.3 5.9L11.7 2zM10.9 12.7H12.1L4.8 3.2H3.5L10.9 12.7z"/></svg>
   ),
   cast: (p: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><path d="M3 13V5a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v8"/><path d="M2 5h2M12 5h2M5 13h2.5M8.5 13H11"/></svg>
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><circle cx="8" cy="8" r="6"/><path d="M6 6.5L8.5 3l2.5 3.5M6 9.5L8.5 13l2.5-3.5M8.5 6v4"/></svg>
+  ),
+  token: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5v7M5.5 6.5h5M5.5 9.5h5"/></svg>
   ),
   follow: (p: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><circle cx="6" cy="6" r="2.5"/><path d="M2 13a4 4 0 0 1 8 0"/><path d="M12 5v4M14 7h-4"/></svg>

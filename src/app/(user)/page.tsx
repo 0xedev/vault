@@ -9,10 +9,9 @@ import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
 import StatusPill from "@/components/StatusPill";
 import { useWallet } from "@/components/WalletProvider";
-
 import { COLLECTIONS } from "@/lib/data";
 import { fmtETH, fmtCompact, appColor } from "@/lib/utils";
-import type { Loan, MiniApp, XAccount, FarcasterAccount } from "@/lib/data";
+import type { Loan, MiniApp, XAccount, FarcasterAccount, ClankerToken } from "@/lib/data";
 
 type MobileOpportunity = {
   href: string;
@@ -23,6 +22,13 @@ type MobileOpportunity = {
   color: string;
   icon: ReactElement;
 };
+
+const feedFilters = [
+  { value: "All", label: "All Markets" },
+  { value: "Loans", label: "NFT Loans" },
+  { value: "Mini Apps", label: "Apps & Websites" },
+  { value: "Social", label: "Social Identity" },
+];
 
 function Sparkline() {
   const pts = [
@@ -156,10 +162,12 @@ function DashboardPreview({ loans }: { loans: Loan[] }) {
 
 export default function LandingPage() {
   const [feedFilter, setFeedFilter] = useState("All");
+  const [feedFilterOpen, setFeedFilterOpen] = useState(false);
   const [loans, setLoans] = useState<Loan[]>([]);
   const [miniApps, setMiniApps] = useState<MiniApp[]>([]);
   const [xAccounts, setXAccounts] = useState<XAccount[]>([]);
   const [farcaster, setFarcaster] = useState<FarcasterAccount[]>([]);
+  const [clanker, setClanker] = useState<ClankerToken[]>([]);
   const [loading, setLoading] = useState(true);
   const { isConnected, isConnecting, connect } = useWallet();
 
@@ -185,18 +193,24 @@ export default function LandingPage() {
         if (!r.ok) throw new Error(json.error);
         return (json.data || []) as FarcasterAccount[];
       }),
+      fetch("/api/marketplace/clanker").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error);
+        return (json.data || []) as ClankerToken[];
+      }),
     ]).then((results) => {
       if (results[0].status === "fulfilled") setLoans(results[0].value);
       if (results[1].status === "fulfilled") setMiniApps(results[1].value);
       if (results[2].status === "fulfilled") setXAccounts(results[2].value);
       if (results[3].status === "fulfilled") setFarcaster(results[3].value);
+      if (results[4].status === "fulfilled") setClanker(results[4].value);
       setLoading(false);
     });
   }, []);
 
   const totalPrincipal = loans.reduce((sum, loan) => sum + loan.amt, 0);
   const totalListings =
-    loans.length + miniApps.length + xAccounts.length + farcaster.length;
+    loans.length + miniApps.length + xAccounts.length + farcaster.length + clanker.length;
   const activeLoans = loans.filter((l) => l.status === "funded").length;
   const allOpportunities = [
     ...loans.slice(0, 4).map((l) => ({
@@ -217,11 +231,14 @@ export default function LandingPage() {
       color: "#F97316",
       icon: (
         <span
+          className="feed-image"
           style={{
-            background: `linear-gradient(135deg, ${appColor(topMiniApp.id, 0)}, ${appColor(topMiniApp.id, 1)})`,
+            backgroundImage: topMiniApp.imageUrl
+              ? `url("${topMiniApp.imageUrl}")`
+              : `linear-gradient(135deg, ${appColor(topMiniApp.id, 0)}, ${appColor(topMiniApp.id, 1)})`,
           }}
         >
-          {topMiniApp.name.slice(0, 1)}
+          {!topMiniApp.imageUrl && topMiniApp.name.slice(0, 1)}
         </span>
       ),
     })),
@@ -233,8 +250,13 @@ export default function LandingPage() {
       value: `${topXAccount.price} Ξ`,
       color: "#52525B",
       icon: (
-        <span>
-          <Icon.xlogo />
+        <span
+          className={`feed-image${topXAccount.imageUrl ? "" : " feed-image-contain"}`}
+          style={{
+            backgroundImage: `url("${topXAccount.imageUrl || "/x.svg"}")`,
+          }}
+        >
+          {!topXAccount.imageUrl && <Icon.xlogo />}
         </span>
       ),
     })),
@@ -246,8 +268,13 @@ export default function LandingPage() {
       value: `${topFarcaster.price} Ξ`,
       color: "#8B5CF6",
       icon: (
-        <span>
-          <Icon.cast />
+        <span
+          className="feed-image"
+          style={{
+            backgroundImage: `url("${topFarcaster.imageUrl || "/farcaster.png"}")`,
+          }}
+        >
+          {!topFarcaster.imageUrl && <Icon.cast />}
         </span>
       ),
     })),
@@ -261,6 +288,8 @@ export default function LandingPage() {
       return o.market === "X account" || o.market === "Farcaster";
     return true;
   });
+  const selectedFeedFilter =
+    feedFilters.find((filter) => filter.value === feedFilter) || feedFilters[0];
 
   return (
     <main className="main">
@@ -274,7 +303,7 @@ export default function LandingPage() {
             </h1>
             <p className="lede" style={{ margin: "28px 0 32px" }}>
               Securely buy, sell, and collateralize NFTs, Mini-Apps, and social
-              handles through our audited escrow protocol.
+              handles through our marketplace.
             </p>
             <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
               <Link href="/market" className="btn primary lg">
@@ -321,6 +350,7 @@ export default function LandingPage() {
               <Link href="/miniapps">Mini Apps</Link>
               <Link href="/x">X accounts</Link>
               <Link href="/farcaster">Farcaster</Link>
+              <Link href="/clanker">Clanker</Link>
               <Link href="/market" className="market-carousel-cta">
                 List an asset <Icon.arrow />
               </Link>
@@ -469,7 +499,7 @@ export default function LandingPage() {
           </h1>
           <p>
             Securely buy, sell, and collateralize NFTs, Mini-Apps, and social
-            handles through our audited escrow protocol.
+            handles through our marketplace.
           </p>
 
           <div className="mobile-command-actions">
@@ -574,24 +604,75 @@ export default function LandingPage() {
                 </span>
               </div>
             </Link>
+
+            <Link href="/clanker" className="mobile-category-card">
+              <div className="mobile-category-img-container">
+                <Image
+                  src="/logo.jpeg"
+                  alt="Clanker"
+                  fill
+                  sizes="160px"
+                />
+              </div>
+              <div className="mobile-category-info">
+                <h3>Clanker</h3>
+                <span className="mobile-category-badge">
+                  {clanker.length} active
+                </span>
+                <span className="mobile-category-cta">
+                  Buy/sell <Icon.arrow />
+                </span>
+              </div>
+            </Link>
           </div>
         </section>
         <section className="mobile-feed">
           <div className="mobile-feed-head" style={{ alignItems: "center" }}>
             <div>
-              <span className="eyebrow">Opportunity Feed</span>
+              <span className="eyebrow">Feeds</span>
               {/* <h2>Best starting points</h2> */}
             </div>
-            <div className="mobile-feed-filter-dropdown">
-              <select
-                value={feedFilter}
-                onChange={(e) => setFeedFilter(e.target.value)}
+            <div
+              className="mobile-feed-filter-dropdown"
+              onBlur={(event) => {
+                if (
+                  !event.relatedTarget ||
+                  !event.currentTarget.contains(event.relatedTarget as Node)
+                ) {
+                  setFeedFilterOpen(false);
+                }
+              }}
+            >
+              <button
+                type="button"
+                className="mobile-feed-filter-trigger"
+                aria-haspopup="listbox"
+                aria-expanded={feedFilterOpen}
+                onClick={() => setFeedFilterOpen((open) => !open)}
               >
-                <option value="All">All Markets</option>
-                <option value="Loans">NFT Loans</option>
-                <option value="Mini Apps">Apps & Websites</option>
-                <option value="Social">Social Identity</option>
-              </select>
+                <span>{selectedFeedFilter.label}</span>
+                <Icon.filter />
+              </button>
+              {feedFilterOpen && (
+                <div className="mobile-feed-filter-menu" role="listbox">
+                  {feedFilters.map((filter) => (
+                    <button
+                      key={filter.value}
+                      type="button"
+                      role="option"
+                      aria-selected={feedFilter === filter.value}
+                      className={feedFilter === filter.value ? "active" : ""}
+                      onClick={() => {
+                        setFeedFilter(filter.value);
+                        setFeedFilterOpen(false);
+                      }}
+                    >
+                      {filter.label}
+                      {feedFilter === filter.value && <Icon.check />}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -628,7 +709,7 @@ export default function LandingPage() {
 
       <footer
         className="row between"
-        style={{ padding: "48px 0 0", color: "var(--ink-4)", fontSize: 12 }}
+        style={{ padding: "0 0 0", color: "var(--ink-4)", fontSize: 12 }}
       >
         <div className="row" style={{ gap: 8 }}>
           <VaultMark size={16} />{" "}

@@ -42,83 +42,98 @@ export function useWallet() {
 
 const STORAGE_KEY = "vault-wallet";
 
+async function siweSignIn(address: string, chainId: number): Promise<{ address: string; role: string } | null> {
+  try {
+    const siweAddr = getAddress(address);
+    const nonceRes = await fetch("/api/auth/nonce");
+    const { nonce } = await nonceRes.json();
+
+    const message = new SiweMessage({
+      domain: window.location.host,
+      address: siweAddr,
+      statement: "Sign in to Vault.",
+      uri: window.location.origin,
+      version: "1",
+      chainId,
+      nonce,
+    });
+
+    const signature = await window.ethereum!.request({
+      method: "personal_sign",
+      params: [message.prepareMessage(), address],
+    });
+
+    const verifyRes = await fetch("/api/auth/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, signature }),
+    });
+    if (!verifyRes.ok) return null;
+    return verifyRes.json();
+  } catch {
+    return null;
+  }
+}
+
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [role, setRole] = useState<"user" | "admin" | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // On mount, restore wallet + server session if already authorized.
+  // On mount, restore session then auto-auth if wallet is already connected
   useEffect(() => {
     if (typeof window === "undefined") return;
-    fetch("/api/auth/session")
-      .then((r) => r.ok ? r.json() : null)
-      .then((json) => {
+
+    (async () => {
+      // 1. Try session cookie first (fast path, no wallet needed)
+      try {
+        const res = await fetch("/api/auth/session");
+        const json = await res.json();
         if (json?.user?.address) {
           setAddress(json.user.address);
           setRole(json.user.role === "admin" ? "admin" : "user");
+          return; // Already authenticated via session
         }
-      })
-      .catch(() => {});
+      } catch { /* */ }
 
-    if (!window.ethereum) return;
-    window.ethereum.request({ method: "eth_accounts" }).then((accounts) => {
-      if (Array.isArray(accounts) && accounts.length > 0) {
-        setAddress(accounts[0]);
-        try { localStorage.setItem(STORAGE_KEY, accounts[0]); } catch {}
-        window.ethereum!.request({ method: "eth_chainId" }).then((chain: unknown) => {
-          setChainId(parseInt(chain as string, 16));
-        });
-      } else {
-        setAddress(null);
-        setRole(null);
-        try { localStorage.removeItem(STORAGE_KEY); } catch {}
-      }
-    }).catch(() => {});
+      // 2. No session — check if wallet is already connected
+      if (!window.ethereum) return;
+      try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" }) as string[];
+        if (Array.isArray(accounts) && accounts.length > 0) {
+          const chain = await window.ethereum.request({ method: "eth_chainId" }) as string;
+          const chainIdNum = parseInt(chain, 16);
+          setAddress(accounts[0]);
+          setChainId(chainIdNum);
+          try { localStorage.setItem(STORAGE_KEY, accounts[0]); } catch {}
+
+          // 3. Auto SIWE — wallet connected but no session
+          const session = await siweSignIn(accounts[0], chainIdNum);
+          if (session) {
+            setRole(session.role === "admin" ? "admin" : "user");
+          }
+        }
+      } catch { /* */ }
+    })();
   }, []);
 
   const connect = useCallback(async () => {
     setIsConnecting(true);
     try {
-      // Use injected ethereum provider (MetaMask, Rainbow, etc.)
       if (typeof window !== "undefined" && window.ethereum) {
         const accounts = await window.ethereum.request({ method: "eth_requestAccounts" }) as string[];
         const chain = await window.ethereum.request({ method: "eth_chainId" }) as string;
-
+        const chainIdNum = parseInt(chain, 16);
         setAddress(accounts[0]);
-        setChainId(parseInt(chain, 16));
+        setChainId(chainIdNum);
         try { localStorage.setItem(STORAGE_KEY, accounts[0]); } catch {}
 
-        const siweAddr = getAddress(accounts[0]);
-
-        // SIWE flow: get nonce, create message, sign, verify
-        const nonceRes = await fetch("/api/auth/nonce");
-        const { nonce } = await nonceRes.json();
-
-        const message = new SiweMessage({
-          domain: window.location.host,
-          address: siweAddr,
-          statement: "Sign in to Vault.",
-          uri: window.location.origin,
-          version: "1",
-          chainId: parseInt(chain, 16),
-          nonce,
-        });
-
-        const signature = await window.ethereum.request({
-          method: "personal_sign",
-          params: [message.prepareMessage(), accounts[0]],
-        });
-
-        const verifyRes = await fetch("/api/auth/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message, signature }),
-        });
-        if (!verifyRes.ok) throw new Error("SIWE verification failed");
-        const session = await verifyRes.json();
-        setAddress(session.address || accounts[0]);
-        setRole(session.role === "admin" ? "admin" : "user");
+        const session = await siweSignIn(accounts[0], chainIdNum);
+        if (session) {
+          setAddress(session.address || accounts[0]);
+          setRole(session.role === "admin" ? "admin" : "user");
+        }
       }
     } catch (err) {
       console.error("Wallet connection failed:", err);
