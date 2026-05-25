@@ -35,19 +35,41 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
   const [term, setTerm] = useState("30");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [showDetected, setShowDetected] = useState(false);
   const [detectedNfts, setDetectedNfts] = useState<{ collection: string; tokenId: string; seed: number; value: number; contractAddress: string }[]>([]);
   const [selectedContract, setSelectedContract] = useState("");
-  const [scanning, setScanning] = useState(false);
+  const [scanning, setScanning] = useState(true);
   const [collSeed] = useState(() => Math.floor(Math.random() * 100));
 
   const [tooltip, setTooltip] = useState("");
 
-  const scanOwnedNfts = async () => {
+  // Auto-detect NFTs when modal opens
+  useEffect(() => {
+    if (!address) return;
+    queueMicrotask(() => setScanning(true));
+    getNFTsForOwner(address, "base")
+      .then((nfts) => {
+        const found = nfts
+          .filter((n) => n.name || n.collection?.name)
+          .slice(0, 20)
+          .map((n) => ({
+            collection: n.collection?.name || n.contract.name || "Unknown",
+            tokenId: n.tokenId.includes("#") ? n.tokenId : `#${n.tokenId}`,
+            seed: parseInt(n.tokenId) || Math.floor(Math.random() * 10000),
+            value: n.floorPriceEth || 0,
+            contractAddress: n.contract.address,
+          }));
+        setDetectedNfts(found);
+        setScanning(false);
+      })
+      .catch(() => {
+        setError("Could not fetch NFTs. Make sure NEXT_PUBLIC_ALCHEMY_KEY is set and your wallet is on Base.");
+        setScanning(false);
+      });
+  }, [address]);
+
+  const refetchNfts = async () => {
     if (!address) return;
     setScanning(true);
-    setShowDetected(true);
-
     try {
       const nfts = await getNFTsForOwner(address, "base");
       const found = nfts
@@ -64,7 +86,6 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     } catch {
       setError("Could not fetch NFTs. Make sure NEXT_PUBLIC_ALCHEMY_KEY is set and your wallet is on Base.");
     }
-
     setScanning(false);
   };
 
@@ -156,7 +177,6 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     setTokenId(t);
     setSelectedContract(contractAddr);
     setAmount(value ? (value * 0.5).toFixed(1) : "");
-    setShowDetected(false);
   };
 
   return (
@@ -176,44 +196,40 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                 Choose an NFT from your wallet to use as collateral for a loan.
               </p>
 
-              <button className="btn" onClick={() => { setShowDetected(!showDetected); if (!showDetected) scanOwnedNfts(); }} style={{ width: "100%", justifyContent: "center" }} disabled={scanning}>
+              <button className="btn" onClick={refetchNfts} style={{ width: "100%", justifyContent: "center" }} disabled={scanning}>
                 {scanning ? (
                   <>Scanning your wallet…</>
                 ) : (
-                  <><Icon.search style={{ width: 14, height: 14 }} /> {showDetected ? "Hide detected NFTs" : "Auto-detect my NFTs"}</>
+                  <><Icon.search style={{ width: 14, height: 14 }} /> Rescan NFTs</>
                 )}
               </button>
 
-              {showDetected && (
-                <>
-                {scanning ? (
-                  <div className="muted" style={{ padding: 20, textAlign: "center", fontSize: 13 }}>Querying Base chain for your NFTs…</div>
-                ) : detectedNfts.length === 0 ? (
-                  <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12 }}>No NFTs found in your wallet from supported collections. Make sure your wallet is connected to Base.</div>
-                ) : (
-                <div className="grid grid-2" style={{ gap: 8, maxHeight: 200, overflowY: "auto" }}>
-                  {detectedNfts.map((n, i) => (
-                    <button
-                      key={i}
-                      onClick={() => selectNFT(n.collection, n.tokenId, n.value, n.contractAddress)}
-                      className="card"
-                      style={{
-                        padding: 10, display: "flex", alignItems: "center", gap: 10,
-                        cursor: "pointer", border: collection === n.collection && tokenId === n.tokenId ? "1px solid var(--accent)" : undefined,
-                      }}
-                    >
-                      <div style={{ width: 40, height: 40, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
-                        <NFTArt seed={n.seed} />
-                      </div>
-                      <div className="col" style={{ gap: 1 }}>
-                        <span style={{ fontSize: 12 }}>{n.collection}</span>
-                        <span className="mono muted" style={{ fontSize: 11 }}>{n.tokenId}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                )}
-                </>
+              {scanning ? (
+                <div className="muted" style={{ padding: 20, textAlign: "center", fontSize: 13 }}>Querying Base chain for your NFTs…</div>
+              ) : detectedNfts.length === 0 ? (
+                <div className="muted" style={{ padding: 16, textAlign: "center", fontSize: 12 }}>No NFTs found in your wallet from supported collections. Make sure your wallet is connected to Base.</div>
+              ) : (
+              <div className="grid grid-2" style={{ gap: 8, maxHeight: 200, overflowY: "auto" }}>
+                {detectedNfts.map((n, i) => (
+                  <button
+                    key={i}
+                    onClick={() => selectNFT(n.collection, n.tokenId, n.value, n.contractAddress)}
+                    className="card"
+                    style={{
+                      padding: 10, display: "flex", alignItems: "center", gap: 10,
+                      cursor: "pointer", border: collection === n.collection && tokenId === n.tokenId ? "1px solid var(--accent)" : undefined,
+                    }}
+                  >
+                    <div style={{ width: 40, height: 40, borderRadius: 6, overflow: "hidden", flexShrink: 0 }}>
+                      <NFTArt seed={n.seed} />
+                    </div>
+                    <div className="col" style={{ gap: 1 }}>
+                      <span style={{ fontSize: 12 }}>{n.collection}</span>
+                      <span className="mono muted" style={{ fontSize: 11 }}>{n.tokenId}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
               )}
 
               {error && <div className="warn-banner" style={{ fontSize: 12 }}>{error}</div>}
