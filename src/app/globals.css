@@ -1748,10 +1748,7 @@ a {
     gap: 10px !important;
   }
   .market-filter-bar .chips {
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 2px;
+    flex-wrap: wrap;
   }
   .market-filter-bar .vsep {
     display: none;

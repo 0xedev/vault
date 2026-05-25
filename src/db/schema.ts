@@ -17,6 +17,7 @@ export const marketplaceKind = pgEnum("marketplace_kind", [
   "mini_app",
   "x_account",
   "farcaster",
+  "clanker",
   "otc",
 ]);
 
