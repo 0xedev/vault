@@ -76,6 +76,13 @@ export const ESCROW_ABI = [
   },
   {
     type: "function",
+    name: "repayPartial",
+    inputs: [{ name: "listingId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "payable",
+  },
+  {
+    type: "function",
     name: "claimCollateral",
     inputs: [{ name: "listingId", type: "uint256" }],
     outputs: [],
@@ -85,6 +92,17 @@ export const ESCROW_ABI = [
     type: "function",
     name: "dispute",
     inputs: [{ name: "listingId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "resolve",
+    inputs: [
+      { name: "listingId", type: "uint256" },
+      { name: "returnPrincipalToLender", type: "uint256" },
+      { name: "nftToLender", type: "bool" },
+    ],
     outputs: [],
     stateMutability: "nonpayable",
   },
@@ -112,6 +130,7 @@ export const ESCROW_ABI = [
       { name: "acceptedApr", type: "uint256" },
       { name: "acceptedTerm", type: "uint256" },
       { name: "fundedAt", type: "uint256" },
+      { name: "repaidSoFar", type: "uint256" },
       { name: "stage", type: "uint8" },
     ],
     stateMutability: "view",
@@ -130,7 +149,11 @@ export const ESCROW_ABI = [
     type: "function",
     name: "getRepaymentDue",
     inputs: [{ name: "listingId", type: "uint256" }],
-    outputs: [{ type: "uint256" }],
+    outputs: [
+      { name: "totalDue", type: "uint256" },
+      { name: "paid", type: "uint256" },
+      { name: "remaining", type: "uint256" },
+    ],
     stateMutability: "view",
   },
   {
@@ -199,6 +222,133 @@ export const ESCROW_ABI = [
     type: "function",
     name: "miniAppCount",
     inputs: [],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+  // ── Deal Escrow System ──
+  {
+    type: "function",
+    name: "listDeal",
+    inputs: [
+      { name: "price", type: "uint256" },
+      { name: "metadataHash", type: "bytes32" },
+    ],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "cancelDeal",
+    inputs: [{ name: "dealId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "updateDeal",
+    inputs: [
+      { name: "dealId", type: "uint256" },
+      { name: "newPrice", type: "uint256" },
+      { name: "newMetadataHash", type: "bytes32" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "verifyDeal",
+    inputs: [{ name: "dealId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "fundDeal",
+    inputs: [{ name: "dealId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "payable",
+  },
+  {
+    type: "function",
+    name: "markDelivered",
+    inputs: [{ name: "dealId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "extendDeadline",
+    inputs: [{ name: "dealId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "confirmDelivery",
+    inputs: [{ name: "dealId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "disputeDeal",
+    inputs: [{ name: "dealId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "resolveDeal",
+    inputs: [
+      { name: "dealId", type: "uint256" },
+      { name: "buyerAmount", type: "uint256" },
+      { name: "sellerAmount", type: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "refundDeal",
+    inputs: [{ name: "dealId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "buyMiniApp",
+    inputs: [{ name: "miniAppId", type: "uint256" }],
+    outputs: [],
+    stateMutability: "payable",
+  },
+  {
+    type: "function",
+    name: "deals",
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [
+      { name: "seller", type: "address" },
+      { name: "buyer", type: "address" },
+      { name: "price", type: "uint256" },
+      { name: "metadataHash", type: "bytes32" },
+      { name: "deadline", type: "uint256" },
+      { name: "createdAt", type: "uint256" },
+      { name: "stage", type: "uint8" },
+      { name: "buyerAmount", type: "uint256" },
+      { name: "sellerAmount", type: "uint256" },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "dealCount",
+    inputs: [],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "dealEscrowBalance",
+    inputs: [{ name: "", type: "uint256" }],
     outputs: [{ type: "uint256" }],
     stateMutability: "view",
   },
@@ -451,6 +601,143 @@ export async function writeVerifyMiniApp(
     args: [listingId],
     account,
     chain: base,
+  });
+}
+
+export async function writeBuyMiniApp(
+  account: Address,
+  miniAppId: bigint,
+  priceWei: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "buyMiniApp",
+    args: [miniAppId],
+    account,
+    chain: base,
+    value: priceWei,
+  });
+}
+
+// ── Deal Escrow helpers ──
+
+export async function writeListDeal(
+  account: Address,
+  priceWei: bigint,
+  metadataHash: `0x${string}`,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "listDeal",
+    args: [priceWei, metadataHash],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeFundDeal(
+  account: Address,
+  dealId: bigint,
+  priceWei: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "fundDeal",
+    args: [dealId],
+    account,
+    chain: base,
+    value: priceWei,
+  });
+}
+
+export async function writeMarkDelivered(
+  account: Address,
+  dealId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "markDelivered",
+    args: [dealId],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeConfirmDelivery(
+  account: Address,
+  dealId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "confirmDelivery",
+    args: [dealId],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeDisputeDeal(
+  account: Address,
+  dealId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "disputeDeal",
+    args: [dealId],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeRefundDeal(
+  account: Address,
+  dealId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "refundDeal",
+    args: [dealId],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeRepayPartial(
+  account: Address,
+  listingId: bigint,
+  amountWei: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "repayPartial",
+    args: [listingId],
+    account,
+    chain: base,
+    value: amountWei,
   });
 }
 
