@@ -5,7 +5,10 @@ const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 
 function deriveKey(escrowId: string): Buffer {
-  const secret = process.env.MESSAGE_ENCRYPTION_KEY || "vault-default-key-change-me-in-production";
+  const secret = process.env.MESSAGE_ENCRYPTION_KEY;
+  if (!secret) {
+    throw new Error("MESSAGE_ENCRYPTION_KEY is required for encrypted deal messages.");
+  }
   return scryptSync(secret, escrowId, 32);
 }
 

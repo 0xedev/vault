@@ -163,7 +163,7 @@ contract NFTLoanTest is Test {
         vm.prank(borrower);
         escrow.dispute(listingId);
         vm.prank(admin);
-        escrow.resolve(listingId, 0, true);
+        escrow.resolve(listingId, true);
         assertEq(nft.ownerOf(0), lender);
     }
 
@@ -172,7 +172,7 @@ contract NFTLoanTest is Test {
         vm.prank(borrower);
         escrow.dispute(listingId);
         vm.prank(admin);
-        escrow.resolve(listingId, 0, false);
+        escrow.resolve(listingId, false);
         assertEq(nft.ownerOf(0), borrower);
     }
 }

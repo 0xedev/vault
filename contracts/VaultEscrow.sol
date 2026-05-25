@@ -71,7 +71,7 @@ contract VaultEscrow is IERC721Receiver {
     event Repaid(uint256 indexed listingId, uint256 amount);
     event DefaultClaimed(uint256 indexed listingId, address lender, address nftContract, uint256 tokenId);
     event Disputed(uint256 indexed listingId);
-    event Resolved(uint256 indexed listingId, Stage outcome, uint256 buyerAmount, uint256 lenderAmount, bool nftToLender);
+    event Resolved(uint256 indexed listingId, Stage outcome, bool nftToLender);
     event PlatformFeeUpdated(uint256 newFee);
     event ListingUpdated(uint256 indexed listingId, uint256 amount, uint256 apr, uint256 term);
     event AdminTransferred(address indexed oldAdmin, address indexed newAdmin);
@@ -370,41 +370,17 @@ contract VaultEscrow is IERC721Receiver {
         emit Disputed(listingId);
     }
 
-    /// @notice Admin resolves a loan dispute. Can return NFT to lender if appropriate.
-    /// @param returnPrincipalToLender ETH to return to lender
-    /// @param nftToLender If true, NFT goes to lender instead of borrower
-    function resolve(uint256 listingId, uint256 returnPrincipalToLender, bool nftToLender)
+    /// @notice Admin resolves a loan dispute. Transfers NFT to lender or borrower.
+    function resolve(uint256 listingId, bool nftToLender)
         external onlyAdmin nonReentrant atStage(listingId, Stage.DISPUTED)
     {
         Listing storage l = listings[listingId];
-        uint256 contractBalance = listingEscrowBalance[listingId];
 
-        require(returnPrincipalToLender <= contractBalance, "Insufficient balance");
-
-        if (returnPrincipalToLender > 0) {
-            (bool sent,) = l.acceptedLender.call{value: returnPrincipalToLender}("");
-            if (!sent) revert TransferFailed();
-        }
-
-        uint256 remainder = contractBalance - returnPrincipalToLender;
-        listingEscrowBalance[listingId] = 0;
-        if (remainder > 0) {
-            uint256 fee = (remainder * platformFeeBps) / 10000;
-            uint256 net = remainder - fee;
-            (bool sent,) = l.borrower.call{value: net}("");
-            if (!sent) revert TransferFailed();
-            if (fee > 0) {
-                (bool feeSent,) = admin.call{value: fee}("");
-                if (!feeSent) revert TransferFailed();
-            }
-        }
-
-        // Return NFT based on resolution
         address nftRecipient = nftToLender ? l.acceptedLender : l.borrower;
         l.stage = Stage.REPAID;
         IERC721(l.nftContract).safeTransferFrom(address(this), nftRecipient, l.nftTokenId);
 
-        emit Resolved(listingId, Stage.REPAID, returnPrincipalToLender, remainder, nftToLender);
+        emit Resolved(listingId, Stage.REPAID, nftToLender);
     }
 
     // ═══════════════════════════════════════════════════════════

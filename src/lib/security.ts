@@ -5,11 +5,27 @@ const ALLOWED_ORIGINS = [
   "https://vault-fi.vercel.app",
 ];
 
+function normalizeOrigin(value: string) {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "";
+  }
+}
+
+function requestOrigin(req: NextRequest) {
+  const host = req.headers.get("host");
+  if (!host) return "";
+  const protocol = req.headers.get("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+  return `${protocol}://${host}`;
+}
+
 export function cors(req: NextRequest) {
   const origin = req.headers.get("origin");
   const res = NextResponse.next();
 
-  if (origin && ALLOWED_ORIGINS.some((o) => origin.startsWith(o))) {
+  const normalized = origin ? normalizeOrigin(origin) : "";
+  if (normalized && ALLOWED_ORIGINS.some((o) => normalized === normalizeOrigin(o))) {
     res.headers.set("Access-Control-Allow-Origin", origin);
     res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -23,11 +39,11 @@ export function csrfCheck(req: NextRequest) {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return NextResponse.next();
 
   const origin = req.headers.get("origin");
-  const host = req.headers.get("host");
+  if (!origin) {
+    return NextResponse.json({ error: "Origin header is required" }, { status: 403 });
+  }
 
-  if (!origin && !host) return NextResponse.next(); // server-to-server
-
-  if (origin && host && !origin.includes(host)) {
+  if (normalizeOrigin(origin) !== requestOrigin(req)) {
     return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
   }
 

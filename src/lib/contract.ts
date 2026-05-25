@@ -100,7 +100,6 @@ export const ESCROW_ABI = [
     name: "resolve",
     inputs: [
       { name: "listingId", type: "uint256" },
-      { name: "returnPrincipalToLender", type: "uint256" },
       { name: "nftToLender", type: "bool" },
     ],
     outputs: [],
