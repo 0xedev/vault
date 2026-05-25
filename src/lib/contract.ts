@@ -352,6 +352,42 @@ export const ESCROW_ABI = [
     outputs: [{ type: "uint256" }],
     stateMutability: "view",
   },
+  // ── Pause ──
+  {
+    type: "function",
+    name: "pause",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "unpause",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "paused",
+    inputs: [],
+    outputs: [{ type: "bool" }],
+    stateMutability: "view",
+  },
+  // ── Offer tracking ──
+  {
+    type: "function",
+    name: "offers",
+    inputs: [
+      { name: "", type: "uint256" },
+      { name: "", type: "address" },
+    ],
+    outputs: [
+      { name: "apr", type: "uint256" },
+      { name: "term", type: "uint256" },
+    ],
+    stateMutability: "view",
+  },
 ] as const;
 
 export function getEscrowAddress(): Address {
@@ -813,6 +849,8 @@ export function parseContractError(err: unknown): string {
   if (lower.includes("offerexpired")) return "This offer has expired.";
   if (lower.includes("alreadyoffered")) return "You already have an active offer on this listing.";
   if (lower.includes("transferfailed")) return "Transfer failed. Contact support.";
+  if (lower.includes("paused")) return "Contract is paused. Check back shortly.";
+  if (lower.includes("offermismatch")) return "The accepted terms don't match your original offer.";
   if (lower.includes("must send eth") || lower.includes("msg.value")) return "ETH amount is required.";
 
   if (lower.includes("next_public_escrow_contract")) {

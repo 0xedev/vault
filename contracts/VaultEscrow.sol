@@ -22,6 +22,7 @@ contract VaultEscrow is IERC721Receiver {
     address public admin;
     uint256 public platformFeeBps; // basis points (150 = 1.5%)
     uint256 public constant GRACE_PERIOD = 24 hours;
+    bool public paused;
     bool private _entered;
 
     // ═══════════════════════════════════════════════════════════
@@ -54,6 +55,13 @@ contract VaultEscrow is IERC721Receiver {
     mapping(uint256 => address[]) private _offerLenders;
     mapping(uint256 => mapping(address => bool)) private _hasOffer;
 
+    /// @notice Tracks the APR and term each lender offered, so it can be validated on accept.
+    struct Offer {
+        uint256 apr;
+        uint256 term;
+    }
+    mapping(uint256 => mapping(address => Offer)) public offers;
+
     // ── Events ────────────────────────────────────────────────
     event Listed(uint256 indexed listingId, address borrower, address nftContract, uint256 tokenId, uint256 amount, uint256 apr, uint256 term);
     event Cancelled(uint256 indexed listingId);
@@ -67,6 +75,8 @@ contract VaultEscrow is IERC721Receiver {
     event PlatformFeeUpdated(uint256 newFee);
     event ListingUpdated(uint256 indexed listingId, uint256 amount, uint256 apr, uint256 term);
     event AdminTransferred(address indexed oldAdmin, address indexed newAdmin);
+    event Paused();
+    event Unpaused();
 
     // ── Errors ────────────────────────────────────────────────
     error NotAdmin();
@@ -83,6 +93,8 @@ contract VaultEscrow is IERC721Receiver {
     error NoActiveOffer();
     error TransferFailed();
     error AlreadyOffered();
+    error Paused();
+    error OfferMismatch();
 
     // ── Modifiers ─────────────────────────────────────────────
     modifier onlyAdmin() {
@@ -105,6 +117,11 @@ contract VaultEscrow is IERC721Receiver {
         _entered = true;
         _;
         _entered = false;
+    }
+
+    modifier whenNotPaused() {
+        if (paused) revert Paused();
+        _;
     }
 
     constructor(uint256 _platformFeeBps) {
@@ -178,7 +195,7 @@ contract VaultEscrow is IERC721Receiver {
     // ═══════════════════════════════════════════════════════════
 
     function submitOffer(uint256 listingId, uint256 amount, uint256 apr, uint256 term)
-        external payable nonReentrant atStage(listingId, Stage.LISTED)
+        external payable nonReentrant whenNotPaused atStage(listingId, Stage.LISTED)
     {
         require(msg.value == amount, "ETH sent must equal offer amount");
         require(amount > 0, "Amount must be > 0");
@@ -188,6 +205,7 @@ contract VaultEscrow is IERC721Receiver {
         listingEscrowBalance[listingId] += msg.value;
         _offerLenders[listingId].push(msg.sender);
         _hasOffer[listingId][msg.sender] = true;
+        offers[listingId][msg.sender] = Offer({ apr: apr, term: term });
 
         emit OfferSubmitted(listingId, msg.sender, amount, apr, term);
     }
@@ -205,6 +223,7 @@ contract VaultEscrow is IERC721Receiver {
         lenderDeposits[listingId][msg.sender] = 0;
         listingEscrowBalance[listingId] -= deposited;
         _hasOffer[listingId][msg.sender] = false;
+        delete offers[listingId][msg.sender];
 
         (bool sent,) = msg.sender.call{value: deposited}("");
         if (!sent) revert TransferFailed();
@@ -220,11 +239,15 @@ contract VaultEscrow is IERC721Receiver {
         uint256 listingId, address lender, uint256 acceptedAmount,
         uint256 acceptedApr, uint256 acceptedTerm
     )
-        external nonReentrant onlyBorrower(listingId) atStage(listingId, Stage.LISTED)
+        external nonReentrant whenNotPaused onlyBorrower(listingId) atStage(listingId, Stage.LISTED)
     {
         uint256 deposited = lenderDeposits[listingId][lender];
         require(deposited >= acceptedAmount, "Lender has insufficient deposit");
         require(deposited > 0, "No deposit from this lender");
+
+        // Validate accepted APR and term match what the lender offered
+        Offer memory offer = offers[listingId][lender];
+        if (offer.apr != acceptedApr || offer.term != acceptedTerm) revert OfferMismatch();
 
         Listing storage l = listings[listingId];
 
@@ -489,7 +512,7 @@ contract VaultEscrow is IERC721Receiver {
     /// @notice Buyer funds the escrow. ETH locked until delivery is confirmed or disputed.
     /// @param dealId The listing to purchase
     function fundDeal(uint256 dealId)
-        external payable nonReentrant atDealStage(dealId, DealStage.VERIFIED)
+        external payable nonReentrant whenNotPaused atDealStage(dealId, DealStage.VERIFIED)
     {
         Deal storage d = deals[dealId];
         require(msg.sender != d.seller, "Seller cannot buy own listing");
@@ -531,7 +554,7 @@ contract VaultEscrow is IERC721Receiver {
 
     /// @notice Buyer confirms receipt. Funds released to seller (minus platform fee).
     function confirmDelivery(uint256 dealId)
-        external nonReentrant onlyBuyer(dealId) atDealStage(dealId, DealStage.DELIVERED)
+        external nonReentrant whenNotPaused onlyBuyer(dealId) atDealStage(dealId, DealStage.DELIVERED)
     {
         Deal storage d = deals[dealId];
         uint256 fee = (d.price * platformFeeBps) / 10000;
@@ -686,6 +709,16 @@ contract VaultEscrow is IERC721Receiver {
         address oldAdmin = admin;
         admin = newAdmin;
         emit AdminTransferred(oldAdmin, newAdmin);
+    }
+
+    function pause() external onlyAdmin {
+        paused = true;
+        emit Paused();
+    }
+
+    function unpause() external onlyAdmin {
+        paused = false;
+        emit Unpaused();
     }
 
     function onERC721Received(address, address, uint256, bytes calldata) external pure override returns (bytes4) {
