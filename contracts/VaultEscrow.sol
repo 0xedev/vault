@@ -93,7 +93,7 @@ contract VaultEscrow is IERC721Receiver {
     error NoActiveOffer();
     error TransferFailed();
     error AlreadyOffered();
-    error Paused();
+    error ContractPaused();
     error OfferMismatch();
 
     // ── Modifiers ─────────────────────────────────────────────
@@ -120,7 +120,7 @@ contract VaultEscrow is IERC721Receiver {
     }
 
     modifier whenNotPaused() {
-        if (paused) revert Paused();
+        if (paused) revert ContractPaused();
         _;
     }
 
@@ -325,7 +325,7 @@ contract VaultEscrow is IERC721Receiver {
         uint256 totalDue = l.acceptedAmount + interest;
         uint256 remaining = totalDue - l.repaidSoFar;
 
-        require(msg.value <= remaining, "Overpayment — use repay() to close");
+        require(msg.value <= remaining, "Overpayment - use repay() to close");
 
         l.repaidSoFar += msg.value;
 
@@ -466,7 +466,7 @@ contract VaultEscrow is IERC721Receiver {
     /// @param price Asking price in wei
     /// @param metadataHash Hash of off-chain metadata (name, description, deliverables, etc.)
     /// @return dealId The new listing ID
-    function listDeal(uint256 price, bytes32 metadataHash) external returns (uint256) {
+    function listDeal(uint256 price, bytes32 metadataHash) public returns (uint256) {
         require(price > 0, "Price must be > 0");
         dealCount++;
         deals[dealCount] = Deal({
@@ -486,7 +486,7 @@ contract VaultEscrow is IERC721Receiver {
 
     /// @notice Seller cancels a listing before it's funded.
     function cancelDeal(uint256 dealId)
-        external nonReentrant onlySeller(dealId) atDealStage(dealId, DealStage.LISTED)
+        public nonReentrant onlySeller(dealId) atDealStage(dealId, DealStage.LISTED)
     {
         deals[dealId].stage = DealStage.CANCELLED;
         emit DealCancelled(dealId);
@@ -494,7 +494,7 @@ contract VaultEscrow is IERC721Receiver {
 
     /// @notice Seller updates listing price + metadata.
     function updateDeal(uint256 dealId, uint256 newPrice, bytes32 newMetadataHash)
-        external onlySeller(dealId) atDealStage(dealId, DealStage.LISTED)
+        public onlySeller(dealId) atDealStage(dealId, DealStage.LISTED)
     {
         require(newPrice > 0, "Price must be > 0");
         deals[dealId].price = newPrice;
@@ -503,7 +503,7 @@ contract VaultEscrow is IERC721Receiver {
 
     /// @notice Admin verifies seller ownership, activating the listing for buyers.
     function verifyDeal(uint256 dealId)
-        external onlyAdmin atDealStage(dealId, DealStage.LISTED)
+        public onlyAdmin atDealStage(dealId, DealStage.LISTED)
     {
         deals[dealId].stage = DealStage.VERIFIED;
         emit DealDelivered(dealId); // reuse event — just means "activated"
@@ -512,7 +512,7 @@ contract VaultEscrow is IERC721Receiver {
     /// @notice Buyer funds the escrow. ETH locked until delivery is confirmed or disputed.
     /// @param dealId The listing to purchase
     function fundDeal(uint256 dealId)
-        external payable nonReentrant whenNotPaused atDealStage(dealId, DealStage.VERIFIED)
+        public payable nonReentrant whenNotPaused atDealStage(dealId, DealStage.VERIFIED)
     {
         Deal storage d = deals[dealId];
         require(msg.sender != d.seller, "Seller cannot buy own listing");
@@ -528,7 +528,7 @@ contract VaultEscrow is IERC721Receiver {
 
     /// @notice Seller marks the asset as delivered. Buyer must confirm within 3 days.
     function markDelivered(uint256 dealId)
-        external nonReentrant onlySeller(dealId) atDealStage(dealId, DealStage.FUNDED)
+        public nonReentrant onlySeller(dealId) atDealStage(dealId, DealStage.FUNDED)
     {
         Deal storage d = deals[dealId];
         require(block.timestamp < d.deadline, "Delivery deadline passed");
@@ -541,7 +541,7 @@ contract VaultEscrow is IERC721Receiver {
 
     /// @notice Seller extends the delivery deadline (once, max 7 days total from fund).
     function extendDeadline(uint256 dealId)
-        external onlySeller(dealId) atDealStage(dealId, DealStage.FUNDED)
+        public onlySeller(dealId) atDealStage(dealId, DealStage.FUNDED)
     {
         Deal storage d = deals[dealId];
         // Allow extending up to 14 days from funding
@@ -554,7 +554,7 @@ contract VaultEscrow is IERC721Receiver {
 
     /// @notice Buyer confirms receipt. Funds released to seller (minus platform fee).
     function confirmDelivery(uint256 dealId)
-        external nonReentrant whenNotPaused onlyBuyer(dealId) atDealStage(dealId, DealStage.DELIVERED)
+        public nonReentrant whenNotPaused onlyBuyer(dealId) atDealStage(dealId, DealStage.DELIVERED)
     {
         Deal storage d = deals[dealId];
         uint256 fee = (d.price * platformFeeBps) / 10000;
@@ -576,7 +576,7 @@ contract VaultEscrow is IERC721Receiver {
 
     /// @notice Either party disputes the deal.
     function disputeDeal(uint256 dealId)
-        external onlyDealParty(dealId) atDealStage(dealId, DealStage.DELIVERED)
+        public onlyDealParty(dealId) atDealStage(dealId, DealStage.DELIVERED)
     {
         deals[dealId].stage = DealStage.DISPUTED;
         emit DealDisputed(dealId);
@@ -586,7 +586,7 @@ contract VaultEscrow is IERC721Receiver {
     /// @param buyerAmount ETH to return to buyer
     /// @param sellerAmount ETH to release to seller
     function resolveDeal(uint256 dealId, uint256 buyerAmount, uint256 sellerAmount)
-        external onlyAdmin nonReentrant atDealStage(dealId, DealStage.DISPUTED)
+        public onlyAdmin nonReentrant atDealStage(dealId, DealStage.DISPUTED)
     {
         Deal storage d = deals[dealId];
         uint256 balance = dealEscrowBalance[dealId];
@@ -624,7 +624,7 @@ contract VaultEscrow is IERC721Receiver {
 
     /// @notice Buyer claims refund if seller misses delivery deadline.
     function refundDeal(uint256 dealId)
-        external nonReentrant onlyBuyer(dealId) atDealStage(dealId, DealStage.FUNDED)
+        public nonReentrant onlyBuyer(dealId) atDealStage(dealId, DealStage.FUNDED)
     {
         Deal storage d = deals[dealId];
         require(block.timestamp > d.deadline, "Deadline not passed");
@@ -680,17 +680,31 @@ contract VaultEscrow is IERC721Receiver {
         emit MiniAppVerified(miniAppId);
     }
 
-    /// @notice Buyer purchases a verified mini app — funds escrow + auto-confirms.
-    function buyMiniApp(uint256 miniAppId) external payable nonReentrant {
+    /// @notice Buyer purchases a verified mini app — routes ETH directly to seller.
+    function buyMiniApp(uint256 miniAppId) external payable {
         uint256 dealId = _miniAppToDeal[miniAppId];
         require(dealId > 0, "Not found");
-        require(deals[dealId].stage == DealStage.VERIFIED, "Not verified");
-        require(msg.value == deals[dealId].price, "Incorrect payment");
+        Deal storage d = deals[dealId];
+        require(d.stage == DealStage.VERIFIED, "Not verified");
+        require(msg.sender != d.seller, "Seller cannot buy own listing");
+        require(msg.value == d.price, "Incorrect payment");
 
-        fundDeal(dealId);
-        markDelivered(dealId);
-        confirmDelivery(dealId);
+        d.buyer = msg.sender;
+        d.stage = DealStage.CONFIRMED;
 
+        uint256 fee = (d.price * platformFeeBps) / 10000;
+        uint256 net = d.price - fee;
+
+        (bool sent,) = d.seller.call{value: net}("");
+        if (!sent) revert TransferFailed();
+
+        if (fee > 0) {
+            (bool feeSent,) = admin.call{value: fee}("");
+            if (!feeSent) revert TransferFailed();
+        }
+
+        emit DealFunded(dealId, msg.sender, msg.value);
+        emit DealConfirmed(dealId, net);
         emit MiniAppSold(miniAppId, msg.sender, msg.value);
     }
 
