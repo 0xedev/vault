@@ -1,9 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
-import { writeListMiniApp, hashMetadata, verificationCode, parseContractError } from "@/lib/contract";
+import { getEscrowAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError } from "@/lib/contract";
 import { parseEther, type Address } from "viem";
 import type { ClankerToken } from "@/lib/data";
 import { fmtCompact } from "@/lib/utils";
@@ -18,6 +20,7 @@ function Stat({ lab, v }: { lab: string; v: string }) {
 }
 
 export default function ClankerPage() {
+  const router = useRouter();
   const { address, isConnected, connect } = useWallet();
   const [tokens, setTokens] = useState<ClankerToken[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +41,7 @@ export default function ClankerPage() {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [selectedToken, setSelectedToken] = useState<ClankerToken | null>(null);
+  const [buying, setBuying] = useState("");
 
   useEffect(() => {
     fetch("/api/marketplace/clanker")
@@ -63,7 +67,8 @@ export default function ClankerPage() {
       };
       const metaHash = hashMetadata(metadata);
 
-      const txHash = await writeListMiniApp(address as Address, parseEther(price || "0"), metaHash);
+      const txHash = await writeListDeal(address as Address, parseEther(price || "0"), metaHash);
+      const contractListingId = await waitForDealId(txHash);
 
       const res = await fetch("/api/marketplace/clanker", {
         method: "POST",
@@ -74,6 +79,8 @@ export default function ClankerPage() {
           price: Number(price),
           description,
           chainId: chain === "Base" ? 8453 : 1,
+          contractAddress: getEscrowAddress(),
+          contractListingId,
           txHash,
           data: {
             name, symbol, tokenAddress: contractAddress, chain,
@@ -101,6 +108,42 @@ export default function ClankerPage() {
       setError(parseContractError(err));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const fundEscrow = async (token: ClankerToken) => {
+    if (!isConnected || !address) {
+      await connect();
+      return;
+    }
+    setBuying(token.id);
+    setError("");
+    try {
+      if (!token.sellerAddress) throw new Error("Listing seller is missing.");
+      if (token.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
+      if (!token.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
+      const txHash = await writeFundDeal(address as Address, BigInt(token.contractListingId), parseEther(String(token.price)));
+      const res = await fetch("/api/escrows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: token.id,
+          sellerAddress: token.sellerAddress,
+          amount: token.price,
+          currency: "ETH",
+          chainId: token.chainId || 8453,
+          contractAddress: token.contractAddress || getEscrowAddress(),
+          contractListingId: token.contractListingId,
+          txHash,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Unable to create escrow");
+      router.push("/deals");
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setBuying("");
     }
   };
 
@@ -208,7 +251,9 @@ export default function ClankerPage() {
             </div>
             <div className="modal-f">
               <button className="btn" onClick={() => setSelectedToken(null)}>Close</button>
-              <button className="btn primary">Make offer →</button>
+              <button className="btn primary" onClick={() => fundEscrow(selectedToken)} disabled={buying === selectedToken.id || selectedToken.sellerAddress?.toLowerCase() === address?.toLowerCase()}>
+                {buying === selectedToken.id ? "Funding escrow..." : selectedToken.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Your listing" : "Buy with escrow"}
+              </button>
             </div>
           </div>
         </div>

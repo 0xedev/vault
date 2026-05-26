@@ -1,6 +1,6 @@
 {
-  "id": "eb118b4c-da10-4c96-b9a6-7ea5dcb95494",
-  "prevId": "07c3f3be-d082-47fe-b4b7-70f299027a45",
+  "id": "9bd98c8d-9a5b-4d56-a1bd-3c92f8ec4d79",
+  "prevId": "eb118b4c-da10-4c96-b9a6-7ea5dcb95494",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1472,6 +1472,7 @@
         "mini_app",
         "x_account",
         "farcaster",
+        "clanker",
         "otc"
       ]
     },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase, shortAddress } from "@/lib/api";
 import { forbidden, requireUser } from "@/lib/auth";
+import { getEscrowAddress, getPublicClient } from "@/lib/contract";
 
 const offerSchema = z.object({
   listingId: z.string().min(1),
@@ -11,12 +12,13 @@ const offerSchema = z.object({
   termDays: z.number().int().positive().optional(),
   expiresInHours: z.number().int().positive().optional().default(24),
   chainId: z.number().int().positive().optional(),
-  txHash: z.string().startsWith("0x").optional(),
+  txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
 });
 
 const offerStatusSchema = z.object({
   id: z.string().min(1),
   status: z.enum(["accepted", "rejected"]),
+  txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
 });
 
 export async function GET(req: NextRequest) {
@@ -70,7 +72,7 @@ export async function PATCH(req: NextRequest) {
 
   const db = auth.db;
   const rows = await db`
-    SELECT o.id, o.listing_id, l.seller_address
+    SELECT o.id, o.listing_id, l.seller_address, l.contract_listing_id, l.contract_address, l.tx_status
     FROM offers o
     JOIN listings l ON l.id = o.listing_id
     WHERE o.id = ${parsed.data.id}
@@ -81,7 +83,18 @@ export async function PATCH(req: NextRequest) {
     return forbidden("Only the listing owner can update this offer.");
   }
 
-  await db`UPDATE offers SET status = ${parsed.data.status} WHERE id = ${parsed.data.id}`;
+  const contractBacked = Boolean(rows[0].contract_listing_id || rows[0].contract_address || String(rows[0].tx_status || "") === "pending" || String(rows[0].tx_status || "") === "confirmed");
+  if (parsed.data.status === "accepted" && contractBacked) {
+    if (!parsed.data.txHash) return NextResponse.json({ error: "A confirmed accept-offer transaction hash is required." }, { status: 400 });
+    const receipt = await getPublicClient().getTransactionReceipt({ hash: parsed.data.txHash as `0x${string}` }).catch(() => null);
+    if (!receipt) return NextResponse.json({ error: "Accept-offer transaction is not confirmed yet." }, { status: 400 });
+    if (receipt.status !== "success") return NextResponse.json({ error: "Accept-offer transaction failed." }, { status: 400 });
+    if (receipt.to?.toLowerCase() !== getEscrowAddress().toLowerCase()) {
+      return NextResponse.json({ error: "Transaction was not sent to the configured escrow contract." }, { status: 400 });
+    }
+  }
+
+  await db`UPDATE offers SET status = ${parsed.data.status}, tx_hash = COALESCE(${parsed.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${parsed.data.txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END WHERE id = ${parsed.data.id}`;
   if (parsed.data.status === "accepted") {
     await db`UPDATE listings SET status = 'funded', updated_at = NOW() WHERE id = ${rows[0].listing_id}`;
   }

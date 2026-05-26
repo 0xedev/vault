@@ -13,6 +13,12 @@ export interface ClankerToken {
   poolAddress: string;
   imageUrl?: string;
   verified: boolean;
+  sellerAddress?: string;
+  chainId?: number;
+  contractAddress?: string;
+  contractListingId?: string;
+  txHash?: string;
+  txStatus?: string;
 }
 
 export const COLLECTIONS = [
@@ -28,7 +34,7 @@ export interface Loan {
   apr: number;
   term: number;
   ltv: number;
-  status: "open" | "funded" | "warn" | "default";
+  status: "open" | "funded" | "repaid" | "warn" | "default" | "disputed";
   bid: number;
   value: number;
   borrower: string;
@@ -48,6 +54,12 @@ export interface DigitalDeal {
   chain: string;
   verified: boolean;
   includes: string[];
+  sellerAddress?: string;
+  chainId?: number;
+  contractAddress?: string;
+  contractListingId?: string;
+  txHash?: string;
+  txStatus?: string;
 }
 
 export interface Escrow {
@@ -74,6 +86,13 @@ export interface XAccount {
   posts_30d: number;
   growth: string;
   imageUrl?: string;
+  sellerAddress?: string;
+  chainId?: number;
+  contractAddress?: string;
+  contractListingId?: string;
+  txHash?: string;
+  txStatus?: string;
+  includes?: string[];
 }
 
 export interface FarcasterAccount {
@@ -88,6 +107,13 @@ export interface FarcasterAccount {
   verified: boolean;
   rev_30d: number;
   imageUrl?: string;
+  sellerAddress?: string;
+  chainId?: number;
+  contractAddress?: string;
+  contractListingId?: string;
+  txHash?: string;
+  txStatus?: string;
+  includes?: string[];
 }
 
 export interface MiniApp {
@@ -102,4 +128,11 @@ export interface MiniApp {
   source: boolean;
   age: string;
   imageUrl?: string;
+  sellerAddress?: string;
+  chainId?: number;
+  contractAddress?: string;
+  contractListingId?: string;
+  txHash?: string;
+  txStatus?: string;
+  includes?: string[];
 }

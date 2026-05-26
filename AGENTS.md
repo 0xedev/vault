@@ -10,7 +10,7 @@ src/
     (user)/              ← Route group — user-facing pages
       layout.tsx         ← Wraps with AppShell (TopBar + SideBar)
       page.tsx           ← Landing /
-      market/page.tsx    ← NFT Loan marketplace /market
+      market/page.tsx    ← All-markets marketplace hub /market
       detail/page.tsx    ← Loan detail /detail
       deals/page.tsx     ← Profile /deals (deals list + deal room + chat)
       miniapps/page.tsx  ← Mini Apps /miniapps
@@ -55,19 +55,20 @@ npm run lint    # ESLint
 | User pages | Admin pages |
 |---|---|
 | `/` — Landing | `/admin/dash` — Dashboard |
-| `/market` — NFT Loans | `/admin/disputes` — Dispute queue |
+| `/market` — All markets | `/admin/disputes` — Dispute queue |
 | `/detail` — Loan detail | `/admin/listings` — Listing moderation |
 | `/deals` — Profile (deals + deal room) | `/admin/users` — User management |
 | `/miniapps` — Mini Apps | `/admin/admin-escrow` — Escrow ops |
 | `/x` — X Accounts | `/admin/verifications` — Verifications |
 | `/farcaster` — Farcaster | `/admin/tickets` — Support inbox |
+| `/clanker` — Clanker tokens | |
 | `/history` → redirects to `/deals` | `/admin/audit` — Audit log |
 
-Redirects: `/escrow`, `/portfolio`, `/otc` → `/deals`
+Removed legacy pages: `/escrow`, `/portfolio`, `/otc`
 
 ## Build verification
 
 ```bash
-# User: /, /market, /detail, /deals, /miniapps, /x, /farcaster, /history
+# User: /, /market, /detail, /deals, /miniapps, /x, /farcaster, /clanker, /history
 # Admin: /admin/dash, /admin/disputes, /admin/listings, /admin/users, /admin/admin-escrow, /admin/verifications, /admin/tickets, /admin/audit
 ```

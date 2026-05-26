@@ -154,9 +154,30 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined" || !window.ethereum) return;
 
-    const handleAccountsChanged = (accounts: string[]) => {
-      if (accounts.length === 0) disconnect();
-      else setAddress(accounts[0]);
+    const handleAccountsChanged = async (accounts: string[]) => {
+      if (accounts.length === 0) {
+        disconnect();
+        return;
+      }
+
+      const nextAddress = accounts[0];
+      setAddress(nextAddress);
+      setRole(null);
+      try { localStorage.setItem(STORAGE_KEY, nextAddress); } catch {}
+
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+        const chain = await window.ethereum!.request({ method: "eth_chainId" }) as string;
+        const chainIdNum = parseInt(chain, 16);
+        setChainId(chainIdNum);
+        const session = await siweSignIn(nextAddress, chainIdNum);
+        if (session) {
+          setAddress(session.address || nextAddress);
+          setRole(session.role === "admin" ? "admin" : "user");
+        }
+      } catch {
+        setRole(null);
+      }
     };
 
     const handleChainChanged = (chain: string) => {

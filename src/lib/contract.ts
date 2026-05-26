@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, custom, http, keccak256, toHex, type Address, type Hash } from "viem";
+import { createPublicClient, createWalletClient, custom, decodeEventLog, http, keccak256, parseAbi, toHex, type Address, type Hash } from "viem";
 import { base } from "viem/chains";
 
 export const ESCROW_ABI = [
@@ -207,18 +207,6 @@ export const ESCROW_ABI = [
   },
   {
     type: "function",
-    name: "miniApps",
-    inputs: [{ name: "", type: "uint256" }],
-    outputs: [
-      { name: "seller", type: "address" },
-      { name: "price", type: "uint256" },
-      { name: "metadataHash", type: "bytes32" },
-      { name: "stage", type: "uint8" },
-    ],
-    stateMutability: "view",
-  },
-  {
-    type: "function",
     name: "miniAppCount",
     inputs: [],
     outputs: [{ type: "uint256" }],
@@ -389,6 +377,11 @@ export const ESCROW_ABI = [
   },
 ] as const;
 
+const ESCROW_EVENT_ABI = parseAbi([
+  "event Listed(uint256 indexed listingId, address borrower, address nftContract, uint256 tokenId, uint256 amount, uint256 apr, uint256 term)",
+  "event DealListed(uint256 indexed dealId, address seller, uint256 price, bytes32 metadataHash)",
+]);
+
 export function getEscrowAddress(): Address {
   const addr = process.env.NEXT_PUBLIC_ESCROW_CONTRACT;
   if (!addr) throw new Error("NEXT_PUBLIC_ESCROW_CONTRACT not set");
@@ -432,6 +425,21 @@ export async function writeListNFT(
     account,
     chain: base,
   });
+}
+
+export async function waitForListingId(hash: Hash): Promise<string> {
+  const receipt = await getPublicClient().waitForTransactionReceipt({ hash });
+  for (const log of receipt.logs) {
+    try {
+      const decoded = decodeEventLog({ abi: ESCROW_EVENT_ABI, data: log.data, topics: log.topics });
+      if (decoded.eventName === "Listed") {
+        return decoded.args.listingId.toString();
+      }
+    } catch {
+      // Ignore unrelated logs in the same receipt.
+    }
+  }
+  throw new Error("Listing transaction confirmed, but no Listed event was found.");
 }
 
 export async function writeSubmitOffer(
@@ -674,6 +682,21 @@ export async function writeListDeal(
     account,
     chain: base,
   });
+}
+
+export async function waitForDealId(hash: Hash): Promise<string> {
+  const receipt = await getPublicClient().waitForTransactionReceipt({ hash });
+  for (const log of receipt.logs) {
+    try {
+      const decoded = decodeEventLog({ abi: ESCROW_EVENT_ABI, data: log.data, topics: log.topics });
+      if (decoded.eventName === "DealListed") {
+        return decoded.args.dealId.toString();
+      }
+    } catch {
+      // Ignore unrelated logs in the same receipt.
+    }
+  }
+  throw new Error("Deal transaction confirmed, but no DealListed event was found.");
 }
 
 export async function writeFundDeal(

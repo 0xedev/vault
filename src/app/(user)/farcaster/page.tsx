@@ -1,12 +1,13 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/icons";
 import type { FarcasterAccount } from "@/lib/data";
-import { fmtCompact, appColor } from "@/lib/utils";
+import { fmtCompact } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
-import { writeListMiniApp, hashMetadata, verificationCode, parseContractError } from "@/lib/contract";
+import { getEscrowAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError } from "@/lib/contract";
 import { parseEther, type Address } from "viem";
 
 const FC_DELIVERABLE_OPTIONS = [
@@ -33,7 +34,6 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
-  const [verifyCode, setVerifyCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
 
@@ -84,7 +84,8 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
       const metaHash = hashMetadata(metadata);
 
       // On-chain
-      const txHash = await writeListMiniApp(address as Address, parseEther(price || "0"), metaHash);
+      const txHash = await writeListDeal(address as Address, parseEther(price || "0"), metaHash);
+      const contractListingId = await waitForDealId(txHash);
 
       // API
       const res = await fetch("/api/marketplace/farcaster", {
@@ -96,6 +97,8 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
           description: description || `Farcaster FID ${fid}${channel ? ` in /${channel}` : ""}`,
           price: Number(price),
           chainId: 8453,
+          contractAddress: getEscrowAddress(),
+          contractListingId,
           txHash,
           data: {
             fid: Number(fid),
@@ -114,7 +117,6 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to submit FID listing");
-      setVerifyCode(verificationCode(metaHash));
       setVerified(false);
       setDone("Listed on-chain. Verify on-chain ownership to make it visible.");
     } catch (err) {
@@ -216,13 +218,15 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function FarcasterPage() {
-  const { isConnected, connect } = useWallet();
+  const router = useRouter();
+  const { isConnected, connect, address } = useWallet();
   const [accounts, setAccounts] = useState<FarcasterAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sort, setSort] = useState("followers");
   const [filter, setFilter] = useState("all");
   const [listing, setListing] = useState(false);
+  const [buying, setBuying] = useState("");
 
   useEffect(() => {
     fetch("/api/marketplace/farcaster")
@@ -249,6 +253,42 @@ export default function FarcasterPage() {
     ["power",    "Power badge",  accounts.filter(a => a.power_badge).length],
     ["verified", "Verified",     accounts.filter(a => a.verified).length],
   ];
+
+  const fundEscrow = async (account: FarcasterAccount) => {
+    if (!isConnected || !address) {
+      await connect();
+      return;
+    }
+    setBuying(account.id);
+    setError("");
+    try {
+      if (!account.sellerAddress) throw new Error("Listing seller is missing.");
+      if (account.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
+      if (!account.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
+      const txHash = await writeFundDeal(address as Address, BigInt(account.contractListingId), parseEther(String(account.price)));
+      const res = await fetch("/api/escrows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: account.id,
+          sellerAddress: account.sellerAddress,
+          amount: account.price,
+          currency: "ETH",
+          chainId: account.chainId || 8453,
+          contractAddress: account.contractAddress || getEscrowAddress(),
+          contractListingId: account.contractListingId,
+          txHash,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Unable to create escrow");
+      router.push("/deals");
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setBuying("");
+    }
+  };
 
   return (
     <main className="main">
@@ -314,7 +354,7 @@ export default function FarcasterPage() {
             {filt.map(a => (
               <tr key={a.id} style={{ cursor: "pointer" }}>
                 <td className="mono" style={{ color: "var(--ink)" }}>
-                  <Link href="/deals" style={{ color: "inherit", textDecoration: "none" }}>#{a.fid}</Link>
+                  #{a.fid}
                 </td>
                 <td>
                   <div className="row" style={{ gap: 8 }}>
@@ -339,7 +379,11 @@ export default function FarcasterPage() {
                   </div>
                 </td>
                 <td className="right mono" style={{ color: "var(--ink)" }}>{a.price} Ξ</td>
-                <td className="right"><Icon.arrow style={{ color: "var(--ink-3)" }}/></td>
+                <td className="right">
+                  <button className="btn sm primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()}>
+                    {buying === a.id ? "Funding..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Yours" : "Buy"}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
