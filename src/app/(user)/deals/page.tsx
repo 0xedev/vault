@@ -6,7 +6,16 @@ import Icon from "@/components/icons";
 import StatusPill from "@/components/StatusPill";
 import { useRole } from "@/components/RoleProvider";
 import { useWallet } from "@/components/WalletProvider";
+import {
+  getPublicClient,
+  parseContractError,
+  writeConfirmDelivery,
+  writeDisputeDeal,
+  writeMarkDelivered,
+  writeRefundDeal,
+} from "@/lib/contract";
 import { fmtETH, fmtUSD } from "@/lib/utils";
+import { type Address, type Hash } from "viem";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -45,6 +54,10 @@ interface DealDetail {
   stageRaw: string;
   action: string;
   listingId: string;
+  chainId?: number;
+  contractAddress?: string;
+  contractListingId?: string;
+  txStatus?: string;
 }
 
 interface ChatMessage {
@@ -89,13 +102,29 @@ const DEAL_STEPS = [
   "Buyer deposits", "Seller transfers", "Buyer confirms", "Funds release", "Fee deducted",
 ];
 
-function DealRoom({ deal, onBack }: { deal: DealDetail; onBack: () => void }) {
+function stageToStep(stageRaw: string) {
+  if (stageRaw === "awaiting_deposit") return 0;
+  if (stageRaw === "funds_locked") return 1;
+  if (stageRaw === "asset_transferred") return 2;
+  if (stageRaw === "awaiting_confirmation") return 3;
+  if (stageRaw === "released") return 4;
+  return 2;
+}
+
+function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () => void; onChanged: () => void }) {
   const { role } = useRole();
-  const [step, setStep] = useState(2);
+  const { address } = useWallet();
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
   const [actionNotice, setActionNotice] = useState("");
+  const [actionBusy, setActionBusy] = useState("");
+  const step = stageToStep(deal.stageRaw);
+  const walletAddress = address?.toLowerCase();
+  const buyerAddress = deal.buyerAddress.toLowerCase();
+  const sellerAddress = deal.sellerAddress.toLowerCase();
+  const actorRole = walletAddress === sellerAddress ? "seller" : walletAddress === buyerAddress ? "buyer" : role;
+  const isContractBacked = Boolean(deal.contractListingId);
 
   useEffect(() => {
     fetch(`/api/deals/${deal.id}/messages`)
@@ -105,7 +134,62 @@ function DealRoom({ deal, onBack }: { deal: DealDetail; onBack: () => void }) {
   }, [deal.id]);
 
   const checks = deal.includes.map((item, i) => ({ t: item, done: i < step, active: i === step }));
-  const canRelease = checks.length > 0 && checks.every(c => c.done);
+  const canRelease = deal.stageRaw === "awaiting_confirmation" || (checks.length > 0 && checks.every(c => c.done));
+
+  const waitForTx = async (hash: Hash) => {
+    await getPublicClient().waitForTransactionReceipt({ hash });
+    return hash;
+  };
+
+  const contractTxFor = async (path: string) => {
+    if (!isContractBacked || path === "confirm") return undefined;
+    if (!address) throw new Error("Connect the wallet for this escrow before submitting an on-chain action.");
+    const dealId = BigInt(deal.contractListingId || "0");
+    const account = address as Address;
+    if (path === "proofs") return waitForTx(await writeMarkDelivered(account, dealId));
+    if (path === "release") return waitForTx(await writeConfirmDelivery(account, dealId));
+    if (path === "refund") return waitForTx(await writeRefundDeal(account, dealId));
+    if (path === "dispute") return waitForTx(await writeDisputeDeal(account, dealId));
+    return undefined;
+  };
+
+  const postEscrowAction = async (path: string, body: Record<string, unknown>, success: string) => {
+    setActionBusy(path);
+    setActionNotice("");
+    try {
+      const txHash = await contractTxFor(path);
+      const res = await fetch(`/api/escrows/${deal.id}/${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(txHash ? { ...body, txHash } : body),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Escrow action failed");
+      setActionNotice(success);
+      onChanged();
+    } catch (err) {
+      setActionNotice(parseContractError(err));
+    } finally {
+      setActionBusy("");
+    }
+  };
+
+  const submitProof = async () => {
+    const url = window.prompt("Proof URL");
+    if (!url) return;
+    const contentHash = window.prompt("Content hash") || "";
+    if (!contentHash) {
+      setActionNotice("A content hash is required before proof can be attached.");
+      return;
+    }
+    await postEscrowAction("proofs", { proofType: "delivery", url, contentHash }, "Delivery proof attached.");
+  };
+
+  const openDispute = async () => {
+    const reason = window.prompt("Dispute reason");
+    if (!reason) return;
+    await postEscrowAction("dispute", { reason }, "Dispute filed. An admin will review this escrow.");
+  };
 
   const sendMsg = async () => {
     if (!draft.trim() || sending) return;
@@ -138,7 +222,7 @@ function DealRoom({ deal, onBack }: { deal: DealDetail; onBack: () => void }) {
           </h1>
         </div>
         <div className="row" style={{ gap: 10 }}>
-          <button className="btn ghost"><Icon.warn /> Open dispute</button>
+          <button className="btn ghost" onClick={openDispute} disabled={Boolean(actionBusy)}><Icon.warn /> Open dispute</button>
           <button className="btn" onClick={() => window.open("/contracts/VaultEscrow.sol", "_blank")}>Download contract</button>
         </div>
       </div>
@@ -189,8 +273,16 @@ function DealRoom({ deal, onBack }: { deal: DealDetail; onBack: () => void }) {
                       {role === "buyer" ? "Buyer needs to confirm receipt" : "Waiting for buyer confirmation"}
                     </span>}
                   </div>
-                  {c.active && role === "buyer" && <button className="btn primary sm" onClick={() => setStep(Math.min(4, step + 1))}>Confirm</button>}
-                  {!c.done && role === "seller" && <button className="btn sm ghost" disabled title="Proof upload API is not connected yet">Proof pending</button>}
+                  {c.active && actorRole === "buyer" && (
+                    <button className="btn primary sm" onClick={() => postEscrowAction("confirm", {}, "Receipt confirmed.")} disabled={Boolean(actionBusy)}>
+                      {actionBusy === "confirm" ? "Confirming..." : "Confirm"}
+                    </button>
+                  )}
+                  {!c.done && actorRole === "seller" && (
+                    <button className="btn sm ghost" onClick={submitProof} disabled={Boolean(actionBusy)}>
+                      {actionBusy === "proofs" ? (isContractBacked ? "Confirming..." : "Uploading...") : "Add proof"}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -227,15 +319,19 @@ function DealRoom({ deal, onBack }: { deal: DealDetail; onBack: () => void }) {
             <div className="kv"><span className="k">Net to seller</span><span className="v" style={{ color: "var(--accent)" }}>{(deal.price * 0.975).toFixed(2)} {deal.currency}</span></div>
             {actionNotice && <div className="warn-banner" style={{ marginTop: 12, fontSize: 12 }}>{actionNotice}</div>}
             <div className="row" style={{ gap: 8, marginTop: 16 }}>
-              {role === "buyer" ? (
+              {actorRole === "buyer" ? (
                 <>
-                  <button className="btn primary" style={{ flex: 1 }} onClick={() => setStep(4)} disabled={!canRelease}>Release funds</button>
-                  <button className="btn danger" style={{ flex: 1 }} onClick={() => setActionNotice("Dispute filed. An admin will review this escrow.")}>Open dispute</button>
+                  <button className="btn primary" style={{ flex: 1 }} onClick={() => postEscrowAction("release", {}, "Funds released in the escrow ledger.")} disabled={!canRelease || Boolean(actionBusy)}>
+                    {actionBusy === "release" ? (isContractBacked ? "Confirming..." : "Releasing...") : "Release funds"}
+                  </button>
+                  <button className="btn danger" style={{ flex: 1 }} onClick={openDispute} disabled={Boolean(actionBusy)}>Open dispute</button>
                 </>
               ) : (
                 <>
-                  <button className="btn primary" style={{ flex: 1 }} onClick={() => setActionNotice("Buyer release request queued. Funds can only move after buyer confirmation or admin resolution.")}>Request release</button>
-                  <button className="btn danger" style={{ flex: 1 }} onClick={() => setActionNotice("Refund approval requires a live escrow transaction signer before funds can move.")}>Approve refund</button>
+                  <button className="btn primary" style={{ flex: 1 }} onClick={submitProof} disabled={Boolean(actionBusy)}>
+                    {actionBusy === "proofs" ? (isContractBacked ? "Confirming..." : "Submitting...") : "Submit proof"}
+                  </button>
+                  <button className="btn danger" style={{ flex: 1 }} onClick={openDispute} disabled={Boolean(actionBusy)}>Open dispute</button>
                 </>
               )}
             </div>
@@ -265,18 +361,22 @@ export default function DealsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const { isConnected, isConnecting, connect, role } = useWallet();
 
-  useEffect(() => {
-    if (!isConnected || !role) { queueMicrotask(() => { setLoading(false); setError("Authentication required"); }); return; }
-    queueMicrotask(() => { setLoading(true); setError(""); });
-    fetch("/api/escrows")
+  const loadEscrows = React.useCallback(() => {
+    return fetch("/api/escrows")
       .then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error || "Unable to load deals");
         return json;
       })
-      .then((json) => { setEscrows(json.data || []); setLoading(false); })
+      .then((json) => { setEscrows(json.data || []); setLoading(false); });
+  }, []);
+
+  useEffect(() => {
+    if (!isConnected || !role) { queueMicrotask(() => { setLoading(false); setError("Authentication required"); }); return; }
+    queueMicrotask(() => { setLoading(true); setError(""); });
+    loadEscrows()
       .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load deals"); setLoading(false); });
-  }, [isConnected, role]);
+  }, [isConnected, role, loadEscrows]);
 
   useEffect(() => {
     if (!selectedDealId) { queueMicrotask(() => setDealDetail(null)); return; }
@@ -403,7 +503,17 @@ export default function DealsPage() {
         detailLoading
           ? <div className="muted" style={{ padding: 40, textAlign: "center" }}>Loading deal…</div>
           : dealDetail
-            ? <DealRoom deal={dealDetail} onBack={() => setSelectedDealId(null)} />
+            ? <DealRoom deal={dealDetail} onBack={() => setSelectedDealId(null)} onChanged={() => {
+                setDetailLoading(true);
+                Promise.all([
+                  fetch(`/api/escrows/${dealDetail.id}`)
+                    .then(r => r.json())
+                    .then(json => setDealDetail(json.data || null)),
+                  loadEscrows(),
+                ])
+                  .catch((err) => setError(err instanceof Error ? err.message : "Unable to refresh deal"))
+                  .finally(() => setDetailLoading(false));
+              }} />
             : <div className="warn-banner">Deal not found.</div>
       )}
 

@@ -12,8 +12,8 @@ export async function GET(
   const db = auth.db;
 
   const rows = auth.user.role === "admin"
-    ? await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.chain_id, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id}` as Record<string, unknown>[]
-    : await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.chain_id, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id} AND (e.buyer_address = ${auth.user.address} OR e.seller_address = ${auth.user.address})` as Record<string, unknown>[];
+    ? await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id}` as Record<string, unknown>[]
+    : await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id} AND (e.buyer_address = ${auth.user.address} OR e.seller_address = ${auth.user.address})` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Escrow not found" }, { status: 404 });
 
   const r = rows[0];
@@ -41,6 +41,10 @@ export async function GET(
       stageRaw: String(r.stage || "awaiting_deposit"),
       action: "On schedule",
       listingId: String(r.listing_id || ""),
+      chainId: asNumber(r.chain_id),
+      contractAddress: asString(r.contract_address),
+      contractListingId: asString(r.contract_listing_id),
+      txStatus: asString(r.tx_status, "offchain"),
     },
   });
 }

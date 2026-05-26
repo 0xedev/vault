@@ -18,16 +18,14 @@ npm run build    # production build
 | User pages | Admin pages |
 |---|---|
 | `/` — Landing | `/admin/dash` — Dashboard |
-| `/market` — NFT Loans | `/admin/disputes` — Dispute queue |
+| `/market` — All markets | `/admin/disputes` — Dispute queue |
 | `/detail` — Loan detail | `/admin/listings` — Listing moderation |
-| `/escrow` — Escrow center | `/admin/users` — User management |
 | `/deals` — Deal room | `/admin/admin-escrow` — Escrow ops |
 | `/miniapps` — Mini Apps | `/admin/verifications` — Verifications |
 | `/x` — X Accounts | `/admin/tickets` — Support inbox |
 | `/farcaster` — Farcaster | `/admin/audit` — Audit log |
-| `/otc` — OTC P2P | |
-| `/portfolio` — Portfolio | |
-| `/history` — History | |
+| `/clanker` — Clanker tokens | |
+| `/history` — redirects to `/deals` | |
 
 ## Stack
 
@@ -35,6 +33,7 @@ npm run build    # production build
 - **CSS custom properties** for theming (dark/light, solid/glass, density)
 - Google Fonts: Geist, Instrument Serif, JetBrains Mono
 - Live Neon/Postgres API routes. `DATABASE_URL` is required; endpoints return an explicit 503 when it is missing.
+- Runtime migrations are not exposed as public API routes. Apply Drizzle SQL migrations through deployment tooling.
 
 ## Theme system
 

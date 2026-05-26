@@ -8,6 +8,16 @@ function collectionIndex(name: string): number {
   return index >= 0 ? index : 0;
 }
 
+function loanStatus(row: ListingRow, data: Record<string, unknown>) {
+  const stored = asString(data.status);
+  if (stored) return stored;
+  const status = asString(row.status);
+  if (status === "funded") return "funded";
+  if (status === "completed") return "repaid";
+  if (status === "disputed") return "disputed";
+  return "open";
+}
+
 export function mapLoanListing(row: ListingRow) {
   const data = jsonRecord(row.collateral_data);
   const title = asString(row.title, "Untitled collateral");
@@ -21,7 +31,7 @@ export function mapLoanListing(row: ListingRow) {
     apr: asNumber(data.apr),
     term: asNumber(data.term),
     ltv: asNumber(data.ltv),
-    status: asString(data.status, row.status === "funded" ? "funded" : "open"),
+    status: loanStatus(row, data),
     bid: asNumber(data.bid),
     value: asNumber(data.value),
     borrower: shortAddress(row.seller_address),
@@ -48,6 +58,13 @@ export function mapMiniAppListing(row: ListingRow) {
     source: asBoolean(data.source, false),
     age: asString(data.age, "Unverified"),
     imageUrl: asString(data.imageUrl),
+    includes: jsonArray(data.includes).map(String),
+    sellerAddress: String(row.seller_address || ""),
+    chainId: asNumber(row.chain_id),
+    contractAddress: asString(row.contract_address),
+    contractListingId: asString(row.contract_listing_id),
+    txHash: asString(row.tx_hash),
+    txStatus: asString(row.tx_status, "offchain"),
   };
 }
 
@@ -65,6 +82,13 @@ export function mapXAccountListing(row: ListingRow) {
     posts_30d: asNumber(data.posts_30d),
     growth: asString(data.growth, "0%"),
     imageUrl: asString(data.imageUrl),
+    includes: jsonArray(data.includes).map(String),
+    sellerAddress: String(row.seller_address || ""),
+    chainId: asNumber(row.chain_id),
+    contractAddress: asString(row.contract_address),
+    contractListingId: asString(row.contract_listing_id),
+    txHash: asString(row.tx_hash),
+    txStatus: asString(row.tx_status, "offchain"),
   };
 }
 
@@ -82,6 +106,13 @@ export function mapFarcasterListing(row: ListingRow) {
     verified: asBoolean(data.verified, row.status === "funded" || row.status === "completed"),
     rev_30d: asNumber(data.rev_30d),
     imageUrl: asString(data.imageUrl),
+    includes: jsonArray(data.includes).map(String),
+    sellerAddress: String(row.seller_address || ""),
+    chainId: asNumber(row.chain_id),
+    contractAddress: asString(row.contract_address),
+    contractListingId: asString(row.contract_listing_id),
+    txHash: asString(row.tx_hash),
+    txStatus: asString(row.tx_status, "offchain"),
   };
 }
 
@@ -96,6 +127,12 @@ export function mapDigitalDeal(row: ListingRow) {
     chain: asString(data.chain, "Unverified"),
     verified: asBoolean(data.verified, row.status === "funded" || row.status === "completed"),
     includes: jsonArray(data.includes).map(String),
+    sellerAddress: String(row.seller_address || ""),
+    chainId: asNumber(row.chain_id),
+    contractAddress: asString(row.contract_address),
+    contractListingId: asString(row.contract_listing_id),
+    txHash: asString(row.tx_hash),
+    txStatus: asString(row.tx_status, "offchain"),
   };
 }
 
@@ -116,5 +153,11 @@ export function mapClankerListing(row: ListingRow) {
     poolAddress: asString(data.poolAddress, ""),
     imageUrl: asString(data.imageUrl),
     verified: asBoolean(data.verified, row.status === "funded" || row.status === "completed"),
+    sellerAddress: String(row.seller_address || ""),
+    chainId: asNumber(row.chain_id),
+    contractAddress: asString(row.contract_address),
+    contractListingId: asString(row.contract_listing_id),
+    txHash: asString(row.tx_hash),
+    txStatus: asString(row.tx_status, "offchain"),
   };
 }

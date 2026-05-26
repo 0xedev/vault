@@ -22,6 +22,27 @@
       "when": 1779468167573,
       "tag": "0002_early_glorian",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779700000000,
+      "tag": "0003_add_clanker_marketplace",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779700100000,
+      "tag": "0004_precise_money_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1779700200000,
+      "tag": "0005_rate_limits",
+      "breakpoints": true
     }
   ]
 }

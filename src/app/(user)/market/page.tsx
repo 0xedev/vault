@@ -9,7 +9,7 @@ import NFTArt from "@/components/NFTArt";
 import { COLLECTIONS } from "@/lib/data";
 import { getNFTsForOwner } from "@/lib/alchemy";
 import { useWallet } from "@/components/WalletProvider";
-import { approveNft, getEscrowAddress, writeListNFT, parseContractError } from "@/lib/contract";
+import { approveNft, getEscrowAddress, writeListNFT, waitForListingId, parseContractError } from "@/lib/contract";
 import { parseEther } from "viem";
 import type { ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount } from "@/lib/data";
 
@@ -143,6 +143,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
         aprBps,
         termDays,
       );
+      const contractListingId = await waitForListingId(listTxHash);
 
       // 3. POST to API
       const res = await fetch("/api/listings", {
@@ -159,6 +160,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           ltv: impliedLtv,
           chainId: 8453,
           contractAddress: getEscrowAddress(),
+          contractListingId,
           txHash: listTxHash,
         }),
       });

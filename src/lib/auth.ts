@@ -61,6 +61,9 @@ export async function createNonce() {
 }
 
 export async function verifySiweSession(req: NextRequest) {
+  const guarded = await mutationGuard(req);
+  if (guarded) return guarded;
+
   const db = getDatabase();
   if (!db) return databaseRequired();
 
@@ -104,6 +107,9 @@ export async function verifySiweSession(req: NextRequest) {
 }
 
 export async function destroySession(req: NextRequest) {
+  const guarded = await mutationGuard(req);
+  if (guarded) return guarded;
+
   const db = getDatabase();
   if (!db) return databaseRequired();
   const sessionId = req.cookies.get(SESSION_COOKIE)?.value;
@@ -134,8 +140,8 @@ export async function getSessionResponse(req: NextRequest) {
   return NextResponse.json({ user });
 }
 
-export function mutationGuard(req: NextRequest) {
-  const rate = rateLimit(req);
+export async function mutationGuard(req: NextRequest) {
+  const rate = await rateLimit(req);
   if (rate.status !== 200) return rate;
   const csrf = csrfCheck(req);
   if (csrf.status !== 200) return csrf;
@@ -144,7 +150,7 @@ export function mutationGuard(req: NextRequest) {
 
 export async function requireUser(req: NextRequest): Promise<{ user: AuthUser; db: DbClient } | { response: NextResponse }> {
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-    const guarded = mutationGuard(req);
+    const guarded = await mutationGuard(req);
     if (guarded) return { response: guarded };
   }
   const db = getDatabase();

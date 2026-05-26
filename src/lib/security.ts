@@ -26,7 +26,7 @@ export function cors(req: NextRequest) {
 
   const normalized = origin ? normalizeOrigin(origin) : "";
   if (normalized && ALLOWED_ORIGINS.some((o) => normalized === normalizeOrigin(o))) {
-    res.headers.set("Access-Control-Allow-Origin", origin);
+    res.headers.set("Access-Control-Allow-Origin", origin!);
     res.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   }

@@ -1,11 +1,12 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/icons";
 import { appColor, fmtCompact } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
-import { writeListMiniApp, hashMetadata, verificationCode, parseContractError } from "@/lib/contract";
+import { getEscrowAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, verificationCode, parseContractError } from "@/lib/contract";
 import { parseEther, type Address } from "viem";
 import type { MiniApp } from "@/lib/data";
 
@@ -32,7 +33,6 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
   const [price, setPrice] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [fetchingOg, setFetchingOg] = useState(false);
-  const [ogData, setOgData] = useState<{ image?: string; title?: string; description?: string; site?: string } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
@@ -70,7 +70,6 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
       const res = await fetch(`/api/og-preview?url=${encodeURIComponent(liveUrl)}`);
       const json = await res.json();
       if (json.image) {
-        setOgData(json);
         setImageUrl(json.image);
         if (json.title && !name) setName(json.title);
         if (json.description && !description) setDescription(json.description);
@@ -113,7 +112,8 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
       const priceWei = parseEther(price || "0");
 
       // 2. Store on-chain
-      const txHash = await writeListMiniApp(address as Address, priceWei, metaHash);
+      const txHash = await writeListDeal(address as Address, priceWei, metaHash);
+      const contractListingId = await waitForDealId(txHash);
 
       // 3. POST to API
       const res = await fetch("/api/marketplace/mini-apps", {
@@ -125,6 +125,8 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
           description,
           price: Number(price),
           chainId: 8453,
+          contractAddress: getEscrowAddress(),
+          contractListingId,
           txHash,
           data: {
             name,
@@ -302,11 +304,13 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function MiniAppsPage() {
-  const { isConnected, connect } = useWallet();
+  const router = useRouter();
+  const { isConnected, connect, address } = useWallet();
   const [showListModal, setShowListModal] = useState(false);
   const [apps, setApps] = useState<MiniApp[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [buying, setBuying] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("dau");
 
@@ -329,6 +333,42 @@ export default function MiniAppsPage() {
     if (sort === "price") r = [...r].sort((a, b) => a.price - b.price);
     return r;
   }, [apps, filter, sort]);
+
+  const fundEscrow = async (app: MiniApp) => {
+    if (!isConnected || !address) {
+      await connect();
+      return;
+    }
+    setBuying(app.id);
+    setError("");
+    try {
+      if (!app.sellerAddress) throw new Error("Listing seller is missing.");
+      if (app.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
+      if (!app.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
+      const txHash = await writeFundDeal(address as Address, BigInt(app.contractListingId), parseEther(String(app.price)));
+      const res = await fetch("/api/escrows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: app.id,
+          sellerAddress: app.sellerAddress,
+          amount: app.price,
+          currency: "ETH",
+          chainId: app.chainId || 8453,
+          contractAddress: app.contractAddress || getEscrowAddress(),
+          contractListingId: app.contractListingId,
+          txHash,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Unable to create escrow");
+      router.push("/deals");
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setBuying("");
+    }
+  };
 
   return (
     <main className="main">
@@ -374,7 +414,7 @@ export default function MiniAppsPage() {
       {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : (
         <div className="grid grid-3">
           {filt.map(a => (
-            <Link href="/deals" key={a.id} className="loan-card">
+            <article key={a.id} className="loan-card">
               <div style={{ position: "relative", aspectRatio: "16/10", background: `linear-gradient(135deg, ${appColor(a.id, 0)}, ${appColor(a.id, 1)})`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                 {a.imageUrl ? (
                   <img src={a.imageUrl} alt={a.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -391,8 +431,14 @@ export default function MiniAppsPage() {
                 <div className="col" style={{ gap: 1 }}><span className="meta">Age</span><span className="amt mono" style={{ fontSize: 14 }}>{a.age}</span></div>
               </div>
               <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 8 }}>{a.stack.map(s => <span key={s} className="chip" style={{ pointerEvents: "none", padding: "2px 7px", fontSize: 10.5 }}>{s}</span>)}</div>
-              <div className="row between" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}><span className="meta">Asking</span><span className="mono" style={{ fontSize: 16 }}>{a.price} <span style={{ color: "var(--ink-3)", fontSize: 12 }}>Ξ</span></span></div>
-            </Link>
+              <div className="row between" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
+                <span className="meta">Asking</span>
+                <span className="mono" style={{ fontSize: 16 }}>{a.price} <span style={{ color: "var(--ink-3)", fontSize: 12 }}>Ξ</span></span>
+              </div>
+              <button className="btn primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()} style={{ width: "100%", justifyContent: "center" }}>
+                {buying === a.id ? "Funding escrow..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Your listing" : "Buy with escrow"}
+              </button>
+            </article>
           ))}
         </div>
       )}

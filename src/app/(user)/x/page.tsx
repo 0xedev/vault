@@ -1,10 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
-import { writeListMiniApp, hashMetadata, verificationCode, parseContractError } from "@/lib/contract";
+import { getEscrowAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, verificationCode, parseContractError } from "@/lib/contract";
 import { parseEther, type Address } from "viem";
 import type { XAccount } from "@/lib/data";
 import { fmtCompact } from "@/lib/utils";
@@ -41,6 +42,7 @@ function Bar({ label, pct, sub }: { label: string; pct: number; sub: string }) {
 }
 
 export default function XAccountsPage() {
+  const router = useRouter();
   const { address, isConnected, connect } = useWallet();
   const [accounts, setAccounts] = useState<XAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +59,7 @@ export default function XAccountsPage() {
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState(false);
   const [tweetUrl, setTweetUrl] = useState("");
+  const [buying, setBuying] = useState("");
 
   const checkVerification = async () => {
     if (!tweetUrl || !handle) return;
@@ -103,7 +106,8 @@ export default function XAccountsPage() {
       const metaHash = hashMetadata(metadata);
 
       // On-chain
-      const txHash = await writeListMiniApp(address as Address, parseEther(price || "0"), metaHash);
+      const txHash = await writeListDeal(address as Address, parseEther(price || "0"), metaHash);
+      const contractListingId = await waitForDealId(txHash);
 
       // API
       const res = await fetch("/api/marketplace/x-accounts", {
@@ -115,6 +119,8 @@ export default function XAccountsPage() {
           price: Number(price),
           description,
           chainId: 8453,
+          contractAddress: getEscrowAddress(),
+          contractListingId,
           txHash,
           data: {
             handle: normalized,
@@ -181,6 +187,42 @@ export default function XAccountsPage() {
     if (sort === "price")     r = [...r].sort((a, b) => a.price - b.price);
     return r;
   }, [filter, sort, accounts]);
+
+  const fundEscrow = async (account: XAccount) => {
+    if (!isConnected || !address) {
+      await connect();
+      return;
+    }
+    setBuying(account.id);
+    setError("");
+    try {
+      if (!account.sellerAddress) throw new Error("Listing seller is missing.");
+      if (account.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
+      if (!account.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
+      const txHash = await writeFundDeal(address as Address, BigInt(account.contractListingId), parseEther(String(account.price)));
+      const res = await fetch("/api/escrows", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: account.id,
+          sellerAddress: account.sellerAddress,
+          amount: account.price,
+          currency: "ETH",
+          chainId: account.chainId || 8453,
+          contractAddress: account.contractAddress || getEscrowAddress(),
+          contractListingId: account.contractListingId,
+          txHash,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Unable to create escrow");
+      router.push("/deals");
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setBuying("");
+    }
+  };
 
   return (
     <main className="main">
@@ -308,7 +350,7 @@ export default function XAccountsPage() {
       {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : (
       <div className="grid grid-3">
         {filt.map(a => (
-          <Link href="/deals" key={a.id} className="x-card">
+          <article key={a.id} className="x-card">
             <div className="x-head">
               <div className="x-avatar">
                 {a.imageUrl ? (
@@ -336,7 +378,10 @@ export default function XAccountsPage() {
               <span className="meta">{a.id}</span>
               <span className="mono" style={{ fontSize: 16 }}>{a.price} <span style={{ color: "var(--ink-3)", fontSize: 12 }}>Ξ</span></span>
             </div>
-          </Link>
+            <button className="btn primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()} style={{ width: "100%", justifyContent: "center" }}>
+              {buying === a.id ? "Funding escrow..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Your listing" : "Buy with escrow"}
+            </button>
+          </article>
         ))}
       </div>
       )}

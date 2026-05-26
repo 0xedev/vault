@@ -515,13 +515,12 @@ contract VaultEscrow is IERC721Receiver {
         emit DealDelivered(dealId);
     }
 
-    /// @notice Seller extends the delivery deadline (once, max 7 days total from fund).
+    /// @notice Seller extends the delivery deadline within a 14 day window from funding.
     function extendDeadline(uint256 dealId)
         public onlySeller(dealId) atDealStage(dealId, DealStage.FUNDED)
     {
         Deal storage d = deals[dealId];
-        // Allow extending up to 14 days from funding
-        uint256 maxDeadline = d.createdAt + 14 days;
+        uint256 maxDeadline = d.deadline + 7 days;
         uint256 newDeadline = block.timestamp + 3 days;
         require(newDeadline <= maxDeadline, "Cannot extend beyond 14 days");
         d.deadline = newDeadline;

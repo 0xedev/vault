@@ -10,8 +10,8 @@ import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
 import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, parseContractError } from "@/lib/contract";
-import { parseEther, type Address } from "viem";
+import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, parseContractError } from "@/lib/contract";
+import { parseEther, type Address, type Hash } from "viem";
 import type { Loan } from "@/lib/data";
 
 type LoanRecord = Loan & { collection?: string; sellerAddress?: string };
@@ -24,7 +24,13 @@ type OfferRecord = {
   term: number;
   when: string;
   status: string;
+  txHash?: Hash;
 };
+
+async function waitForTx(hash: Hash) {
+  await getPublicClient().waitForTransactionReceipt({ hash });
+  return hash;
+}
 
 function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: { onClose: () => void; l: LoanRecord; prefillAmt?: number; prefillApr?: number; prefillTerm?: number }) {
   const { isConnected, connect, isConnecting, address } = useWallet();
@@ -43,13 +49,13 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       // 1. Deposit ETH into escrow contract
       const aprBps = Math.round(apr * 100);
-      const txHash = await writeSubmitOffer(
+      const txHash = await waitForTx(await writeSubmitOffer(
         address as Address,
         BigInt(l.contractListingId),
         parseEther(amt.toFixed(4)),
         aprBps,
         term,
-      );
+      ));
 
       // 2. POST to API
       const res = await fetch("/api/offers", {
@@ -162,13 +168,13 @@ function LoanDetailContent() {
       if (!loan.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       // 1. Deposit ETH via contract
       const aprBps = Math.round(o.apr * 100);
-      const txHash = await writeSubmitOffer(
+      const txHash = await waitForTx(await writeSubmitOffer(
         address as Address,
         BigInt(loan.contractListingId),
         parseEther(o.amt.toFixed(4)),
         aprBps,
         o.term,
-      );
+      ));
 
       // 2. POST to API
       const res = await fetch("/api/offers", {
@@ -234,25 +240,26 @@ function LoanDetailContent() {
   const updateOfferStatus = async (id: string, status: "accepted" | "rejected", offer: OfferRecord) => {
     setOfferAction(id);
     try {
+      let txHash: Hash | undefined;
       // 1. If accepting, call contract to release ETH to borrower
       if (status === "accepted" && address && offer.offererAddress) {
         if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
         const aprBps = Math.round(offer.apr * 100);
-        await writeAcceptOffer(
+        txHash = await waitForTx(await writeAcceptOffer(
           address as Address,
           BigInt(l.contractListingId),
           offer.offererAddress as Address,
           parseEther(offer.amt.toFixed(4)),
           aprBps,
           offer.term,
-        );
+        ));
       }
 
       // 2. Update API
       const res = await fetch("/api/offers", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify({ id, status, txHash }),
       });
       if (!res.ok) throw new Error("Unable to update offer");
       setOffers((current) => current.map((o) => o.id === id ? { ...o, status } : o));
@@ -296,12 +303,12 @@ function LoanDetailContent() {
     try {
       const repaymentDue = l.amt * (1 + l.apr / 100 * l.term / 365);
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-      await writeRepay(
+      await waitForTx(await writeRepay(
         address as Address,
         BigInt(l.contractListingId),
         parseEther(repaymentDue.toFixed(4)),
-      );
-      setLoan((prev) => prev ? { ...prev, status: "open" as Loan["status"] } : prev);
+      ));
+      setLoan((prev) => prev ? { ...prev, status: "repaid" as Loan["status"] } : prev);
     } catch (err) {
       setError(parseContractError(err));
     } finally {
@@ -314,10 +321,10 @@ function LoanDetailContent() {
     setClaiming(true);
     try {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-      await writeClaimCollateral(
+      await waitForTx(await writeClaimCollateral(
         address as Address,
         BigInt(l.contractListingId),
-      );
+      ));
       setLoan((prev) => prev ? { ...prev, status: "default" as Loan["status"] } : prev);
     } catch (err) {
       alert(parseContractError(err));

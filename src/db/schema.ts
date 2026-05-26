@@ -1,4 +1,4 @@
-import { pgTable, text, integer, real, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, numeric, real, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["user", "admin"]);
 export const listingStatus = pgEnum("listing_status", ["active", "funded", "completed", "disputed", "cancelled"]);
@@ -31,7 +31,7 @@ export const users = pgTable("users", {
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
   trades: integer("trades").default(0).notNull(),
   reputation: real("reputation").default(0).notNull(),
-  lockedBalance: real("locked_balance").default(0).notNull(),
+  lockedBalance: numeric("locked_balance", { precision: 78, scale: 18 }).default("0").notNull(),
 });
 
 export const listings = pgTable("listings", {
@@ -40,7 +40,7 @@ export const listings = pgTable("listings", {
   marketplace: marketplaceKind("marketplace").notNull(),
   title: text("title").notNull(),
   description: text("description"),
-  price: real("price").notNull(),
+  price: numeric("price", { precision: 78, scale: 18 }).notNull(),
   currency: text("currency").default("ETH").notNull(),
   collateralData: jsonb("collateral_data"),
   status: listingStatus("status").default("active").notNull(),
@@ -98,8 +98,8 @@ export const offers = pgTable("offers", {
   id: text("id").primaryKey(),
   listingId: text("listing_id").references(() => listings.id).notNull(),
   offererAddress: text("offerer_address").references(() => users.address).notNull(),
-  amount: real("amount").notNull(),
-  apr: real("apr"),
+  amount: numeric("amount", { precision: 78, scale: 18 }).notNull(),
+  apr: numeric("apr", { precision: 18, scale: 6 }),
   termDays: integer("term_days"),
   expiresAt: timestamp("expires_at"),
   status: text("status").default("pending").notNull(),
@@ -114,7 +114,7 @@ export const escrows = pgTable("escrows", {
   listingId: text("listing_id").references(() => listings.id),
   buyerAddress: text("buyer_address").references(() => users.address).notNull(),
   sellerAddress: text("seller_address").references(() => users.address).notNull(),
-  amount: real("amount").notNull(),
+  amount: numeric("amount", { precision: 78, scale: 18 }).notNull(),
   currency: text("currency").default("ETH").notNull(),
   stage: escrowStage("stage").default("awaiting_deposit").notNull(),
   contractAddress: text("contract_address"),
@@ -148,7 +148,7 @@ export const transactions = pgTable("transactions", {
   listingId: text("listing_id").references(() => listings.id),
   fromAddress: text("from_address").notNull(),
   toAddress: text("to_address"),
-  amount: real("amount").notNull(),
+  amount: numeric("amount", { precision: 78, scale: 18 }).notNull(),
   currency: text("currency").default("ETH").notNull(),
   txType: text("tx_type").notNull(),
   txHash: text("tx_hash"),
@@ -210,4 +210,11 @@ export const verificationAttempts = pgTable("verification_attempts", {
   status: text("status").notNull(),
   result: jsonb("result"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").default(0).notNull(),
+  resetAt: timestamp("reset_at").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
