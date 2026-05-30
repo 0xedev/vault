@@ -150,10 +150,10 @@ export default function ClankerPage() {
   const totalLocked = tokens.reduce((s, t) => s + (t.vaultedAmount || 0), 0);
   const totalFees = tokens.reduce((s, t) => s + (t.feeEarnings || 0), 0);
 
-  if (loading) return <main className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
+  if (loading) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row between" style={{ marginBottom: 22 }}>
         <div>
           <div className="eyebrow">Clanker Tokens</div>
@@ -191,7 +191,7 @@ export default function ClankerPage() {
             <div key={t.id} className="card" style={{ padding: 16, cursor: "pointer" }} onClick={() => setSelectedToken(t)}>
               <div className="row" style={{ gap: 10, marginBottom: 10 }}>
                 {t.imageUrl ? (
-                  <img src={t.imageUrl} alt="" style={{ width: 40, height: 40, borderRadius: 20, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  <img src={t.imageUrl} alt={t.name} style={{ width: 40, height: 40, borderRadius: 20, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                 ) : (
                   <div style={{ width: 40, height: 40, borderRadius: 20, background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>🏷️</div>
                 )}

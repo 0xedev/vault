@@ -1,4 +1,4 @@
-import { COLLECTIONS } from "@/lib/data";
+import { COLLECTIONS, type BundleListing, type BundleAsset, bundleAssetLabel, asBundleAssetKind } from "@/lib/data";
 import { asBoolean, asNumber, asString, jsonArray, jsonRecord, shortAddress } from "@/lib/api";
 
 export type ListingRow = Record<string, unknown>;
@@ -161,3 +161,40 @@ export function mapClankerListing(row: ListingRow) {
     txStatus: asString(row.tx_status, "offchain"),
   };
 }
+
+export function mapBundleListing(row: ListingRow): BundleListing {
+  const data = jsonRecord(row.collateral_data);
+  const rawAssets = jsonArray(row.listing_assets_data || data.assets);
+  const assets: BundleAsset[] = rawAssets.map((a: unknown, i: number) => {
+    const asset = a as Record<string, unknown> || {};
+    const kind = asBundleAssetKind(asset.assetType || asset.kind);
+    const assetData = jsonRecord(asset.assetData || asset.data);
+    return {
+      id: asString(asset.id, `${kind}-${i}`),
+      kind,
+      label: asString(assetData.label || assetData.name || assetData.title || assetData.handle || `${bundleAssetLabel(kind)} #${i + 1}`),
+      detail: asString(assetData.detail || assetData.description || ""),
+      price: asNumber(assetData.price || asset.price || 0),
+      data: assetData,
+    };
+  });
+
+  return {
+    id: String(row.id),
+    name: asString(data.name || row.title, "Bundle"),
+    description: asString(row.description || data.description, ""),
+    assets,
+    totalPrice: asNumber(row.price),
+    currency: asString(row.currency, "ETH"),
+    verified: asBoolean(data.verified, row.status === "funded" || row.status === "completed"),
+    sellerAddress: String(row.seller_address || ""),
+    chainId: asNumber(row.chain_id),
+    contractAddress: asString(row.contract_address),
+    contractListingId: asString(row.contract_listing_id),
+    txHash: asString(row.tx_hash),
+    txStatus: asString(row.tx_status, "offchain"),
+    createdAt: asString(row.created_at, ""),
+  };
+}
+
+export { asBundleAssetKind, bundleAssetLabel } from "@/lib/data";

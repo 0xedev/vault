@@ -371,7 +371,7 @@ export default function MiniAppsPage() {
   };
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row between" style={{ alignItems: "center", marginBottom: 22, gap: 24, rowGap: 16, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <div className="eyebrow">Mini App Marketplace</div>

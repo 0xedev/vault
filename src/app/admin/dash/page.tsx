@@ -60,7 +60,7 @@ export default function AdminDashboardPage() {
   }, []);
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 16 }}>
         <div>
           <div className="eyebrow" style={{ color: "var(--risk)" }}>Operations · live database</div>

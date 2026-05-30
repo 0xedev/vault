@@ -59,12 +59,12 @@ function AdminGate({ children }: { children: React.ReactNode }) {
   }, [role]);
 
   if (!checked) {
-    return <main className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Checking admin session...</div></main>;
+    return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Checking admin session...</div></main>;
   }
 
   if (!allowed) {
     return (
-      <main className="main">
+      <main id="main-content" role="main" aria-label="Main content" className="main">
         <div className="card" style={{ maxWidth: 520, margin: "72px auto", padding: 32, textAlign: "center" }}>
           <div className="eyebrow" style={{ color: "var(--risk)", marginBottom: 10 }}>Admin access required</div>
           <h1 className="serif" style={{ fontSize: 28, margin: "0 0 10px" }}>Sign in with an admin wallet.</h1>

@@ -21,6 +21,54 @@ export interface ClankerToken {
   txStatus?: string;
 }
 
+export type BundleAssetKind = "nft_loan" | "mini_app" | "x_account" | "farcaster" | "clanker";
+
+export interface BundleAsset {
+  id: string;
+  kind: BundleAssetKind;
+  label: string;
+  detail: string;
+  price: number;
+  data: Record<string, unknown>;
+}
+
+export interface BundleListing {
+  id: string;
+  name: string;
+  description: string;
+  assets: BundleAsset[];
+  totalPrice: number;
+  currency: string;
+  verified: boolean;
+  sellerAddress: string;
+  chainId?: number;
+  contractAddress?: string;
+  contractListingId?: string;
+  txHash?: string;
+  txStatus?: string;
+  createdAt: string;
+}
+
+const DISPLAY_KINDS: Record<BundleAssetKind, string> = {
+  nft_loan: "NFT Loan",
+  mini_app: "Mini App",
+  x_account: "X Account",
+  farcaster: "Farcaster FID",
+  clanker: "Clanker Token",
+};
+
+export function asBundleAssetKind(s: unknown): BundleAssetKind {
+  const map: Record<string, BundleAssetKind> = {
+    nft_loan: "nft_loan", mini_app: "mini_app", x_account: "x_account",
+    farcaster: "farcaster", clanker: "clanker",
+  };
+  return map[String(s)] || "nft_loan";
+}
+
+export function bundleAssetLabel(kind: BundleAssetKind): string {
+  return DISPLAY_KINDS[kind] || kind;
+}
+
 export const COLLECTIONS = [
   "Meridian Genesis", "Aperture", "Hollow Forms", "Cipher Drones",
   "Solene Mirrors", "Halo Pass", "Strata Index", "Veil Quartet",

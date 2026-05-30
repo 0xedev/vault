@@ -291,11 +291,11 @@ export default function FarcasterPage() {
   };
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row between" style={{ alignItems: "center", marginBottom: 22, gap: 24, rowGap: 16, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <div className="row" style={{ gap: 10, alignItems: "center", marginBottom: 4 }}>
-            <img src="/farcaster.png" alt="" style={{ width: 28, height: 28 }} />
+            <img src="/farcaster.png" alt="Farcaster" style={{ width: 28, height: 28 }} />
             <div className="eyebrow">Farcaster FID Marketplace</div>
           </div>
           <h1 className="h2" style={{ marginTop: 8 }}>
@@ -360,7 +360,7 @@ export default function FarcasterPage() {
                   <div className="row" style={{ gap: 8 }}>
                     <div className="x-avatar" style={{ width: 26, height: 26, fontSize: 11, background: a.imageUrl ? "transparent" : "linear-gradient(135deg, #8A63D2, #a67ee5)", color: "#fff" }}>
                       {a.imageUrl ? (
-                        <img src={a.imageUrl} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        <img src={a.imageUrl} alt={`@${a.handle} avatar`} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                       ) : (
                         a.handle.slice(0, 2).toUpperCase()
                       )}

@@ -11,10 +11,12 @@ import { getNFTsForOwner } from "@/lib/alchemy";
 import { useWallet } from "@/components/WalletProvider";
 import { approveNft, getEscrowAddress, writeListNFT, waitForListingId, parseContractError } from "@/lib/contract";
 import { parseEther } from "viem";
-import type { ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount } from "@/lib/data";
+import type { ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount, BundleListing } from "@/lib/data";
+import BundleCard from "@/components/BundleCard";
+import ListBundleModal from "@/components/ListBundleModal";
 
 type LoanWithSeller = Loan & { sellerAddress?: string };
-type MarketTab = "all" | "nft" | "miniapps" | "x" | "farcaster" | "clanker";
+type MarketTab = "all" | "nft" | "miniapps" | "x" | "farcaster" | "clanker" | "bundles";
 
 const marketTabs: { key: MarketTab; label: string }[] = [
   { key: "all", label: "All Markets" },
@@ -23,6 +25,7 @@ const marketTabs: { key: MarketTab; label: string }[] = [
   { key: "x", label: "X Accounts" },
   { key: "farcaster", label: "Farcaster" },
   { key: "clanker", label: "Clanker" },
+  { key: "bundles", label: "Bundles" },
 ];
 
 function ListNFTModal({ onClose }: { onClose: () => void }) {
@@ -325,12 +328,14 @@ export default function MarketplacePage() {
   const [xAccounts, setXAccounts] = useState<XAccount[]>([]);
   const [farcaster, setFarcaster] = useState<FarcasterAccount[]>([]);
   const [clankerTokens, setClankerTokens] = useState<ClankerToken[]>([]);
+  const [bundles, setBundles] = useState<BundleListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("apr");
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [showListModal, setShowListModal] = useState(false);
+  const [showBundleModal, setShowBundleModal] = useState(false);
   const { isConnected, connect, isConnecting, address } = useWallet();
 
   useEffect(() => {
@@ -360,12 +365,18 @@ export default function MarketplacePage() {
         if (!r.ok) throw new Error(json.error || "Unable to load Clanker listings");
         return (json.data || []) as ClankerToken[];
       }),
+      fetch("/api/marketplace/bundles").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error || "Unable to load bundles");
+        return (json.data || []) as BundleListing[];
+      }),
     ]).then((results) => {
       if (results[0].status === "fulfilled") setLoans(results[0].value);
       if (results[1].status === "fulfilled") setMiniApps(results[1].value);
       if (results[2].status === "fulfilled") setXAccounts(results[2].value);
       if (results[3].status === "fulfilled") setFarcaster(results[3].value);
       if (results[4].status === "fulfilled") setClankerTokens(results[4].value);
+      if (results[5].status === "fulfilled") setBundles(results[5].value);
       const failed = results.find((result) => result.status === "rejected");
       if (failed && results.every((result) => result.status === "rejected")) {
         setError(failed.reason instanceof Error ? failed.reason.message : "Unable to load marketplaces");
@@ -406,7 +417,7 @@ export default function MarketplacePage() {
 
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="market-page-head row between" style={{ alignItems: "flex-end", marginBottom: 22 }}>
         <div>
           <div className="eyebrow">Marketplace</div>
@@ -417,6 +428,7 @@ export default function MarketplacePage() {
             {activeMarket === "x"        && "X Accounts"}
             {activeMarket === "farcaster"&& "Farcaster"}
             {activeMarket === "clanker"  && "Clanker Tokens"}
+            {activeMarket === "bundles"  && "Bundled Listings"}
           </h1>
         </div>
         {activeMarket === "all"       && <button className="btn primary" onClick={handleListClick} disabled={isConnecting}>{isConnected ? "List your NFT" : isConnecting ? "Connecting…" : "Connect & list"}</button>}
@@ -425,6 +437,7 @@ export default function MarketplacePage() {
         {activeMarket === "x"         && <button className="btn primary" onClick={handleListClick} disabled={isConnecting}>{isConnected ? "List your X Account" : isConnecting ? "Connecting…" : "Connect & list"}</button>}
         {activeMarket === "farcaster" && <button className="btn primary" onClick={handleListClick} disabled={isConnecting}>{isConnected ? "List your Identity" : isConnecting ? "Connecting…" : "Connect & list"}</button>}
         {activeMarket === "clanker"   && <Link href="/clanker" className="btn primary">List your Clanker token</Link>}
+        {activeMarket === "bundles"   && <button className="btn primary" onClick={() => { if (!isConnected) { connect(); return; } setShowBundleModal(true); }} disabled={isConnecting}>{isConnected ? "Create a bundle" : isConnecting ? "Connecting…" : "Connect & create"}</button>}
       </div>
 
       <div className="market-tabs" role="tablist" aria-label="Marketplace tabs">
@@ -524,6 +537,22 @@ export default function MarketplacePage() {
                 <small>{token.chain} · {token.totalSupply.toLocaleString()} supply</small>
                 <em>{token.price} Ξ <Icon.arrow /></em>
               </Link>
+            ))}
+          </div>
+
+          <div className="market-section-head">
+            <span className="market-section-icon"><Icon.shield /></span>
+            <strong>Bundled Listings</strong>
+            <span className="market-section-count">{bundles.length}</span>
+            <button className="market-section-cta" onClick={() => setActiveMarket("bundles")}>View all <Icon.arrow /></button>
+          </div>
+          <div className="bundle-all-grid">
+            {bundles.length === 0 ? (
+              <div className="muted" style={{ padding: 20, textAlign: "center", gridColumn: "1 / -1" }}>
+                No bundled listings yet. Be the first to list multiple assets together.
+              </div>
+            ) : bundles.slice(0, 3).map((b) => (
+              <BundleCard key={b.id} bundle={b} />
             ))}
           </div>
         </>
@@ -637,7 +666,24 @@ export default function MarketplacePage() {
         </div>
       )}
 
+      {/* BUNDLES TAB */}
+      {activeMarket === "bundles" && (
+        <div className="bundle-all-grid">
+          {bundles.length === 0 ? (
+            <div className="muted" style={{ padding: 40, textAlign: "center", gridColumn: "1 / -1" }}>No bundled listings yet.</div>
+          ) : bundles.map((b) => (
+            <BundleCard key={b.id} bundle={b} />
+          ))}
+        </div>
+      )}
+
       {showListModal && <ListNFTModal onClose={() => setShowListModal(false)} />}
+      {showBundleModal && <ListBundleModal onClose={() => setShowBundleModal(false)} onListed={() => {
+        fetch("/api/marketplace/bundles").then(async (r) => {
+          const json = await r.json();
+          if (json.data) setBundles(json.data);
+        });
+      }} />}
     </main>
   );
 }

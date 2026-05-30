@@ -48,7 +48,7 @@ export default function AdminTicketsPage() {
   };
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div className="eyebrow">Support Inbox</div>
@@ -66,7 +66,7 @@ export default function AdminTicketsPage() {
       <div className="grid" style={{ gridTemplateColumns: "320px 1fr", gap: 14 }}>
         <div className="card" style={{ padding: 0, overflow: "hidden", maxHeight: 560, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: 12, borderBottom: "1px solid var(--line)" }}>
-            <input className="input" placeholder="Search tickets…" style={{ height: 30 }} />
+            <input className="input" placeholder="Search tickets…" aria-label="Search tickets" style={{ height: 30 }} />
           </div>
           <div className="col" style={{ overflowY: "auto", flex: 1 }}>
             {tickets.length === 0 && <div className="muted" style={{ padding: 18, textAlign: "center" }}>No live tickets.</div>}
@@ -112,7 +112,7 @@ export default function AdminTicketsPage() {
                 <p className="muted" style={{ fontSize: 13, lineHeight: 1.6 }}>{t.body || "No ticket body was provided."}</p>
               </div>
               <div className="row" style={{ gap: 8, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-                <input className="input" placeholder="Reply…" style={{ flex: 1 }} value={reply} onChange={(e) => setReply(e.target.value)} />
+                <input className="input" placeholder="Reply…" aria-label="Reply to ticket" style={{ flex: 1 }} value={reply} onChange={(e) => setReply(e.target.value)} />
                 <button className="btn primary" onClick={() => updateTicket("pending")}>Send</button>
                 <button className="btn" onClick={() => updateTicket("resolved")}>Resolve</button>
               </div>

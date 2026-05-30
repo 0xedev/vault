@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
-import { mapClankerListing, mapFarcasterListing, mapLoanListing, mapMiniAppListing, mapXAccountListing } from "@/lib/marketplace";
+import { mapClankerListing, mapFarcasterListing, mapLoanListing, mapMiniAppListing, mapXAccountListing, mapBundleListing } from "@/lib/marketplace";
 import { requireUser } from "@/lib/auth";
 
 const dbKindMap: Record<string, string> = {
@@ -10,6 +10,7 @@ const dbKindMap: Record<string, string> = {
   "x-accounts": "x_account",
   farcaster: "farcaster",
   clanker: "clanker",
+  bundles: "bundle",
 };
 
 const marketplaceListingSchema = z.object({
@@ -35,12 +36,41 @@ export async function GET(
   const dbKind = dbKindMap[kind];
   if (!dbKind) return NextResponse.json({ error: "Unknown marketplace kind" }, { status: 404 });
 
-  const rows = await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' ORDER BY created_at DESC` as Record<string, unknown>[];
+  let rows: Record<string, unknown>[];
+
+  if (dbKind === "bundle") {
+    rows = await db`
+      SELECT
+        l.*,
+        COALESCE(
+          jsonb_agg(
+            jsonb_build_object(
+              'id', la.id,
+              'assetType', la.asset_type,
+              'assetData', la.asset_data,
+              'position', la.position
+            ) ORDER BY la.position
+          ) FILTER (WHERE la.id IS NOT NULL),
+          '[]'::jsonb
+        ) AS listing_assets_data
+      FROM listings l
+      LEFT JOIN listing_assets la ON la.listing_id = l.id
+      WHERE l.marketplace = 'bundle'
+        AND l.moderation_status = 'approved'
+        AND l.status <> 'cancelled'
+      GROUP BY l.id
+      ORDER BY l.created_at DESC
+    ` as Record<string, unknown>[];
+  } else {
+    rows = await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' ORDER BY created_at DESC` as Record<string, unknown>[];
+  }
+
   const data =
     kind === "nft-loans" ? rows.map(mapLoanListing) :
     kind === "mini-apps" ? rows.map(mapMiniAppListing) :
     kind === "x-accounts" ? rows.map(mapXAccountListing) :
     kind === "clanker" ? rows.map(mapClankerListing) :
+    kind === "bundles" ? rows.map(mapBundleListing) :
     rows.map(mapFarcasterListing);
 
   return NextResponse.json({ data, total: data.length });

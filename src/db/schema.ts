@@ -19,6 +19,7 @@ export const marketplaceKind = pgEnum("marketplace_kind", [
   "farcaster",
   "clanker",
   "otc",
+  "bundle",
 ]);
 
 export const users = pgTable("users", {
@@ -53,8 +54,17 @@ export const listings = pgTable("listings", {
   txHash: text("tx_hash"),
   txStatus: text("tx_status").default("offchain").notNull(),
   terms: jsonb("terms"),
+  isBundle: text("is_bundle").default("false").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const listingAssets = pgTable("listing_assets", {
+  id: text("id").primaryKey(),
+  listingId: text("listing_id").references(() => listings.id).notNull(),
+  assetType: marketplaceKind("asset_type").notNull(),
+  assetData: jsonb("asset_data").notNull(),
+  position: integer("position").default(0).notNull(),
 });
 
 export const supportTickets = pgTable("support_tickets", {

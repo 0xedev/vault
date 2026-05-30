@@ -230,9 +230,9 @@ function LoanDetailContent() {
       .catch(() => setOffers([]));
   }, [loan?.id]);
 
-  if (loading) return <main className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
-  if (error) return <main className="main"><div className="warn-banner" style={{ margin: 80 }}>{error}</div></main>;
-  if (!loan) return <main className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Listing not found.</div></main>;
+  if (loading) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
+  if (error) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="warn-banner" style={{ margin: 80 }}>{error}</div></main>;
+  if (!loan) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Listing not found.</div></main>;
 
   const l = loan;
   const collectionName = l.collection || COLLECTIONS[l.coll] || "Unverified collection";
@@ -338,7 +338,7 @@ function LoanDetailContent() {
   const isFunded = l.status === "funded";
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row" style={{ marginBottom: 14, gap: 8, fontSize: 12, color: "var(--ink-4)" }}>
         <Link href="/market" className="btn ghost sm">← Back</Link>
         <span>Lend & Borrow</span><span>/</span><span className="mono" style={{ color: "var(--ink-2)" }}>{l.id}</span>
@@ -491,7 +491,7 @@ function LoanDetailContent() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<main className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>}>
+    <Suspense fallback={<main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>}>
       <LoanDetailContent />
     </Suspense>
   );

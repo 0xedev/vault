@@ -1,0 +1,29 @@
+# Baseshire Hathaway — Crypto Conglomerate
+Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.
+
+## Pages
+- / — Landing (market overview, feed, categories)
+- /market — NFT Loans marketplace (browse + list NFT-backed loans)
+- /miniapps — Mini Apps marketplace (browse + list apps/websites for sale)
+- /x — X Accounts marketplace (browse + list X handles with deliverables)
+- /farcaster — Farcaster marketplace (browse + list FID accounts)
+- /clanker — Clanker Tokens marketplace (browse + list token offerings)
+- /deals — Profile (active deals, deal room, encrypted chat)
+- /detail — Loan detail page for individual listing inspection and counter-offers
+
+## Admin
+- /admin/dash — Admin dashboard (system overview, metrics)
+- /admin/disputes — Dispute queue management
+- /admin/listings — Listing moderation
+- /admin/users — User management
+- /admin/admin-escrow — Escrow operations (release/refund/dispute)
+- /admin/verifications — KYC verification management
+- /admin/tickets — Support inbox
+- /admin/audit — Audit log viewer
+
+## Architecture
+- Next.js 16 App Router with React 19
+- Neon serverless Postgres + Drizzle ORM
+- CSS custom properties theming (light/dark, solid/glass, compact/regular/comfortable)
+- viem + SIWE wallet auth with Base chain escrow smart contract
+- AES-256-GCM encrypted chat per deal

@@ -42,7 +42,7 @@ export default function AdminVerificationsPage() {
   };
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div className="eyebrow">Verification Approvals</div>

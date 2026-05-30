@@ -46,6 +46,8 @@ interface DealDetail {
   chain: string;
   verified: boolean;
   includes: string[];
+  isBundle: boolean;
+  bundleAssets: { id: string; kind: string; label: string; detail: string; position: number }[];
   party: string;
   buyerAddress: string;
   sellerAddress: string;
@@ -133,7 +135,13 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
       .catch(() => {});
   }, [deal.id]);
 
-  const checks = deal.includes.map((item, i) => ({ t: item, done: i < step, active: i === step }));
+  const checks = deal.bundleAssets.length > 0
+    ? deal.bundleAssets.map((a) => ({
+        t: `[${a.kind.replace(/_/g, " ")}] ${a.label}`,
+        done: false,
+        active: false,
+      }))
+    : deal.includes.map((item, i) => ({ t: item, done: i < step, active: i === step }));
   const canRelease = deal.stageRaw === "awaiting_confirmation" || (checks.length > 0 && checks.every(c => c.done));
 
   const waitForTx = async (hash: Hash) => {
@@ -220,6 +228,11 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
           <h1 className="h2" style={{ marginTop: 8 }}>
             {deal.name} <span className="muted-2 mono" style={{ fontSize: 18 }}>· {deal.id}</span>
           </h1>
+          {deal.isBundle && (
+            <span className="pill" style={{ marginTop: 6, background: "color-mix(in oklab, var(--accent) 12%, transparent)", color: "var(--accent)", fontSize: 11, fontWeight: 600 }}>
+              {deal.bundleAssets.length}-asset bundle
+            </span>
+          )}
         </div>
         <div className="row" style={{ gap: 10 }}>
           <button className="btn ghost" onClick={openDispute} disabled={Boolean(actionBusy)}><Icon.warn /> Open dispute</button>
@@ -253,13 +266,30 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
                 <div className="eyebrow">Asset Overview</div>
                 <h3 className="serif" style={{ fontSize: 22, margin: "8px 0" }}>{deal.name}</h3>
               </div>
-              <span className="pill gold"><span className="pdot" />Verified seller</span>
+              <span className="pill gold">{deal.bundleAssets.length > 0 ? <><Icon.shield style={{ width: 12, height: 12, marginRight: 4 }} />{deal.bundleAssets.length} assets</> : deal.verified ? <><span className="pdot" />Verified seller</> : "Pending verification"}</span>
             </div>
             <div className="grid grid-3" style={{ marginTop: 12 }}>
               <div className="metric"><span className="lab">Amount</span><span className="val">{deal.price} {deal.currency}</span><span className="delta">≈ {fmtUSD(deal.price * 3450)}</span></div>
               <div className="metric"><span className="lab">Monthly fees</span><span className="val">{deal.mrr} {deal.currency}</span><span className="delta">last 30d, on-chain verified</span></div>
               <div className="metric"><span className="lab">Chain</span><span className="val" style={{ fontSize: 16 }}>{deal.chain}</span><span className="delta">contract verified</span></div>
             </div>
+            {deal.isBundle && deal.bundleAssets.length > 0 && (
+              <>
+                <hr className="hr" style={{ margin: "18px 0" }} />
+                <div className="eyebrow" style={{ marginBottom: 10 }}>Bundle assets ({deal.bundleAssets.length})</div>
+                <div className="col" style={{ gap: 4 }}>
+                  {deal.bundleAssets.map((a) => (
+                    <div key={a.id} className="row" style={{ gap: 10, alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--line)" }}>
+                      <span className="smallcaps" style={{ fontFamily: "var(--mono)", fontSize: 10, color: "var(--ink-4)", minWidth: 76 }}>
+                        {a.kind.replace(/_/g, " ")}
+                      </span>
+                      <span style={{ fontSize: 13, fontWeight: 500 }}>{a.label}</span>
+                      {a.detail && <span className="muted-2" style={{ fontSize: 11, marginLeft: "auto" }}>{a.detail}</span>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
             <hr className="hr" style={{ margin: "18px 0" }} />
             <div className="eyebrow" style={{ marginBottom: 10 }}>Deliverables checklist</div>
             <div>
@@ -307,7 +337,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
               {messages.length === 0 && <div className="muted" style={{ padding: 20, textAlign: "center", fontSize: 12 }}>No messages yet. Start the conversation.</div>}
             </div>
             <div className="row" style={{ gap: 8, marginTop: 12, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-              <input className="input" placeholder="Send a message…" value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMsg()} />
+              <input className="input" placeholder="Send a message…" aria-label="Send a message" value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMsg()} />
               <button className="btn primary" onClick={sendMsg} disabled={sending}><Icon.send /></button>
             </div>
           </div>
@@ -416,9 +446,9 @@ export default function DealsPage() {
   };
 
   /* -- render -- */
-  if (loading) return <main className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
+  if (loading) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
   if (error)   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="card" style={{ maxWidth: 520, margin: "60px auto", padding: 36, textAlign: "center" }}>
         <div className="col" style={{ gap: 14, alignItems: "center" }}>
           <Icon.shield style={{ width: 40, height: 40, color: "var(--ink-4)" }} />
@@ -441,7 +471,7 @@ export default function DealsPage() {
   );
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       {/* ---- header ---- */}
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22 }}>
         <div>
@@ -540,6 +570,7 @@ export default function DealsPage() {
               <input
                 className="input profile-search"
                 placeholder="Search ID, asset, counterparty…"
+                aria-label="Search escrows"
                 style={{ height: 32 }}
                 value={search}
                 onChange={e => setSearch(e.target.value)}

@@ -12,19 +12,39 @@ export async function GET(
   const db = auth.db;
 
   const rows = auth.user.role === "admin"
-    ? await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id}` as Record<string, unknown>[]
-    : await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id} AND (e.buyer_address = ${auth.user.address} OR e.seller_address = ${auth.user.address})` as Record<string, unknown>[];
+    ? await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.is_bundle, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id}` as Record<string, unknown>[]
+    : await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.is_bundle, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id} AND (e.buyer_address = ${auth.user.address} OR e.seller_address = ${auth.user.address})` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Escrow not found" }, { status: 404 });
 
   const r = rows[0];
   const collateral = jsonRecord(r.collateral_data);
+  const isBundle = String(r.is_bundle || "") === "true";
+  const listingId = String(r.listing_id || "");
+
+  let bundleAssets: Record<string, unknown>[] = [];
+  if (isBundle && listingId) {
+    const assetRows = await db`SELECT * FROM listing_assets WHERE listing_id = ${listingId} ORDER BY position` as Record<string, unknown>[];
+    bundleAssets = assetRows.map((a) => {
+      const ad = typeof a.asset_data === "string" ? JSON.parse(a.asset_data) : a.asset_data as Record<string, unknown>;
+      return {
+        id: String(a.id),
+        kind: String(a.asset_type),
+        label: String(ad.label || ad.handle || ad.name || "Item"),
+        detail: String(ad.detail || ""),
+        position: Number(a.position),
+      };
+    });
+  }
+
+  const escrowDeliverables = jsonArray(r.deliverables || collateral.includes).map(String);
+  const includes = escrowDeliverables.length > 0 ? escrowDeliverables : bundleAssets.map((a) => String(a.label));
 
   return NextResponse.json({
     data: {
       id: String(r.id),
       kind: String(r.marketplace || "Escrow").replace(/_/g, " "),
       name: asString(r.title, asString(collateral.name, String(r.listing_id || "Unlisted asset"))),
-      type: asString(collateral.kind, asString(collateral.type, "Asset sale")),
+      type: asString(collateral.kind, asString(collateral.type, isBundle ? "Bundle" : "Asset sale")),
       asset: asString(r.title, String(r.listing_id || "Unlisted asset")),
       amount: asNumber(r.amount),
       price: asNumber(r.price, asNumber(r.amount)),
@@ -32,7 +52,9 @@ export async function GET(
       currency: asString(r.currency, "ETH"),
       chain: asString(collateral.chain, "Unverified"),
       verified: asBoolean(collateral.verified, String(r.listing_status) === "funded" || String(r.listing_status) === "completed"),
-      includes: jsonArray(collateral.includes).map(String),
+      includes,
+      isBundle,
+      bundleAssets,
       party: shortAddress(r.buyer_address),
       buyerAddress: String(r.buyer_address || ""),
       sellerAddress: String(r.seller_address || ""),
@@ -40,7 +62,7 @@ export async function GET(
       stage: stageLabel(r.stage),
       stageRaw: String(r.stage || "awaiting_deposit"),
       action: "On schedule",
-      listingId: String(r.listing_id || ""),
+      listingId,
       chainId: asNumber(r.chain_id),
       contractAddress: asString(r.contract_address),
       contractListingId: asString(r.contract_listing_id),

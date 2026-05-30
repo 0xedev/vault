@@ -225,7 +225,7 @@ export default function XAccountsPage() {
   };
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row between" style={{ alignItems: "center", marginBottom: 22, gap: 24, rowGap: 16, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <div className="eyebrow">X Account Marketplace</div>
@@ -266,7 +266,7 @@ export default function XAccountsPage() {
                 <input className="input" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://pbs.twimg.com/profile_images/..." />
                 {imageUrl && (
                   <div style={{ width: 64, height: 64, borderRadius: "50%", overflow: "hidden", border: "1px solid var(--line)", marginTop: 4 }}>
-                    <img src={imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    <img src={imageUrl} alt={`${handle} profile image preview`} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                   </div>
                 )}
               </div>
@@ -354,7 +354,7 @@ export default function XAccountsPage() {
             <div className="x-head">
               <div className="x-avatar">
                 {a.imageUrl ? (
-                  <img src={a.imageUrl} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  <img src={a.imageUrl} alt={`${a.handle} avatar`} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                 ) : (
                   a.handle.slice(1, 3).toUpperCase()
                 )}

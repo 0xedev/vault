@@ -765,6 +765,14 @@ export async function writeDisputeDeal(
   });
 }
 
+export async function writeListBundle(
+  account: Address,
+  priceWei: bigint,
+  metadataHash: `0x${string}`,
+): Promise<Hash> {
+  return writeListDeal(account, priceWei, metadataHash);
+}
+
 export async function writeRefundDeal(
   account: Address,
   dealId: bigint,

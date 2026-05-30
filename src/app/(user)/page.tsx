@@ -292,7 +292,7 @@ export default function LandingPage() {
     feedFilters.find((filter) => filter.value === feedFilter) || feedFilters[0];
 
   return (
-    <main className="main">
+    <main id="main-content" role="main" aria-label="Main content" className="main">
       {/* DESKTOP */}
       <div className="hide-mobile">
         <section className="hero">
