@@ -44,6 +44,13 @@ export default function ClankerPage() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedToken, setSelectedToken] = useState<ClankerToken | null>(null);
   const [buying, setBuying] = useState("");
+  const [ownedTokens, setOwnedTokens] = useState<ClankerToken[]>([]);
+  const [ownedLoading, setOwnedLoading] = useState(false);
+  const [ownedLoaded, setOwnedLoaded] = useState(false);
+  const [manualEntry, setManualEntry] = useState(false);
+  const [verifyingToken, setVerifyingToken] = useState(false);
+  const [selectedListingToken, setSelectedListingToken] = useState<ClankerToken | null>(null);
+  const [saleRights, setSaleRights] = useState<string[]>(["full_package"]);
 
   useEffect(() => {
     fetch("/api/marketplace/clanker")
@@ -52,8 +59,97 @@ export default function ClankerPage() {
       .catch(() => setLoading(false));
   }, []);
 
+  const resetListingForm = () => {
+    setName(""); setSymbol(""); setContractAddress(""); setChain("Base");
+    setTotalSupply(""); setRemainingSupply(""); setVaultedAmount("");
+    setVaultUnlock(""); setFeeEarnings(""); setPrice("");
+    setPoolAddress(""); setImageUrl(""); setDescription("");
+    setSelectedListingToken(null);
+    setSaleRights(["full_package"]);
+    setManualEntry(false);
+  };
+
+  const applyClankerToken = (token: ClankerToken) => {
+    setSelectedListingToken(token);
+    setName(token.name);
+    setSymbol(token.symbol);
+    setContractAddress(token.tokenAddress);
+    setChain(token.chain || "Base");
+    setTotalSupply(String(token.totalSupply || ""));
+    setRemainingSupply(String(token.remainingSupply || ""));
+    setVaultedAmount(String(token.vaultedAmount || ""));
+    setVaultUnlock(token.vaultUnlock || "");
+    setFeeEarnings(String(token.feeEarnings || ""));
+    setPoolAddress(token.poolAddress || "");
+    setImageUrl(token.imageUrl || "");
+    setDescription("");
+    setError("");
+  };
+
+  const loadOwnedTokens = async () => {
+    if (!isConnected || !address || ownedLoading || ownedLoaded) return;
+    setOwnedLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/clanker/owned");
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Unable to load your Clanker tokens");
+      setOwnedTokens(json.data || []);
+      setOwnedLoaded(true);
+      if ((json.data || []).length === 1) applyClankerToken(json.data[0]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load your Clanker tokens");
+    } finally {
+      setOwnedLoading(false);
+    }
+  };
+
+  const openListingModal = async () => {
+    if (!isConnected) {
+      await connect();
+      return;
+    }
+    setListing(true);
+    void loadOwnedTokens();
+  };
+
+  const verifyManualToken = async () => {
+    if (!contractAddress) return;
+    setVerifyingToken(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/clanker/verify?contractAddress=${encodeURIComponent(contractAddress)}`);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Unable to verify token ownership");
+      applyClankerToken(json.data);
+    } catch (err) {
+      setSelectedListingToken(null);
+      setError(err instanceof Error ? err.message : "Unable to verify token ownership");
+    } finally {
+      setVerifyingToken(false);
+    }
+  };
+
+  const toggleSaleRight = (right: string) => {
+    setSaleRights((current) => {
+      if (right === "full_package") return ["full_package"];
+      const withoutFull = current.filter((item) => item !== "full_package");
+      return withoutFull.includes(right)
+        ? withoutFull.filter((item) => item !== right)
+        : [...withoutFull, right];
+    });
+  };
+
   const submitListing = async () => {
     if (!address) return;
+    if (!selectedListingToken) {
+      setError("Choose one of your Clanker tokens or verify a contract address first.");
+      return;
+    }
+    if (!saleRights.length) {
+      setError("Choose what rights are included in the sale.");
+      return;
+    }
     setSubmitting(true);
     setError("");
     try {
@@ -64,6 +160,7 @@ export default function ClankerPage() {
         vaultedAmount: Number(vaultedAmount || 0),
         vaultUnlock, feeEarnings: Number(feeEarnings || 0),
         price: Number(price), image: imageUrl, description,
+        saleRights,
         kind: "Clanker Token",
         createdAt: new Date().toISOString(),
       };
@@ -93,17 +190,15 @@ export default function ClankerPage() {
             feeEarnings: Number(feeEarnings || 0),
             poolAddress,
             imageUrl,
-            verified: false,
+            saleRights,
+            verified: true,
             metadataHash: metaHash,
           },
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to list token");
-      setName(""); setSymbol(""); setContractAddress(""); setChain("Base");
-      setTotalSupply(""); setRemainingSupply(""); setVaultedAmount("");
-      setVaultUnlock(""); setFeeEarnings(""); setPrice("");
-      setPoolAddress(""); setImageUrl(""); setDescription("");
+      resetListingForm();
       setListing(false);
       window.location.reload();
     } catch (err) {
@@ -173,7 +268,7 @@ export default function ClankerPage() {
 
       <div className="row between" style={{ marginBottom: 14 }}>
         <div className="row" style={{ gap: 8 }}>
-          <button className="btn primary" onClick={() => isConnected ? setListing(true) : connect()}>
+          <button className="btn primary" onClick={openListingModal}>
             {isConnected ? "List token" : "Connect to list"}
           </button>
         </div>
@@ -264,38 +359,113 @@ export default function ClankerPage() {
       {/* List modal */}
       {listing && (
         <div className="modal-bg" onClick={() => setListing(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 540 }}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 720 }}>
             <div className="modal-h">
               <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>List Clanker token</h3>
               <button className="btn ghost sm" onClick={() => setListing(false)}><Icon.x /></button>
             </div>
             <div className="modal-b col" style={{ gap: 14, maxHeight: "70vh", overflowY: "auto" }}>
-              <div className="grid grid-2" style={{ gap: 12 }}>
-                <div><span className="label">Token name</span><input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="My Token" /></div>
-                <div><span className="label">Symbol</span><input className="input" value={symbol} onChange={e => setSymbol(e.target.value)} placeholder="TKN" /></div>
+              <div className="col" style={{ gap: 8 }}>
+                <span className="label">Your Clanker tokens</span>
+                {ownedLoading ? (
+                  <div className="muted" style={{ padding: 18, textAlign: "center" }}>Loading your deployed tokens...</div>
+                ) : ownedTokens.length > 0 ? (
+                  <div className="grid grid-2" style={{ gap: 10 }}>
+                    {ownedTokens.map((token) => {
+                      const active = selectedListingToken?.tokenAddress?.toLowerCase() === token.tokenAddress.toLowerCase();
+                      return (
+                        <button
+                          key={token.tokenAddress}
+                          type="button"
+                          className={`card ${active ? "gold" : ""}`}
+                          onClick={() => applyClankerToken(token)}
+                          style={{ padding: 12, textAlign: "left", borderColor: active ? "var(--accent)" : undefined }}
+                        >
+                          <div className="row" style={{ gap: 10 }}>
+                            {token.imageUrl ? (
+                              <img src={token.imageUrl} alt="" style={{ width: 34, height: 34, borderRadius: 17, objectFit: "cover" }} />
+                            ) : (
+                              <div style={{ width: 34, height: 34, borderRadius: 17, background: "var(--surface-2)" }} />
+                            )}
+                            <div style={{ minWidth: 0 }}>
+                              <div className="mono" style={{ color: "var(--ink)", fontSize: 13, fontWeight: 600 }}>{token.name}</div>
+                              <div className="muted-2" style={{ fontSize: 11 }}>${token.symbol} · {token.tokenAddress.slice(0, 8)}...</div>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="muted" style={{ padding: 18, textAlign: "center" }}>
+                    No Clanker tokens were found for this wallet.
+                  </div>
+                )}
+                <button className="btn ghost sm" type="button" onClick={() => setManualEntry((value) => !value)}>
+                  {manualEntry ? "Hide contract input" : "I do not see my token"}
+                </button>
               </div>
-              <div><span className="label">Contract address</span><input className="input mono" value={contractAddress} onChange={e => setContractAddress(e.target.value)} placeholder="0x…" /></div>
+
+              {manualEntry && (
+                <div className="row" style={{ gap: 8, alignItems: "flex-end" }}>
+                  <div style={{ flex: 1 }}>
+                    <span className="label">Token contract address</span>
+                    <input className="input mono" value={contractAddress} onChange={e => { setContractAddress(e.target.value); setSelectedListingToken(null); }} placeholder="0x…" />
+                  </div>
+                  <button className="btn" type="button" disabled={verifyingToken || !contractAddress} onClick={verifyManualToken}>
+                    {verifyingToken ? "Verifying..." : "Verify"}
+                  </button>
+                </div>
+              )}
+
+              {selectedListingToken && (
+                <div className="card" style={{ padding: 14 }}>
+                  <div className="row between" style={{ gap: 12 }}>
+                    <div className="row" style={{ gap: 10 }}>
+                      {imageUrl ? <img src={imageUrl} alt="" style={{ width: 42, height: 42, borderRadius: 21, objectFit: "cover" }} /> : null}
+                      <div>
+                        <div className="mono" style={{ color: "var(--ink)", fontWeight: 700 }}>{name} {symbol ? `($${symbol})` : ""}</div>
+                        <div className="muted-2" style={{ fontSize: 11 }}>{contractAddress}</div>
+                      </div>
+                    </div>
+                    <span className="pill gold"><span className="pdot" />Verified owner</span>
+                  </div>
+                  <div className="grid grid-3" style={{ gap: 10, marginTop: 12 }}>
+                    <Stat lab="Supply" v={fmtCompact(Number(totalSupply || 0))} />
+                    <Stat lab="Vaulted" v={fmtCompact(Number(vaultedAmount || 0))} />
+                    <Stat lab="Fees" v={fmtCompact(Number(feeEarnings || 0))} />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <span className="label">Rights included</span>
+                <div className="grid grid-2" style={{ gap: 8 }}>
+                  {[
+                    ["full_package", "Full package"],
+                    ["admin_rights", "Admin/deployer rights"],
+                    ["fee_rights", "Creator fee rights"],
+                    ["vaulted_tokens", "Vaulted tokens"],
+                    ["remaining_supply", "Remaining supply"],
+                  ].map(([key, label]) => (
+                    <label key={key} className="row" style={{ gap: 8, border: "1px solid var(--line)", borderRadius: 8, padding: "9px 10px" }}>
+                      <input type="checkbox" checked={saleRights.includes(key)} onChange={() => toggleSaleRight(key)} />
+                      <span style={{ fontSize: 13 }}>{label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-2" style={{ gap: 12 }}>
-                <div><span className="label">Chain</span><select className="input" value={chain} onChange={e => setChain(e.target.value)}><option>Base</option><option>Ethereum</option><option>Optimism</option><option>Arbitrum</option></select></div>
                 <div><span className="label">Price (Ξ)</span><input className="input mono" type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} /></div>
+                <div><span className="label">Chain</span><input className="input" value={chain} readOnly /></div>
               </div>
-              <div className="grid grid-3" style={{ gap: 12 }}>
-                <div><span className="label">Total supply</span><input className="input mono" type="number" value={totalSupply} onChange={e => setTotalSupply(e.target.value)} /></div>
-                <div><span className="label">Remaining supply</span><input className="input mono" type="number" value={remainingSupply} onChange={e => setRemainingSupply(e.target.value)} /></div>
-                <div><span className="label">Vaulted amount</span><input className="input mono" type="number" value={vaultedAmount} onChange={e => setVaultedAmount(e.target.value)} /></div>
-              </div>
-              <div className="grid grid-2" style={{ gap: 12 }}>
-                <div><span className="label">Vault unlock (date)</span><input className="input" value={vaultUnlock} onChange={e => setVaultUnlock(e.target.value)} placeholder="2025-01-01" /></div>
-                <div><span className="label">Fee earnings</span><input className="input mono" type="number" value={feeEarnings} onChange={e => setFeeEarnings(e.target.value)} placeholder="0" /></div>
-              </div>
-              <div><span className="label">Pool address</span><input className="input mono" value={poolAddress} onChange={e => setPoolAddress(e.target.value)} placeholder="0x…" /></div>
-              <div><span className="label">Image URL</span><input className="input" value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://…" /></div>
-              <div><span className="label">Description</span><textarea className="input" style={{ minHeight: 60 }} value={description} onChange={e => setDescription(e.target.value)} placeholder="What's included in the sale?" /></div>
+              <div><span className="label">Sale notes</span><textarea className="input" style={{ minHeight: 60 }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional terms, transfer steps, or what is included." /></div>
               {error && <div className="warn-banner" style={{ color: "var(--risk)" }}>{error}</div>}
             </div>
             <div className="modal-f">
-              <button className="btn" onClick={() => { setListing(false); setError(""); }}>Close</button>
-              <button className="btn primary" disabled={submitting || !name || !symbol || !price} onClick={submitListing}>
+              <button className="btn" onClick={() => { setListing(false); setError(""); resetListingForm(); }}>Close</button>
+              <button className="btn primary" disabled={submitting || !selectedListingToken || !price || saleRights.length === 0} onClick={submitListing}>
                 {submitting ? "Signing & listing…" : "Submit for review"}
               </button>
             </div>
