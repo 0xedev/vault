@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -10,7 +12,7 @@ import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
 import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, parseContractError } from "@/lib/contract";
+import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError } from "@/lib/contract";
 import { parseEther, type Address, type Hash } from "viem";
 import type { Loan } from "@/lib/data";
 
@@ -159,6 +161,8 @@ function LoanDetailContent() {
   const [matching, setMatching] = useState("");
   const [repaying, setRepaying] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [repayingPartial, setRepayingPartial] = useState(false);
+  const [partialAmt, setPartialAmt] = useState("");
   const { address } = useWallet();
 
   const submitMatch = async (o: OfferRecord) => {
@@ -316,6 +320,57 @@ function LoanDetailContent() {
     }
   };
 
+  const repayPartialLoan = async () => {
+    if (!address || !loan || !partialAmt) return;
+    setRepayingPartial(true);
+    try {
+      if (!l.contractListingId) throw new Error("Listing is pending chain sync.");
+      await waitForTx(await writeRepayPartial(
+        address as Address,
+        BigInt(l.contractListingId),
+        parseEther(partialAmt),
+      ));
+      setPartialAmt("");
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setRepayingPartial(false);
+    }
+  };
+
+  const cancelListingAction = async () => {
+    if (!address || !loan) return;
+    setRepaying(true);
+    try {
+      if (!l.contractListingId) throw new Error("Listing is pending chain sync.");
+      await waitForTx(await writeCancelListing(address as Address, BigInt(l.contractListingId)));
+      setLoan((prev) => prev ? { ...prev, status: "cancelled" as Loan["status"] } : prev);
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setRepaying(false);
+    }
+  };
+
+  const withdrawOfferAction = async (offerId: string) => {
+    if (!address || !loan) return;
+    setOfferAction(offerId);
+    try {
+      if (!l.contractListingId) throw new Error("Listing is pending chain sync.");
+      await waitForTx(await writeWithdrawOffer(address as Address, BigInt(l.contractListingId)));
+      await fetch("/api/offers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: offerId, status: "rejected" }),
+      });
+      setOffers((current) => current.map((o) => o.id === offerId ? { ...o, status: "withdrawn" } : o));
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setOfferAction("");
+    }
+  };
+
   const claimDefaultedNft = async () => {
     if (!address || !loan) return;
     setClaiming(true);
@@ -391,6 +446,10 @@ function LoanDetailContent() {
                         <button className="btn sm primary" onClick={() => updateOfferStatus(o.id, "accepted", o)} disabled={o.status !== "pending" || offerAction === o.id}>Accept</button>
                         <button className="btn sm danger" onClick={() => updateOfferStatus(o.id, "rejected", o)} disabled={o.status !== "pending" || offerAction === o.id}>Reject</button>
                       </div>
+                    ) : o.offererAddress?.toLowerCase() === address?.toLowerCase() && o.status === "pending" ? (
+                      <div className="row" style={{ gap: 6 }}>
+                        <button className="btn sm danger" onClick={() => withdrawOfferAction(o.id)} disabled={offerAction === o.id}>Withdraw</button>
+                      </div>
                     ) : (
                       <div className="row" style={{ gap: 6 }}>
                         <button className="btn sm" disabled={o.status !== "pending" || matching === o.id} onClick={() => submitMatch(o)}>{matching === o.id ? "…" : "Match"}</button>
@@ -444,13 +503,26 @@ function LoanDetailContent() {
             <div className="kv"><span className="k">Escrow</span><span className="v" style={{ color: "var(--accent)" }}>baseshire.eth · EOA</span></div>
 
             <div className="row" style={{ gap: 8, marginTop: 18 }}>
-              {!isFunded && (
+              {!isFunded && !isBorrower && (
                 <button className="btn primary lg" style={{ flex: 1 }} onClick={() => { setMatchOffer(null); setModal("counter"); }}>Submit offer</button>
               )}
-              {isFunded && isBorrower && (
-                <button className="btn primary lg" style={{ flex: 1 }} onClick={repayLoan} disabled={repaying}>
-                  {repaying ? "Repaying…" : `Repay ${(l.amt * (1 + l.apr / 100 * l.term / 365)).toFixed(3)} Ξ`}
+              {!isFunded && isBorrower && (
+                <button className="btn danger lg" style={{ flex: 1 }} onClick={cancelListingAction} disabled={repaying}>
+                  {repaying ? "Cancelling…" : "Cancel listing"}
                 </button>
+              )}
+              {isFunded && isBorrower && (
+                <div className="col" style={{ gap: 8, flex: 1 }}>
+                  <button className="btn primary lg" style={{ width: "100%" }} onClick={repayLoan} disabled={repaying}>
+                    {repaying ? "Repaying…" : `Repay ${(l.amt * (1 + l.apr / 100 * l.term / 365)).toFixed(3)} Ξ`}
+                  </button>
+                  <div className="row" style={{ gap: 6 }}>
+                    <input className="input mono" style={{ flex: 1, height: 36, fontSize: 13 }} type="number" step="0.001" placeholder="Partial amount (Ξ)" value={partialAmt} onChange={e => setPartialAmt(e.target.value)} />
+                    <button className="btn sm" onClick={repayPartialLoan} disabled={repayingPartial || !partialAmt}>
+                      {repayingPartial ? "…" : "Partial"}
+                    </button>
+                  </div>
+                </div>
               )}
               {isFunded && isLender && (
                 <button className="btn danger lg" style={{ flex: 1 }} onClick={claimDefaultedNft} disabled={claiming}>

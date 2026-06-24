@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - ADMIN_WALLETS=${ADMIN_WALLETS}
+      - MESSAGE_ENCRYPTION_KEY=${MESSAGE_ENCRYPTION_KEY}
+      - ALCHEMY_KEY=${ALCHEMY_KEY}
+      - NEXT_PUBLIC_ESCROW_CONTRACT=${NEXT_PUBLIC_ESCROW_CONTRACT}
+      - NEXT_PUBLIC_URL=${NEXT_PUBLIC_URL:-http://localhost:3000}
+    restart: unless-stopped
+
+  # Local dev Postgres (optional — use Neon serverless in production)
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: vault
+      POSTGRES_PASSWORD: vault_dev
+      POSTGRES_DB: vault
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    profiles:
+      - dev
+
+volumes:
+  pgdata:

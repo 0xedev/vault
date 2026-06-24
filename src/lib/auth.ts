@@ -4,6 +4,7 @@ import { SiweMessage, generateNonce } from "siwe";
 import { getDatabase, databaseRequired, type DbClient } from "@/lib/api";
 import { csrfCheck } from "@/lib/security";
 import { rateLimit } from "@/lib/rate-limit";
+import { authLogger } from "@/lib/logger";
 
 export type AuthUser = {
   address: string;
@@ -103,6 +104,7 @@ export async function verifySiweSession(req: NextRequest) {
 
   const res = NextResponse.json({ address, chainId: data.chainId, role: effectiveRole });
   res.cookies.set(SESSION_COOKIE, sessionId, sessionCookieOptions(expires));
+  authLogger("login", address, { role: effectiveRole });
   return res;
 }
 
@@ -113,7 +115,10 @@ export async function destroySession(req: NextRequest) {
   const db = getDatabase();
   if (!db) return databaseRequired();
   const sessionId = req.cookies.get(SESSION_COOKIE)?.value;
-  if (sessionId) await db`DELETE FROM sessions WHERE id = ${sessionId}`;
+  if (sessionId) {
+    await db`DELETE FROM sessions WHERE id = ${sessionId}`;
+    authLogger("logout", undefined, { session_id: sessionId });
+  }
   return clearSessionCookie(NextResponse.json({ ok: true }));
 }
 
@@ -171,4 +176,24 @@ export async function requireAdmin(req: NextRequest): Promise<{ user: AuthUser; 
 
 export function forbidden(message = "Action is not available for this session.") {
   return NextResponse.json({ error: message }, { status: 403 });
+}
+
+export async function rotateSession(req: NextRequest, currentUser: AuthUser): Promise<NextResponse | null> {
+  const db = getDatabase();
+  if (!db) return null;
+
+  const oldSessionId = req.cookies.get(SESSION_COOKIE)?.value;
+
+  const sessionId = newId("S");
+  const expires = new Date(Date.now() + SESSION_TTL_MS);
+  await db`INSERT INTO sessions (id, address, role, expires_at) VALUES (${sessionId}, ${currentUser.address}, ${currentUser.role}, ${expires})`;
+
+  if (oldSessionId) {
+    await db`DELETE FROM sessions WHERE id = ${oldSessionId}`;
+  }
+
+  const res = new NextResponse();
+  res.cookies.set(SESSION_COOKIE, sessionId, sessionCookieOptions(expires));
+  authLogger("session_rotated", currentUser.address);
+  return res;
 }

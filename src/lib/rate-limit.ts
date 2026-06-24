@@ -3,8 +3,11 @@ import { getDatabase } from "@/lib/api";
 
 const RATE_LIMIT = new Map<string, { count: number; resetAt: number }>();
 
-const WINDOW_MS = 60_000; // 1 minute
-const MAX_REQUESTS = 30;   // per window
+const WINDOW_MS = 60_000;
+const MAX_REQUESTS = 30;
+const CLEANUP_INTERVAL_MS = 300_000;
+
+let lastCleanup = 0;
 
 function clientIp(req: NextRequest) {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -29,12 +32,29 @@ function inMemoryRateLimit(key: string) {
   return NextResponse.next();
 }
 
+function runCleanup() {
+  const now = Date.now();
+  for (const [key, entry] of RATE_LIMIT) {
+    if (now > entry.resetAt) RATE_LIMIT.delete(key);
+  }
+  const db = getDatabase();
+  if (db) {
+    db`DELETE FROM rate_limits WHERE reset_at < NOW() - INTERVAL '1 hour'`.catch(() => {});
+  }
+}
+
 export async function rateLimit(req: NextRequest) {
+  const now = Date.now();
+  if (now - lastCleanup > CLEANUP_INTERVAL_MS) {
+    lastCleanup = now;
+    runCleanup();
+  }
+
   const key = `rate:${clientIp(req)}`;
   const db = getDatabase();
   if (!db) return inMemoryRateLimit(key);
 
-  const resetAt = new Date(Date.now() + WINDOW_MS);
+  const resetAt = new Date(now + WINDOW_MS);
   const rows = await db`
     INSERT INTO rate_limits (key, count, reset_at)
     VALUES (${key}, 1, ${resetAt})
@@ -50,19 +70,4 @@ export async function rateLimit(req: NextRequest) {
   }
 
   return NextResponse.next();
-}
-
-// Cleanup stale entries every 5 minutes (in-memory + DB)
-if (typeof setInterval !== "undefined") {
-  setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of RATE_LIMIT) {
-      if (now > entry.resetAt) RATE_LIMIT.delete(key);
-    }
-    // Cleanup stale DB rows older than 1 hour
-    const db = getDatabase();
-    if (db) {
-      db`DELETE FROM rate_limits WHERE reset_at < NOW() - INTERVAL '1 hour'`.catch(() => {});
-    }
-  }, 300_000);
 }

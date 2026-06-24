@@ -2,12 +2,12 @@ const BASE_URL = "https://base-mainnet.g.alchemy.com/nft/v3";
 const ETH_URL = "https://eth-mainnet.g.alchemy.com/nft/v3";
 
 function getApiKey() {
-  return process.env.NEXT_PUBLIC_ALCHEMY_KEY || "";
+  return process.env.ALCHEMY_KEY || "";
 }
 
 async function alchemyFetch(chain: "base" | "eth", endpoint: string, params: Record<string, string>) {
   const key = getApiKey();
-  if (!key) throw new Error("Missing NEXT_PUBLIC_ALCHEMY_KEY");
+  if (!key) throw new Error("Missing ALCHEMY_KEY");
   const base = chain === "base" ? BASE_URL : ETH_URL;
   const qs = new URLSearchParams(params).toString();
   const res = await fetch(`${base}/${endpoint}?${qs}`, {
@@ -26,7 +26,6 @@ export interface AlchemyNFT {
   collection?: { name?: string; slug?: string };
 }
 
-/** Get all NFTs owned by a wallet */
 export async function getNFTsForOwner(address: string, chain: "base" | "eth" = "base") {
   const data = await alchemyFetch(chain, "getNFTsForOwner", {
     owner: address,
@@ -36,7 +35,6 @@ export async function getNFTsForOwner(address: string, chain: "base" | "eth" = "
   return (data.ownedNfts || []) as AlchemyNFT[];
 }
 
-/** Get floor price for a collection */
 export async function getFloorPrice(contractAddress: string, chain: "base" | "eth" = "base") {
   const key = getApiKey();
   if (!key) return null;
@@ -49,7 +47,6 @@ export async function getFloorPrice(contractAddress: string, chain: "base" | "et
   return data.openSea?.floorPrice || data.looksRare?.floorPrice || null;
 }
 
-/** Get NFT metadata */
 export async function getNFTMetadata(contractAddress: string, tokenId: string, chain: "base" | "eth" = "base") {
   return alchemyFetch(chain, "getNFTMetadata", { contractAddress, tokenId });
 }

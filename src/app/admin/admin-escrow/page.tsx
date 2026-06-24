@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useEffect, useState } from "react";
 import StatusPill from "@/components/StatusPill";
 import type { Escrow } from "@/lib/data";

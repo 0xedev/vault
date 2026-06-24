@@ -1,8 +1,13 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
+import { useWallet } from "@/components/WalletProvider";
+import { readPaused, writePause, writeUnpause, parseContractError, getPublicClient } from "@/lib/contract";
+import { type Address } from "viem";
 
 type Summary = {
   activeEscrows: number;
@@ -32,6 +37,9 @@ export default function AdminDashboardPage() {
   const [disputes, setDisputes] = useState<DisputeRow[]>([]);
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [error, setError] = useState("");
+  const [paused, setPaused] = useState<boolean | null>(null);
+  const [pauseLoading, setPauseLoading] = useState(false);
+  const { address } = useWallet();
 
   useEffect(() => {
     Promise.all([
@@ -57,7 +65,23 @@ export default function AdminDashboardPage() {
         setAudit(auditData);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load admin dashboard"));
+
+    readPaused().then(setPaused).catch(() => setPaused(null));
   }, []);
+
+  const togglePause = async () => {
+    if (!address) return;
+    setPauseLoading(true);
+    try {
+      const hash = paused ? await writeUnpause(address as Address) : await writePause(address as Address);
+      await getPublicClient().waitForTransactionReceipt({ hash });
+      setPaused(!paused);
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setPauseLoading(false);
+    }
+  };
 
   return (
     <main id="main-content" role="main" aria-label="Main content" className="main">
@@ -68,6 +92,9 @@ export default function AdminDashboardPage() {
         </div>
         <div className="row" style={{ gap: 8 }}>
           <button className="btn" onClick={() => window.print()}>Export report</button>
+          <button className={"btn" + (paused ? " primary" : " danger")} onClick={togglePause} disabled={pauseLoading || paused === null}>
+            {pauseLoading ? "…" : paused ? "Unpause contract" : "Pause contract"}
+          </button>
         </div>
       </div>
 
@@ -95,6 +122,13 @@ export default function AdminDashboardPage() {
         <div className="card" style={{ padding: 22 }}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>Settlement Health</div>
           <div className="metric"><span className="lab">Escrow utilization</span><span className="val">{summary.totalLocked.toFixed(3)} Ξ</span><span className="delta">live locked funds</span></div>
+          <div className="row" style={{ marginTop: 16, gap: 8 }}>
+            <span className="smallcaps">Contract status</span>
+            <span className={"pill" + (paused ? " danger" : " success")} style={{ fontSize: 12 }}>
+              <span className="pdot" style={{ background: paused ? "var(--risk)" : "var(--accent)" }} />
+              {paused === null ? "Unknown" : paused ? "Paused" : "Active"}
+            </span>
+          </div>
         </div>
       </div>
 

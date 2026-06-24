@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest } from "@/lib/api";
-import { requireAdmin, requireUser } from "@/lib/auth";
+import { requireAdmin, requireUser, rotateSession } from "@/lib/auth";
 import { writeAudit } from "@/lib/admin";
 import { getEscrowAddress, getPublicClient } from "@/lib/contract";
 
@@ -85,7 +85,13 @@ export async function releaseEscrow(req: NextRequest, escrowId: string) {
   await auth.db`UPDATE escrows SET stage = 'released', tx_hash = COALESCE(${body.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${body.data.txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END, updated_at = NOW() WHERE id = ${escrowId}`;
   await auth.db`INSERT INTO transactions (id, escrow_id, from_address, to_address, amount, currency, tx_type, tx_hash, status)
     SELECT ${`T-${Date.now()}`}, id, buyer_address, seller_address, amount, currency, 'escrow_released', ${body.data.txHash || null}, ${body.data.txHash ? "confirmed" : "offchain"} FROM escrows WHERE id = ${escrowId}`;
-  return NextResponse.json({ data: { id: escrowId, stage: "released" } });
+  const res = NextResponse.json({ data: { id: escrowId, stage: "released" } });
+  const rotated = await rotateSession(req, auth.user);
+  if (rotated) {
+    const setCookie = rotated.headers.getSetCookie();
+    for (const cookie of setCookie) res.headers.append("Set-Cookie", cookie);
+  }
+  return res;
 }
 
 export async function refundEscrow(req: NextRequest, escrowId: string) {
@@ -146,5 +152,11 @@ export async function resolveDispute(req: NextRequest, disputeId: string) {
   await auth.db`UPDATE disputes SET status = 'resolved', resolution = ${JSON.stringify(parsed.data)}, resolved_at = NOW() WHERE id = ${disputeId}`;
   await auth.db`UPDATE escrows SET stage = ${stage}, tx_hash = COALESCE(${parsed.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${parsed.data.txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END, updated_at = NOW() WHERE id = ${rows[0].escrow_id}`;
   await writeAudit("DISPUTE_RESOLVED", disputeId, parsed.data.note || `Verdict: ${parsed.data.verdict}`, "admin", auth.user.address, parsed.data.txHash);
-  return NextResponse.json({ data: { id: disputeId, status: "resolved", verdict: parsed.data.verdict } });
+  const res = NextResponse.json({ data: { id: disputeId, status: "resolved", verdict: parsed.data.verdict } });
+  const rotated = await rotateSession(req, auth.user);
+  if (rotated) {
+    const setCookie = rotated.headers.getSetCookie();
+    for (const cookie of setCookie) res.headers.append("Set-Cookie", cookie);
+  }
+  return res;
 }

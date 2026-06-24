@@ -40,8 +40,6 @@ export function useWallet() {
   return useContext(WalletContext);
 }
 
-const STORAGE_KEY = "vault-wallet";
-
 async function siweSignIn(address: string, chainId: number): Promise<{ address: string; role: string } | null> {
   try {
     const siweAddr = getAddress(address);
@@ -106,7 +104,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           const chainIdNum = parseInt(chain, 16);
           setAddress(accounts[0]);
           setChainId(chainIdNum);
-          try { localStorage.setItem(STORAGE_KEY, accounts[0]); } catch {}
 
           // 3. Auto SIWE — wallet connected but no session
           const session = await siweSignIn(accounts[0], chainIdNum);
@@ -127,7 +124,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const chainIdNum = parseInt(chain, 16);
         setAddress(accounts[0]);
         setChainId(chainIdNum);
-        try { localStorage.setItem(STORAGE_KEY, accounts[0]); } catch {}
 
         const session = await siweSignIn(accounts[0], chainIdNum);
         if (session) {
@@ -146,7 +142,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setAddress(null);
     setRole(null);
     setChainId(null);
-    try { localStorage.removeItem(STORAGE_KEY); } catch {}
     fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
   }, []);
 
@@ -163,7 +158,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       const nextAddress = accounts[0];
       setAddress(nextAddress);
       setRole(null);
-      try { localStorage.setItem(STORAGE_KEY, nextAddress); } catch {}
 
       try {
         await fetch("/api/auth/logout", { method: "POST" });

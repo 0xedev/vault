@@ -1,8 +1,12 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
+import { useWallet } from "@/components/WalletProvider";
+import { parseContractError } from "@/lib/contract";
 
 type AdminDispute = {
   id: string;
@@ -22,7 +26,37 @@ export default function AdminDisputesPage() {
   const [tab, setTab] = useState("all");
   const [disputes, setDisputes] = useState<AdminDispute[]>([]);
   const [error, setError] = useState("");
+  const [resolving, setResolving] = useState<string | null>(null);
+  const [resolveModal, setResolveModal] = useState<AdminDispute | null>(null);
+  const [verdict, setVerdict] = useState<"release" | "refund" | "split">("refund");
+  const [buyerPct, setBuyerPct] = useState(0);
+  const { address } = useWallet();
   const list = disputes.filter(d => tab === "all" || d.status === tab);
+
+  const handleResolve = async () => {
+    if (!address || !resolveModal) return;
+    setResolving(resolveModal.id);
+    try {
+      // Try resolving via API first
+      const res = await fetch(`/api/admin/disputes/${resolveModal.id}/resolve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          verdict,
+          buyerAmount: verdict === "split" ? Math.round(buyerPct / 100 * resolveModal.frozen * 1e18) / 1e18 : 0,
+          sellerAmount: verdict === "split" ? Math.round((100 - buyerPct) / 100 * resolveModal.frozen * 1e18) / 1e18 : 0,
+          note: `Admin resolved via ${verdict}`,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Resolution failed");
+      setDisputes((prev) => prev.map((d) => d.id === resolveModal.id ? { ...d, status: "resolved" } : d));
+      setResolveModal(null);
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setResolving(null);
+    }
+  };
 
   useEffect(() => {
     fetch("/api/disputes")
@@ -86,11 +120,62 @@ export default function AdminDisputesPage() {
                   borderColor: "color-mix(in oklab, currentColor 30%, transparent)",
                 }}>{d.priority}</span></td>
                 <td><DisputeStatus s={d.status}/></td>
-                <td className="right"><Icon.arrow style={{ color: "var(--ink-3)" }}/></td>
+                <td className="right">
+                  {d.status !== "resolved" ? (
+                    <button className="btn sm primary" onClick={() => setResolveModal(d)}>Resolve</button>
+                  ) : (
+                    <Icon.arrow style={{ color: "var(--ink-3)" }} />
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      {resolveModal && (
+        <div className="modal-bg" onClick={() => setResolveModal(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div className="modal-h">
+              <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>Resolve dispute</h3>
+              <button className="btn ghost sm" onClick={() => setResolveModal(null)}><Icon.x /></button>
+            </div>
+            <div className="modal-b">
+              <div className="col" style={{ gap: 14 }}>
+                <div className="card" style={{ padding: 12, background: "var(--surface-2)" }}>
+                  <div className="kv"><span className="k">Case</span><span className="v mono">{resolveModal.id}</span></div>
+                  <div className="kv"><span className="k">Filer</span><span className="v mono">{resolveModal.filer}</span></div>
+                  <div className="kv"><span className="k">Against</span><span className="v mono">{resolveModal.against}</span></div>
+                  <div className="kv"><span className="k">Frozen</span><span className="v mono">{resolveModal.frozen} {resolveModal.currency}</span></div>
+                  <div className="kv"><span className="k">Reason</span><span className="v">{resolveModal.reason}</span></div>
+                </div>
+                <div className="seg" style={{ width: "100%" }}>
+                  {(["refund", "release", "split"] as const).map((v) => (
+                    <button key={v} className={verdict === v ? "active" : ""} onClick={() => setVerdict(v)} style={{ flex: 1 }}>
+                      {v === "refund" ? "Refund buyer" : v === "release" ? "Release to seller" : "Split"}
+                    </button>
+                  ))}
+                </div>
+                {verdict === "split" && (
+                  <div className="row" style={{ gap: 8, alignItems: "center" }}>
+                    <span className="smallcaps">Buyer gets</span>
+                    <input className="input mono" type="number" min={0} max={100} value={buyerPct} onChange={e => setBuyerPct(Number(e.target.value))} style={{ width: 80 }} />
+                    <span className="muted">%</span>
+                    <span className="mono muted-2" style={{ marginLeft: "auto" }}>Seller: {100 - buyerPct}%</span>
+                  </div>
+                )}
+                {error && <div className="warn-banner" style={{ fontSize: 12 }}>{error}</div>}
+                <button className="btn primary lg" style={{ width: "100%" }} onClick={handleResolve} disabled={resolving === resolveModal.id}>
+                  {resolving === resolveModal.id ? "Resolving…" : `Confirm ${verdict}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 12, fontSize: 11, color: "var(--ink-4)" }}>
+        Also available via API: POST /api/admin/disputes/:id/resolve
       </div>
     </main>
   );

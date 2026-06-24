@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase, shortAddress } from "@/lib/api";
 import { forbidden, requireUser } from "@/lib/auth";
-import { getEscrowAddress, getPublicClient } from "@/lib/contract";
+import { getEscrowAddress, getPublicClient, readOffer, readOfferCount } from "@/lib/contract";
+import { getAddress } from "viem";
 
 const offerSchema = z.object({
   listingId: z.string().min(1),
@@ -23,12 +24,15 @@ const offerStatusSchema = z.object({
 
 export async function GET(req: NextRequest) {
   const db = getDatabase();
+
+  const url = new URL(req.url);
+  const listingId = url.searchParams.get("listingId");
+  if (!listingId) return badRequest("listingId is required");
+  const chain = url.searchParams.get("chain") === "true";
+
   if (!db) return databaseRequired();
 
-  const listingId = new URL(req.url).searchParams.get("listingId");
-  if (!listingId) return badRequest("listingId is required");
-
-  const rows = await db`SELECT * FROM offers WHERE listing_id = ${listingId} ORDER BY created_at DESC` as Record<string, unknown>[];
+  const rows = await db`SELECT o.*, l.contract_listing_id FROM offers o JOIN listings l ON l.id = o.listing_id WHERE o.listing_id = ${listingId} ORDER BY o.created_at DESC` as Record<string, unknown>[];
   const data = rows.map((row: Record<string, unknown>) => ({
     id: row.id,
     who: shortAddress(row.offerer_address),
@@ -39,6 +43,36 @@ export async function GET(req: NextRequest) {
     when: row.created_at,
     status: row.status,
   }));
+
+  if (chain) {
+    const contractListingId = (rows[0] as Record<string, unknown> | undefined)?.contract_listing_id;
+    if (contractListingId) {
+      try {
+        const [count, ...onChainOffers] = await Promise.all([
+          readOfferCount(BigInt(String(contractListingId))),
+          ...data.map(async (o) => {
+            try {
+              return await readOffer(BigInt(String(contractListingId)), getAddress(String(o.offererAddress)));
+            } catch {
+              return null;
+            }
+          }),
+        ]);
+
+        return NextResponse.json({
+          data: data.map((o, i) => ({
+            ...o,
+            onChainApr: onChainOffers[i] ? Number(onChainOffers[i]!.apr) / 100 : null,
+            onChainTerm: onChainOffers[i] ? Number(onChainOffers[i]!.term) : null,
+          })),
+          total: Number(count),
+          onChainVerified: true,
+        });
+      } catch {
+        // Chain read failed, return DB data
+      }
+    }
+  }
 
   return NextResponse.json({ data, total: data.length });
 }
@@ -72,15 +106,20 @@ export async function PATCH(req: NextRequest) {
 
   const db = auth.db;
   const rows = await db`
-    SELECT o.id, o.listing_id, l.seller_address, l.contract_listing_id, l.contract_address, l.tx_status
+    SELECT o.id, o.listing_id, o.offerer_address, l.seller_address, l.contract_listing_id, l.contract_address, l.tx_status
     FROM offers o
     JOIN listings l ON l.id = o.listing_id
     WHERE o.id = ${parsed.data.id}
     LIMIT 1
   ` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Offer not found" }, { status: 404 });
-  if (String(rows[0].seller_address).toLowerCase() !== auth.user.address && auth.user.role !== "admin") {
-    return forbidden("Only the listing owner can update this offer.");
+
+  const isSeller = String(rows[0].seller_address).toLowerCase() === auth.user.address;
+  const isOfferer = String(rows[0].offerer_address).toLowerCase() === auth.user.address;
+  const isRejection = parsed.data.status === "rejected";
+
+  if (!isSeller && auth.user.role !== "admin" && !(isOfferer && isRejection)) {
+    return forbidden("Only the listing owner (or the offerer to withdraw) can update this offer.");
   }
 
   const contractBacked = Boolean(rows[0].contract_listing_id || rows[0].contract_address || String(rows[0].tx_status || "") === "pending" || String(rows[0].tx_status || "") === "confirmed");

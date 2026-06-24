@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
@@ -7,7 +9,6 @@ import LoanCard from "@/components/LoanCard";
 import Dropdown from "@/components/Dropdown";
 import NFTArt from "@/components/NFTArt";
 import { COLLECTIONS } from "@/lib/data";
-import { getNFTsForOwner } from "@/lib/alchemy";
 import { useWallet } from "@/components/WalletProvider";
 import { approveNft, getEscrowAddress, writeListNFT, waitForListingId, parseContractError } from "@/lib/contract";
 import { parseEther } from "viem";
@@ -49,8 +50,11 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!address) return;
     queueMicrotask(() => setScanning(true));
-    getNFTsForOwner(address, "base")
-      .then((nfts) => {
+    fetch(`/api/nfts/${address}?chain=base`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Failed to fetch NFTs");
+        const json = await res.json();
+        const nfts = (json.data || []) as { contract: { address: string; name?: string }; tokenId: string; name?: string; floorPriceEth?: number; collection?: { name?: string } }[];
         const found = nfts
           .filter((n) => n.name || n.collection?.name)
           .slice(0, 20)
@@ -65,7 +69,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
         setScanning(false);
       })
       .catch(() => {
-        setError("Could not fetch NFTs. Make sure NEXT_PUBLIC_ALCHEMY_KEY is set and your wallet is on Base.");
+        setError("Could not fetch NFTs. Make sure your wallet is on Base.");
         setScanning(false);
       });
   }, [address]);
@@ -74,7 +78,10 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     if (!address) return;
     setScanning(true);
     try {
-      const nfts = await getNFTsForOwner(address, "base");
+      const res = await fetch(`/api/nfts/${address}?chain=base`);
+      if (!res.ok) throw new Error("Failed to fetch NFTs");
+      const json = await res.json();
+      const nfts = (json.data || []) as { contract: { address: string; name?: string }; tokenId: string; name?: string; floorPriceEth?: number; collection?: { name?: string } }[];
       const found = nfts
         .filter((n) => n.name || n.collection?.name)
         .slice(0, 20)
@@ -87,7 +94,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
         }));
       setDetectedNfts(found);
     } catch {
-      setError("Could not fetch NFTs. Make sure NEXT_PUBLIC_ALCHEMY_KEY is set and your wallet is on Base.");
+      setError("Could not fetch NFTs. Make sure your wallet is on Base.");
     }
     setScanning(false);
   };

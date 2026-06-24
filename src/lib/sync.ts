@@ -2,6 +2,7 @@ import { decodeEventLog, parseAbi } from "viem";
 import { base } from "viem/chains";
 import { getDatabase, databaseRequired } from "@/lib/api";
 import { getEscrowAddress, getPublicClient } from "@/lib/contract";
+import { logger } from "@/lib/logger";
 
 const SYNC_EVENT_ABI = parseAbi([
   "event Listed(uint256 indexed listingId, address borrower, address nftContract, uint256 tokenId, uint256 amount, uint256 apr, uint256 term)",
@@ -51,120 +52,148 @@ export async function syncEscrowEvents() {
 
   const logs = await client.getLogs({ address: contractAddress, fromBlock, toBlock: latest });
 
+  let syncedCount = 0;
+  let errorCount = 0;
+
   for (const log of logs) {
     const txHash = log.transactionHash;
-    await db`UPDATE transactions SET status = 'confirmed' WHERE tx_hash = ${txHash}`;
-    await db`UPDATE listings SET tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
-    await db`UPDATE offers SET tx_status = 'confirmed' WHERE tx_hash = ${txHash}`;
-    await db`UPDATE escrows SET tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
-
-    const decoded = (() => {
-      try {
-        return decodeEventLog({ abi: SYNC_EVENT_ABI, data: log.data, topics: log.topics });
-      } catch {
-        return null;
-      }
-    })();
-    if (!decoded) continue;
-
-    if (decoded.eventName === "Listed") {
-      const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
-      if (listingId) {
-        await db`UPDATE listings SET contract_listing_id = ${listingId}, tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
-      }
-    }
-
-    if (decoded.eventName === "OfferSubmitted") {
+    try {
+      await db`UPDATE transactions SET status = 'confirmed' WHERE tx_hash = ${txHash}`;
+      await db`UPDATE listings SET tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
       await db`UPDATE offers SET tx_status = 'confirmed' WHERE tx_hash = ${txHash}`;
-    }
+      await db`UPDATE escrows SET tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
 
-    if (decoded.eventName === "OfferAccepted") {
-      const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
-      if (listingId) {
-        await db`UPDATE listings SET status = 'funded', updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
-      }
-      await db`UPDATE offers SET status = 'accepted', tx_status = 'confirmed' WHERE tx_hash = ${txHash}`;
-    }
+      const decoded = (() => {
+        try {
+          return decodeEventLog({ abi: SYNC_EVENT_ABI, data: log.data, topics: log.topics });
+        } catch {
+          return null;
+        }
+      })();
+      if (!decoded) continue;
 
-    if (decoded.eventName === "Repaid") {
-      const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
-      if (listingId) {
-        await db`UPDATE listings SET status = 'completed', collateral_data = jsonb_set(collateral_data::jsonb, '{status}', '"repaid"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
-      }
-    }
+      let handled = false;
 
-    if (decoded.eventName === "Disputed") {
-      const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
-      if (listingId) {
-        await db`UPDATE listings SET status = 'disputed', collateral_data = jsonb_set(collateral_data::jsonb, '{status}', '"disputed"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+      if (decoded.eventName === "Listed") {
+        const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
+        if (listingId) {
+          await db`UPDATE listings SET contract_listing_id = ${listingId}, tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+        }
+        handled = true;
       }
-    }
 
-    if (decoded.eventName === "Resolved") {
-      const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
-      if (listingId) {
-        await db`UPDATE listings SET status = 'completed', updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+      if (decoded.eventName === "OfferSubmitted") {
+        await db`UPDATE offers SET tx_status = 'confirmed' WHERE tx_hash = ${txHash}`;
+        handled = true;
       }
-    }
 
-    if (decoded.eventName === "DealListed") {
-      const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
-      if (dealId) {
-        await db`UPDATE listings SET contract_listing_id = COALESCE(contract_listing_id, ${dealId}), tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+      if (decoded.eventName === "OfferAccepted") {
+        const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
+        if (listingId) {
+          await db`UPDATE listings SET status = 'funded', updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+        }
+        await db`UPDATE offers SET status = 'accepted', tx_status = 'confirmed' WHERE tx_hash = ${txHash}`;
+        handled = true;
       }
-    }
 
-    if (decoded.eventName === "MiniAppListed") {
-      const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
-      if (listingId) {
-        await db`UPDATE listings SET contract_listing_id = COALESCE(contract_listing_id, ${listingId}), tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+      if (decoded.eventName === "Repaid") {
+        const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
+        if (listingId) {
+          await db`UPDATE listings SET status = 'completed', collateral_data = jsonb_set(collateral_data::jsonb, '{status}', '"repaid"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+        }
+        handled = true;
       }
-    }
 
-    if (decoded.eventName === "DealFunded") {
-      const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
-      if (dealId) {
-        await db`UPDATE escrows SET contract_listing_id = COALESCE(contract_listing_id, ${dealId}), stage = 'funds_locked', tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+      if (decoded.eventName === "Disputed") {
+        const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
+        if (listingId) {
+          await db`UPDATE listings SET status = 'disputed', collateral_data = jsonb_set(collateral_data::jsonb, '{status}', '"disputed"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+        }
+        handled = true;
       }
-    }
 
-    if (decoded.eventName === "DealDelivered") {
-      const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
-      if (dealId) {
-        await db`UPDATE escrows SET stage = 'asset_transferred', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+      if (decoded.eventName === "Resolved") {
+        const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
+        if (listingId) {
+          await db`UPDATE listings SET status = 'completed', updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+        }
+        handled = true;
       }
-    }
 
-    if (decoded.eventName === "DealConfirmed") {
-      const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
-      if (dealId) {
-        await db`UPDATE escrows SET stage = 'released', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+      if (decoded.eventName === "DealListed") {
+        const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
+        if (dealId) {
+          await db`UPDATE listings SET contract_listing_id = COALESCE(contract_listing_id, ${dealId}), tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+        }
+        handled = true;
       }
-    }
 
-    if (decoded.eventName === "DealDisputed") {
-      const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
-      if (dealId) {
-        await db`UPDATE escrows SET stage = 'disputed', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+      if (decoded.eventName === "MiniAppListed") {
+        const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
+        if (listingId) {
+          await db`UPDATE listings SET contract_listing_id = COALESCE(contract_listing_id, ${listingId}), tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+        }
+        handled = true;
       }
-    }
 
-    if (decoded.eventName === "DealResolved") {
-      const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
-      const buyerAmount = eventArg(decoded.args, "buyerAmount");
-      const sellerAmount = eventArg(decoded.args, "sellerAmount");
-      if (dealId) {
-        // If seller gets 0 and buyer gets full balance back, it's effectively a refund
-        const stage = (Number(sellerAmount || 0) === 0) ? "refunded" : "released";
-        await db`UPDATE escrows SET stage = ${stage}, tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+      if (decoded.eventName === "DealFunded") {
+        const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
+        if (dealId) {
+          await db`UPDATE escrows SET contract_listing_id = COALESCE(contract_listing_id, ${dealId}), stage = 'funds_locked', tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+        }
+        handled = true;
       }
-    }
 
-    if (decoded.eventName === "DealRefunded") {
-      const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
-      if (dealId) {
-        await db`UPDATE escrows SET stage = 'refunded', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+      if (decoded.eventName === "DealDelivered") {
+        const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
+        if (dealId) {
+          await db`UPDATE escrows SET stage = 'asset_transferred', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+        }
+        handled = true;
       }
+
+      if (decoded.eventName === "DealConfirmed") {
+        const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
+        if (dealId) {
+          await db`UPDATE escrows SET stage = 'released', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+        }
+        handled = true;
+      }
+
+      if (decoded.eventName === "DealDisputed") {
+        const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
+        if (dealId) {
+          await db`UPDATE escrows SET stage = 'disputed', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+        }
+        handled = true;
+      }
+
+      if (decoded.eventName === "DealResolved") {
+        const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
+        const sellerAmount = eventArg(decoded.args, "sellerAmount");
+        if (dealId) {
+          const stage = (Number(sellerAmount || 0) === 0) ? "refunded" : "released";
+          await db`UPDATE escrows SET stage = ${stage}, tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+        }
+        handled = true;
+      }
+
+      if (decoded.eventName === "DealRefunded") {
+        const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
+        if (dealId) {
+          await db`UPDATE escrows SET stage = 'refunded', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+        }
+        handled = true;
+      }
+
+      if (handled) syncedCount++;
+    } catch (err) {
+      errorCount++;
+      logger.error("sync_event_failed", {
+        tx_hash: txHash,
+        block_number: log.blockNumber?.toString(),
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 
@@ -172,5 +201,13 @@ export async function syncEscrowEvents() {
     VALUES (${cursorId}, ${chainId}, ${contractAddress}, ${latest.toString()}, NOW())
     ON CONFLICT (id) DO UPDATE SET last_synced_block = ${latest.toString()}, updated_at = NOW()`;
 
-  return { data: { fromBlock: fromBlock.toString(), toBlock: latest.toString(), events: logs.length } };
+  logger.info("sync_completed", {
+    from_block: fromBlock.toString(),
+    to_block: latest.toString(),
+    total_events: logs.length,
+    synced: syncedCount,
+    errors: errorCount,
+  });
+
+  return { data: { fromBlock: fromBlock.toString(), toBlock: latest.toString(), events: logs.length, synced: syncedCount, errors: errorCount } };
 }

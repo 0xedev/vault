@@ -3,6 +3,7 @@ import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
 import { mapLoanListing } from "@/lib/marketplace";
 import { requireUser } from "@/lib/auth";
+import { readAllListings, mapListingStage } from "@/lib/contract";
 
 const listingSchema = z.object({
   id: z.string().min(1).optional(),
@@ -22,13 +23,43 @@ const listingSchema = z.object({
 
 export async function GET(req: NextRequest) {
   const db = getDatabase();
-  if (!db) return databaseRequired();
 
   const url = new URL(req.url);
   const status = url.searchParams.get("status") || "all";
   const sort = url.searchParams.get("sort") || "apr";
   const limit = parseInt(url.searchParams.get("limit") || "20");
   const offset = parseInt(url.searchParams.get("offset") || "0");
+  const chain = url.searchParams.get("chain") === "true";
+
+  if (chain) {
+    try {
+      const onChain = await readAllListings();
+      const data = onChain.map(({ id, data }) => ({
+        id: `C-${id}`,
+        coll: 0,
+        amt: Number(data.principal) / 1e18,
+        apr: Number(data.apr) / 100,
+        ltv: 0,
+        status: mapListingStage(data.stage),
+        collection: data.nftContract.slice(0, 10) + "...",
+        tokenId: data.nftTokenId.toString(),
+        contractListingId: id.toString(),
+        borrower: data.borrower,
+        acceptedLender: data.acceptedLender,
+        principal: data.principal.toString(),
+        onChain: true,
+      }));
+
+      return NextResponse.json({ data, total: data.length });
+    } catch (err) {
+      return NextResponse.json({
+        error: "Failed to read from chain",
+        detail: err instanceof Error ? err.message : String(err),
+      }, { status: 502 });
+    }
+  }
+
+  if (!db) return databaseRequired();
 
   const rows = (status === "all"
     ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' LIMIT ${limit} OFFSET ${offset}`

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { relativeDeadline, shortAddress, stageLabel, asNumber, asString, asBoolean, jsonArray, jsonRecord } from "@/lib/api";
 import { requireUser } from "@/lib/auth";
+import { readDeal, mapDealStage, readDealEscrowBalance } from "@/lib/contract";
 
 export async function GET(
   _req: NextRequest,
@@ -39,34 +40,64 @@ export async function GET(
   const escrowDeliverables = jsonArray(r.deliverables || collateral.includes).map(String);
   const includes = escrowDeliverables.length > 0 ? escrowDeliverables : bundleAssets.map((a) => String(a.label));
 
-  return NextResponse.json({
-    data: {
-      id: String(r.id),
-      kind: String(r.marketplace || "Escrow").replace(/_/g, " "),
-      name: asString(r.title, asString(collateral.name, String(r.listing_id || "Unlisted asset"))),
-      type: asString(collateral.kind, asString(collateral.type, isBundle ? "Bundle" : "Asset sale")),
-      asset: asString(r.title, String(r.listing_id || "Unlisted asset")),
-      amount: asNumber(r.amount),
-      price: asNumber(r.price, asNumber(r.amount)),
-      mrr: asNumber(collateral.mrr),
-      currency: asString(r.currency, "ETH"),
-      chain: asString(collateral.chain, "Unverified"),
-      verified: asBoolean(collateral.verified, String(r.listing_status) === "funded" || String(r.listing_status) === "completed"),
-      includes,
-      isBundle,
-      bundleAssets,
-      party: shortAddress(r.buyer_address),
-      buyerAddress: String(r.buyer_address || ""),
-      sellerAddress: String(r.seller_address || ""),
-      deadline: relativeDeadline(r.deadline),
-      stage: stageLabel(r.stage),
-      stageRaw: String(r.stage || "awaiting_deposit"),
-      action: "On schedule",
-      listingId,
-      chainId: asNumber(r.chain_id),
-      contractAddress: asString(r.contract_address),
-      contractListingId: asString(r.contract_listing_id),
-      txStatus: asString(r.tx_status, "offchain"),
-    },
-  });
+  const baseData = {
+    id: String(r.id),
+    kind: String(r.marketplace || "Escrow").replace(/_/g, " "),
+    name: asString(r.title, asString(collateral.name, String(r.listing_id || "Unlisted asset"))),
+    type: asString(collateral.kind, asString(collateral.type, isBundle ? "Bundle" : "Asset sale")),
+    asset: asString(r.title, String(r.listing_id || "Unlisted asset")),
+    amount: asNumber(r.amount),
+    price: asNumber(r.price, asNumber(r.amount)),
+    mrr: asNumber(collateral.mrr),
+    currency: asString(r.currency, "ETH"),
+    chain: asString(collateral.chain, "Unverified"),
+    verified: asBoolean(collateral.verified, String(r.listing_status) === "funded" || String(r.listing_status) === "completed"),
+    includes,
+    isBundle,
+    bundleAssets,
+    party: shortAddress(r.buyer_address),
+    buyerAddress: String(r.buyer_address || ""),
+    sellerAddress: String(r.seller_address || ""),
+    deadline: relativeDeadline(r.deadline),
+    stage: stageLabel(r.stage),
+    stageRaw: String(r.stage || "awaiting_deposit"),
+    action: "On schedule",
+    listingId,
+    chainId: asNumber(r.chain_id),
+    contractAddress: asString(r.contract_address),
+    contractListingId: asString(r.contract_listing_id),
+    txStatus: asString(r.tx_status, "offchain"),
+  };
+
+  const contractId = asString(r.contract_listing_id);
+  if (contractId) {
+    try {
+      const [deal, balance] = await Promise.allSettled([
+        readDeal(BigInt(contractId)),
+        readDealEscrowBalance(BigInt(contractId)),
+      ]);
+
+      return NextResponse.json({
+        data: {
+          ...baseData,
+          onChain: {
+            verified: true,
+            stage: deal.status === "fulfilled" ? mapDealStage(deal.value.stage) : null,
+            seller: deal.status === "fulfilled" ? deal.value.seller : null,
+            buyer: deal.status === "fulfilled" ? deal.value.buyer : null,
+            price: deal.status === "fulfilled" ? deal.value.price.toString() : null,
+            deadline: deal.status === "fulfilled" ? Number(deal.value.deadline) : null,
+            createdAt: deal.status === "fulfilled" ? Number(deal.value.createdAt) : null,
+            buyerAmount: deal.status === "fulfilled" ? deal.value.buyerAmount.toString() : null,
+            sellerAmount: deal.status === "fulfilled" ? deal.value.sellerAmount.toString() : null,
+            balance: balance.status === "fulfilled" ? balance.value.toString() : null,
+          },
+        },
+      });
+    } catch {
+      // Chain read failed, return DB data
+    }
+  }
+
+  return NextResponse.json({ data: baseData });
 }
