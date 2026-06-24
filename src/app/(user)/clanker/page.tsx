@@ -130,9 +130,19 @@ export default function ClankerPage() {
     }
   };
 
+  const vaultLocked = vaultUnlock ? new Date(vaultUnlock) > new Date() : false;
+
   const toggleSaleRight = (right: string) => {
     setSaleRights((current) => {
-      if (right === "full_package") return ["full_package"];
+      if (right === "full_package") {
+        if (vaultLocked) {
+          const group = ["admin_rights", "fee_rights", "remaining_supply"];
+          const hasAll = group.every((r) => current.includes(r));
+          if (hasAll) return current.filter((r) => !group.includes(r));
+          return group;
+        }
+        return current.includes("full_package") ? [] : ["full_package"];
+      }
       const withoutFull = current.filter((item) => item !== "full_package");
       return withoutFull.includes(right)
         ? withoutFull.filter((item) => item !== right)
@@ -445,7 +455,7 @@ export default function ClankerPage() {
                     ["full_package", "Full package"],
                     ["admin_rights", "Admin/deployer rights"],
                     ["fee_rights", "Creator fee rights"],
-                    ["vaulted_tokens", "Vaulted tokens"],
+                    ...(vaultLocked ? [] : [["vaulted_tokens", "Vaulted tokens"]] as [string, string][]),
                     ["remaining_supply", "Remaining supply"],
                   ].map(([key, label]) => (
                     <label key={key} className="row" style={{ gap: 8, border: "1px solid var(--line)", borderRadius: 8, padding: "9px 10px" }}>

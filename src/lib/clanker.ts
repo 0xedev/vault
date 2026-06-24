@@ -1,7 +1,7 @@
 import { asNumber, asString, jsonRecord } from "@/lib/api";
 import type { ClankerToken } from "@/lib/data";
 import { Clanker } from "clanker-sdk/v4";
-import { createPublicClient, http, type Chain } from "viem";
+import { createPublicClient, formatUnits, http, type Chain } from "viem";
 import { arbitrum, base, baseSepolia, bsc, mainnet, optimism } from "viem/chains";
 
 const CLANKER_BASE = "https://clanker.world/api";
@@ -16,6 +16,54 @@ type SdkTokenDetails = {
   availableRewards: number;
   vaultClaimable: number;
 };
+type ClankerTransferVerificationInput = {
+  tokenAddress: string;
+  buyerAddress: string;
+  chainId?: number;
+  saleRights: string[];
+  remainingSupply?: number;
+  vaultedAmount?: number;
+};
+type TransferCheck = {
+  key: string;
+  label: string;
+  ok: boolean;
+  detail: string;
+};
+
+const ERC20_READ_ABI = [
+  {
+    type: "function",
+    name: "decimals",
+    inputs: [],
+    outputs: [{ type: "uint8" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "balanceOf",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+  },
+] as const;
+
+const TOKEN_ADMIN_READ_ABI = [
+  {
+    type: "function",
+    name: "admin",
+    inputs: [],
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+  },
+] as const;
 
 function clankerApiKey() {
   return process.env.CLANKER_API_KEY || "";
@@ -123,6 +171,14 @@ function clankerForChain(chainId: number) {
   });
 }
 
+function publicClientForChain(chainId: number) {
+  const chain = chainForId(chainId);
+  return createPublicClient({
+    chain,
+    transport: http(rpcForChain(chain.id)),
+  });
+}
+
 function asAddressArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map((item) => String(item)) : [];
 }
@@ -138,6 +194,34 @@ function parseRewardsInfo(value: unknown) {
 
 function weiToEth(value: bigint) {
   return Number(value) / 1e18;
+}
+
+export function selectedRights(rights: string[]) {
+  const full = rights.includes("full_package");
+  return {
+    feeRights: full || rights.includes("fee_rights"),
+    adminRights: full || rights.includes("admin_rights"),
+    vaultedTokens: full || rights.includes("vaulted_tokens"),
+    remainingSupply: full || rights.includes("remaining_supply"),
+  };
+}
+
+async function readTokenBalance(token: `0x${string}`, holder: `0x${string}`, chainId: number) {
+  const client = publicClientForChain(chainId);
+  const [decimals, balance] = await Promise.all([
+    client.readContract({ address: token, abi: ERC20_READ_ABI, functionName: "decimals" }),
+    client.readContract({ address: token, abi: ERC20_READ_ABI, functionName: "balanceOf", args: [holder] }),
+  ]);
+  return Number(formatUnits(balance, decimals));
+}
+
+async function buyerHasTokenAdmin(token: `0x${string}`, buyer: `0x${string}`, chainId: number) {
+  const client = publicClientForChain(chainId);
+  const reads = await Promise.allSettled([
+    client.readContract({ address: token, abi: TOKEN_ADMIN_READ_ABI, functionName: "admin" }),
+    client.readContract({ address: token, abi: TOKEN_ADMIN_READ_ABI, functionName: "owner" }),
+  ]);
+  return reads.some((result) => result.status === "fulfilled" && normalizeAddress(result.value) === normalizeAddress(buyer));
 }
 
 async function sdkTokenDetails(token: ClankerRawToken, ownerAddress: string): Promise<SdkTokenDetails> {
@@ -309,4 +393,102 @@ export async function verifyClankerTokenOwnership(ownerAddress: string, contract
   if (sdk.availableRewards > 0) mapped.feeEarnings = sdk.availableRewards;
   if (sdk.vaultClaimable > 0) mapped.vaultedAmount = sdk.vaultClaimable;
   return { verified: true, token: { ...mapped, ownerVerified: true, ownershipSignals: signals } };
+}
+
+export async function verifyClankerRightsTransferred(input: ClankerTransferVerificationInput) {
+  const token = normalizeAddress(input.tokenAddress);
+  const buyer = normalizeAddress(input.buyerAddress);
+  const chainId = input.chainId || 8453;
+  const checks: TransferCheck[] = [];
+
+  if (!isAddress(token) || !isAddress(buyer)) {
+    return {
+      verified: false,
+      checks: [{
+        key: "addresses",
+        label: "Transfer addresses",
+        ok: false,
+        detail: "A valid Clanker token address and buyer wallet are required.",
+      }],
+      reason: "A valid Clanker token address and buyer wallet are required.",
+    };
+  }
+
+  const rights = selectedRights(input.saleRights);
+  const clanker = clankerForChain(chainId);
+  let rewards: ReturnType<typeof parseRewardsInfo> = { rewardAdmins: [], rewardRecipients: [] };
+  try {
+    rewards = parseRewardsInfo(await clanker.getTokenRewards({ token }));
+  } catch {
+    // Some legacy tokens may not expose v4 reward data.
+  }
+
+  if (rights.feeRights) {
+    const ok = rewards.rewardRecipients.some((recipient) => normalizeAddress(recipient) === buyer);
+    checks.push({
+      key: "fee_rights",
+      label: "Creator fee rights",
+      ok,
+      detail: ok ? "Buyer is now a Clanker reward recipient." : "Buyer is not a Clanker reward recipient yet.",
+    });
+  }
+
+  if (rights.adminRights) {
+    const rewardAdmin = rewards.rewardAdmins.some((admin) => normalizeAddress(admin) === buyer);
+    const tokenAdmin = await buyerHasTokenAdmin(token, buyer, chainId).catch(() => false);
+    checks.push({
+      key: "admin_rights",
+      label: "Admin rights",
+      ok: rewardAdmin || tokenAdmin,
+      detail: rewardAdmin || tokenAdmin
+        ? "Buyer controls token ownership/admin or Clanker reward admin rights."
+        : "Buyer does not control token ownership/admin or reward admin rights yet.",
+    });
+  }
+
+  const remainingRequired = rights.remainingSupply ? asNumber(input.remainingSupply) : 0;
+  const vaultedRequired = rights.vaultedTokens ? asNumber(input.vaultedAmount) : 0;
+  const totalTokenRequired = remainingRequired + vaultedRequired;
+  if (rights.remainingSupply || rights.vaultedTokens) {
+    let balance = 0;
+    try {
+      balance = await readTokenBalance(token, buyer, chainId);
+    } catch {
+      checks.push({
+        key: "token_balance",
+        label: "Token balance",
+        ok: false,
+        detail: "Unable to read buyer token balance.",
+      });
+    }
+
+    if (rights.remainingSupply) {
+      checks.push({
+        key: "remaining_supply",
+        label: "Remaining supply",
+        ok: remainingRequired <= 0 || balance >= remainingRequired,
+        detail: remainingRequired <= 0
+          ? "No remaining supply amount was listed."
+          : `Buyer balance is ${balance.toLocaleString()} tokens; required at least ${remainingRequired.toLocaleString()}.`,
+      });
+    }
+
+    if (rights.vaultedTokens) {
+      checks.push({
+        key: "vaulted_tokens",
+        label: "Vaulted tokens",
+        ok: vaultedRequired <= 0 || balance >= totalTokenRequired,
+        detail: vaultedRequired <= 0
+          ? "No vaulted token amount was listed."
+          : `Buyer balance is ${balance.toLocaleString()} tokens; required ${totalTokenRequired.toLocaleString()} after all token transfers.`,
+      });
+    }
+  }
+
+  const failed = checks.filter((check) => !check.ok);
+  return {
+    verified: failed.length === 0,
+    checks,
+    reason: failed.length ? failed.map((check) => `${check.label}: ${check.detail}`).join(" ") : undefined,
+  };
 }

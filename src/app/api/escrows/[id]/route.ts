@@ -21,6 +21,7 @@ export async function GET(
   const collateral = jsonRecord(r.collateral_data);
   const isBundle = String(r.is_bundle || "") === "true";
   const listingId = String(r.listing_id || "");
+  const marketplace = String(r.marketplace || "");
 
   let bundleAssets: Record<string, unknown>[] = [];
   if (isBundle && listingId) {
@@ -67,6 +68,15 @@ export async function GET(
     contractAddress: asString(r.contract_address),
     contractListingId: asString(r.contract_listing_id),
     txStatus: asString(r.tx_status, "offchain"),
+    clankerTransfer: marketplace === "clanker" ? {
+      tokenAddress: asString(collateral.tokenAddress || collateral.contractAddress),
+      saleRights: jsonArray(collateral.saleRights).map(String),
+      remainingSupply: asNumber(collateral.remainingSupply),
+      vaultedAmount: asNumber(collateral.vaultedAmount),
+      vaultUnlock: asString(collateral.vaultUnlock, ""),
+      feeEarnings: asNumber(collateral.feeEarnings),
+      symbol: asString(collateral.symbol, ""),
+    } : null,
   };
 
   const contractId = asString(r.contract_listing_id);

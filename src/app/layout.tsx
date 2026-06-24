@@ -41,6 +41,20 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="fc:miniapp" content={JSON.stringify({
+          version: "1",
+          imageUrl: "https://baseshirehethaway.com/logo.png",
+          button: {
+            title: "Browse marketplace",
+            action: {
+              type: "launch_frame",
+              name: "Baseshire Hathaway",
+              url: "https://baseshirehethaway.com",
+              splashImageUrl: "https://baseshirehethaway.com/logo.png",
+              splashBackgroundColor: "#0052ff",
+            },
+          },
+        })} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

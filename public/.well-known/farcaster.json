@@ -1,0 +1,17 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjIzOTM5NiwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweDRENEU1MjIzODRkNkYxMDkwYkZENEM0NTI3YTdkNTJERmQyMGJDYTMifQ",
+    "payload": "eyJkb21haW4iOiJiYXNlc2hpcmVoZXRoYXdheS5jb20ifQ",
+    "signature": "RyxXCt5DuzIh03K7592rGqbGJzpnEP9giCAdMgNNJNpTIzcvdiejIxs8Ck3r7FT8NViHRXDdQ/vFC8FbsisxkBw="
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Baseshire Hathaway",
+    "iconUrl": "https://baseshirehethaway.com/logo.png",
+    "homeUrl": "https://baseshirehethaway.com",
+    "splashImageUrl": "https://baseshirehethaway.com/logo.png",
+    "splashBackgroundColor": "#0052ff",
+    "webhookUrl": "https://baseshirehethaway.com/api/farcaster/webhook",
+    "description": "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow."
+  }
+}

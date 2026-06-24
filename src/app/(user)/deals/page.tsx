@@ -16,7 +16,15 @@ import {
   writeMarkDelivered,
   writeRefundDeal,
 } from "@/lib/contract";
+import {
+  claimClankerVaultedTokens,
+  transferClankerRewardAdmins,
+  transferClankerRewardRecipients,
+  transferClankerTokenAdmin,
+  transferClankerTokenSupply,
+} from "@/lib/clanker-writes";
 import { fmtETH, fmtUSD } from "@/lib/utils";
+import { selectedRights } from "@/lib/clanker";
 import { type Address, type Hash } from "viem";
 
 /* ------------------------------------------------------------------ */
@@ -62,6 +70,15 @@ interface DealDetail {
   contractAddress?: string;
   contractListingId?: string;
   txStatus?: string;
+  clankerTransfer?: {
+    tokenAddress: string;
+    saleRights: string[];
+    remainingSupply: number;
+    vaultedAmount: number;
+    vaultUnlock: string;
+    feeEarnings: number;
+    symbol: string;
+  } | null;
 }
 
 interface ChatMessage {
@@ -115,6 +132,16 @@ function stageToStep(stageRaw: string) {
   return 2;
 }
 
+function clankerRightLabels(rights: string[]) {
+  const expanded = selectedRights(rights);
+  return [
+    expanded.feeRights ? "Creator fee recipients" : "",
+    expanded.adminRights ? "Reward admin rights" : "",
+    expanded.vaultedTokens ? "Vaulted token claim" : "",
+    expanded.remainingSupply ? "Remaining token supply" : "",
+  ].filter(Boolean);
+}
+
 function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () => void; onChanged: () => void }) {
   const { role } = useRole();
   const { address } = useWallet();
@@ -129,6 +156,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
   const sellerAddress = deal.sellerAddress.toLowerCase();
   const actorRole = walletAddress === sellerAddress ? "seller" : walletAddress === buyerAddress ? "buyer" : role;
   const isContractBacked = Boolean(deal.contractListingId);
+  const isClankerDeal = Boolean(deal.clankerTransfer?.tokenAddress);
 
   useEffect(() => {
     fetch(`/api/deals/${deal.id}/messages`)
@@ -176,6 +204,99 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Escrow action failed");
       setActionNotice(success);
+      onChanged();
+    } catch (err) {
+      setActionNotice(parseContractError(err));
+    } finally {
+      setActionBusy("");
+    }
+  };
+
+  const postTransferProof = async (hashes: Hash[], note: string) => {
+    const txHash = hashes[hashes.length - 1];
+    const res = await fetch(`/api/escrows/${deal.id}/proofs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        proofType: "transfer",
+        url: `https://basescan.org/tx/${txHash}`,
+        contentHash: txHash,
+        txHash,
+        note: hashes.length > 1 ? `${note}. Transactions: ${hashes.join(", ")}` : note,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || "Unable to attach transfer proof.");
+  };
+
+  const runClankerTransfer = async (kind: "fee" | "admin" | "vault" | "supply") => {
+    if (!deal.clankerTransfer?.tokenAddress) return;
+    if (!address) {
+      setActionNotice("Connect the seller wallet before transferring rights.");
+      return;
+    }
+    const account = address as Address;
+    const buyer = deal.buyerAddress as Address;
+    const token = deal.clankerTransfer.tokenAddress as Address;
+    setActionBusy(`clanker-${kind}`);
+    setActionNotice("");
+    try {
+      let hashes: Hash[] = [];
+      let note = "";
+      if (kind === "fee") {
+        hashes = await transferClankerRewardRecipients({ account, token, buyer, chainId: deal.chainId });
+        note = "Clanker creator fee recipient rights transferred to buyer";
+      } else if (kind === "admin") {
+        const transferErrors: string[] = [];
+        try {
+          hashes.push(...await transferClankerTokenAdmin({ account, token, buyer, chainId: deal.chainId }));
+        } catch (err) {
+          transferErrors.push(parseContractError(err));
+        }
+        try {
+          hashes.push(...await transferClankerRewardAdmins({ account, token, buyer, chainId: deal.chainId }));
+        } catch (err) {
+          transferErrors.push(parseContractError(err));
+        }
+        if (hashes.length === 0) throw new Error(transferErrors[0] || "No transferable Clanker admin rights were found.");
+        note = "Clanker token and reward admin rights transferred to buyer";
+      } else if (kind === "vault") {
+        const unlockDate = deal.clankerTransfer?.vaultUnlock;
+        if (unlockDate && new Date(unlockDate) > new Date()) {
+          throw new Error(`Vaulted tokens are locked until ${unlockDate}.`);
+        }
+        const claimHashes = await claimClankerVaultedTokens({ account, token, chainId: deal.chainId });
+        hashes = [...claimHashes];
+        if (deal.clankerTransfer.vaultedAmount > 0) {
+          try {
+            const transferHashes = await transferClankerTokenSupply({
+              account,
+              token,
+              buyer,
+              amount: deal.clankerTransfer.vaultedAmount,
+              chainId: deal.chainId,
+            });
+            hashes.push(...transferHashes);
+            note = "Clanker vaulted tokens claimed and transferred to buyer";
+          } catch (err) {
+            note = "Clanker vaulted tokens claimed but supply transfer failed — tokens are in seller wallet. Re-run supply transfer to complete.";
+            throw err;
+          }
+        } else {
+          note = "Clanker vaulted tokens claimed by seller";
+        }
+      } else {
+        hashes = await transferClankerTokenSupply({
+          account,
+          token,
+          buyer,
+          amount: deal.clankerTransfer.remainingSupply,
+          chainId: deal.chainId,
+        });
+        note = "Clanker remaining token supply transferred to buyer";
+      }
+      await postTransferProof(hashes, note);
+      setActionNotice(`${note}. Proof attached.`);
       onChanged();
     } catch (err) {
       setActionNotice(parseContractError(err));
@@ -289,6 +410,56 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
                       {a.detail && <span className="muted-2" style={{ fontSize: 11, marginLeft: "auto" }}>{a.detail}</span>}
                     </div>
                   ))}
+                </div>
+              </>
+            )}
+            <hr className="hr" style={{ margin: "18px 0" }} />
+            {isClankerDeal && deal.clankerTransfer && (
+              <>
+                <div className="eyebrow" style={{ marginBottom: 10 }}>Clanker rights transfer</div>
+                <div style={{ padding: 14, marginBottom: 18, background: "var(--surface-2)", border: "1px solid var(--line)", borderRadius: 8 }}>
+                  <div className="row between" style={{ gap: 12, alignItems: "flex-start" }}>
+                    <div>
+                      <div className="mono" style={{ fontSize: 12, color: "var(--ink)" }}>{deal.clankerTransfer.tokenAddress}</div>
+                      <div className="muted-2" style={{ fontSize: 11, marginTop: 4 }}>
+                        Included: {clankerRightLabels(deal.clankerTransfer.saleRights).join(", ") || "No rights selected"}
+                      </div>
+                    </div>
+                    <span className="pill gold">{deal.clankerTransfer.symbol || "CLANKER"}</span>
+                  </div>
+                  {actorRole === "seller" ? (
+                    <div className="grid grid-2" style={{ gap: 8, marginTop: 12 }}>
+                      {selectedRights(deal.clankerTransfer.saleRights).feeRights && (
+                        <button className="btn sm" onClick={() => runClankerTransfer("fee")} disabled={Boolean(actionBusy)}>
+                          {actionBusy === "clanker-fee" ? "Transferring..." : "Transfer fee rights"}
+                        </button>
+                      )}
+                      {selectedRights(deal.clankerTransfer.saleRights).adminRights && (
+                        <button className="btn sm" onClick={() => runClankerTransfer("admin")} disabled={Boolean(actionBusy)}>
+                          {actionBusy === "clanker-admin" ? "Transferring..." : "Transfer admin rights"}
+                        </button>
+                      )}
+                      {selectedRights(deal.clankerTransfer.saleRights).vaultedTokens && (
+                        <div className="col" style={{ gap: 4 }}>
+                          <button className="btn sm" onClick={() => runClankerTransfer("vault")} disabled={Boolean(actionBusy)}>
+                            {actionBusy === "clanker-vault" ? "Claiming..." : `Claim ${deal.clankerTransfer.vaultedAmount ? `${deal.clankerTransfer.vaultedAmount.toLocaleString()} ` : ""}vaulted tokens`}
+                          </button>
+                          {deal.clankerTransfer.vaultUnlock && new Date(deal.clankerTransfer.vaultUnlock) > new Date() && (
+                            <span className="muted" style={{ fontSize: 11 }}>Locked until {new Date(deal.clankerTransfer.vaultUnlock).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                      )}
+                      {selectedRights(deal.clankerTransfer.saleRights).remainingSupply && (
+                        <button className="btn sm" onClick={() => runClankerTransfer("supply")} disabled={Boolean(actionBusy)}>
+                          {actionBusy === "clanker-supply" ? "Transferring..." : `Transfer ${deal.clankerTransfer.remainingSupply || ""} ${deal.clankerTransfer.symbol}`}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="muted-2" style={{ fontSize: 11, marginTop: 10 }}>
+                      Waiting for the seller to transfer the selected Clanker rights and attach on-chain proof.
+                    </div>
+                  )}
                 </div>
               </>
             )}
