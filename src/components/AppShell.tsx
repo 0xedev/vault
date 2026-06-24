@@ -9,6 +9,7 @@ import TweaksPanel from "./TweaksPanel";
 import { ThemeProvider } from "./ThemeProvider";
 import { WalletProvider } from "./WalletProvider";
 import { RoleProvider } from "./RoleProvider";
+import { hideSplash } from "@/lib/farcaster-sdk";
 import Icon from "./icons";
 
 const mobileNavItems = [
@@ -21,6 +22,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [drawer, setDrawer] = useState(false);
   const pathname = usePathname();
   const isLanding = pathname === "/";
+
+  useEffect(() => { hideSplash(); }, []);
 
   // Only open drawer on mobile
   const handleMenu = () => {

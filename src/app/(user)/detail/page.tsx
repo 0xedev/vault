@@ -15,6 +15,7 @@ import { useWallet } from "@/components/WalletProvider";
 import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError } from "@/lib/contract";
 import { parseEther, type Address, type Hash } from "viem";
 import type { Loan } from "@/lib/data";
+import { shareAsCast } from "@/lib/farcaster-sdk";
 
 type LoanRecord = Loan & { collection?: string; sellerAddress?: string };
 type OfferRecord = {
@@ -164,6 +165,31 @@ function LoanDetailContent() {
   const [repayingPartial, setRepayingPartial] = useState(false);
   const [partialAmt, setPartialAmt] = useState("");
   const { address } = useWallet();
+
+  // Farcaster Mini App embed
+  useEffect(() => {
+    if (typeof document === "undefined" || !loanId) return;
+    const existing = document.querySelector('meta[name="fc:miniapp"]');
+    if (existing) existing.remove();
+    const meta = document.createElement("meta");
+    meta.name = "fc:miniapp";
+    meta.content = JSON.stringify({
+      version: "1",
+      imageUrl: "https://baseshirehethaway.com/nft.png",
+      button: {
+        title: "View NFT listing",
+        action: {
+          type: "launch_frame",
+          name: "Baseshire Hathaway",
+          url: `${window.location.origin}/detail?id=${loanId}`,
+          splashImageUrl: "https://baseshirehethaway.com/logo.png",
+          splashBackgroundColor: "#0052ff",
+        },
+      },
+    });
+    document.head.appendChild(meta);
+    return () => { meta.remove(); };
+  }, [loanId]);
 
   const submitMatch = async (o: OfferRecord) => {
     if (!address || !loan) return;
@@ -479,9 +505,17 @@ function LoanDetailContent() {
                   Standard NFT-loan terms. If the borrower defaults, the NFT is transferred to the lender. Platform fee is 1.5% of the loan principal at origination.
                 </p>
                 <div className="col" style={{ gap: 10, marginTop: 16 }}>
-                  <button className="btn sm" style={{ width: "fit-content" }} onClick={exportCalendar}>
-                    <Icon.clock style={{ width: 12, height: 12 }} /> Export repayment calendar
-                  </button>
+                  <div className="row" style={{ gap: 8 }}>
+                    <button className="btn sm" style={{ width: "fit-content" }} onClick={exportCalendar}>
+                      <Icon.clock style={{ width: 12, height: 12 }} /> Export repayment calendar
+                    </button>
+                    <button className="btn sm" style={{ width: "fit-content" }} onClick={() => shareAsCast(
+                      `${collectionName} ${l.token} — ${l.amt} Ξ at ${l.apr}% APR on Vault`,
+                      `${window.location.origin}/detail?id=${l.id}`
+                    )}>
+                      <Icon.cast style={{ width: 12, height: 12 }} /> Share
+                    </button>
+                  </div>
                   <div className="muted-2" style={{ fontSize: 12 }}>
                     On-chain verification link appears after escrow deployment records a contract address.
                   </div>

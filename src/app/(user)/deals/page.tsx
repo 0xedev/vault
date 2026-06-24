@@ -26,6 +26,7 @@ import {
 import { fmtETH, fmtUSD } from "@/lib/utils";
 import { selectedRights } from "@/lib/clanker";
 import { type Address, type Hash } from "viem";
+import { shareAsCast } from "@/lib/farcaster-sdk";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -164,6 +165,34 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
       .then(json => setMessages(json.data || []))
       .catch(() => {});
   }, [deal.id]);
+
+  // Farcaster Mini App embed for this deal
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const existing = document.querySelector('meta[name="fc:miniapp"]');
+    if (existing) existing.remove();
+    const meta = document.createElement("meta");
+    meta.name = "fc:miniapp";
+    const assetLabel = deal.bundleAssets.length > 0
+      ? `${deal.bundleAssets.length}-asset bundle`
+      : deal.name.slice(0, 24);
+    meta.content = JSON.stringify({
+      version: "1",
+      imageUrl: "https://baseshirehethaway.com/logo.png",
+      button: {
+        title: `View ${assetLabel}`,
+        action: {
+          type: "launch_frame",
+          name: "Baseshire Hathaway",
+          url: `${window.location.origin}/deals?id=${deal.id}`,
+          splashImageUrl: "https://baseshirehethaway.com/logo.png",
+          splashBackgroundColor: "#0052ff",
+        },
+      },
+    });
+    document.head.appendChild(meta);
+    return () => { meta.remove(); };
+  }, [deal.id, deal.name, deal.bundleAssets.length]);
 
   const checks = deal.bundleAssets.length > 0
     ? deal.bundleAssets.map((a) => ({
@@ -538,6 +567,12 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
                 </>
               )}
             </div>
+            <button className="btn sm" style={{ marginTop: 8, width: "100%" }} onClick={() => shareAsCast(
+              `${deal.name} — ${deal.amount} ${deal.currency} deal on Vault`,
+              `${window.location.origin}/deals?id=${deal.id}`
+            )}>
+              <Icon.cast style={{ width: 12, height: 12 }} /> Share on Farcaster
+            </button>
             <div className="muted-2" style={{ fontSize: 11, marginTop: 10, textAlign: "center" }}>
               Funds release is permanent. Only release after verifying all deliverables.
             </div>
