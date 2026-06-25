@@ -3,7 +3,8 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { SiweMessage } from "siwe";
 import { getAddress } from "viem";
-import { isMiniApp, getFarcasterWallet } from "@/lib/farcaster-sdk";
+import { isMiniApp } from "@/lib/farcaster-sdk";
+import { connectFarcasterMiniAppWallet, disconnectFarcasterMiniAppWallet, reconnectFarcasterMiniAppWallet } from "@/lib/farcaster-wagmi";
 import { setActiveWalletProvider } from "@/lib/contract-helpers";
 
 type WalletLike = {
@@ -14,6 +15,8 @@ type WalletLike = {
 
 type SelectedWallet = {
   provider: WalletLike;
+  address?: string;
+  chainId?: number;
 };
 
 // Extend Window type
@@ -47,11 +50,14 @@ export function useWallet() {
   return useContext(WalletContext);
 }
 
-async function selectWalletProvider(): Promise<SelectedWallet | null> {
+async function selectWalletProvider(options: { requestAccounts?: boolean } = {}): Promise<SelectedWallet | null> {
   const inMini = await isMiniApp();
   if (inMini) {
-    const farcasterProvider = await getFarcasterWallet();
-    if (farcasterProvider) return { provider: farcasterProvider };
+    const wallet = options.requestAccounts
+      ? await connectFarcasterMiniAppWallet()
+      : await reconnectFarcasterMiniAppWallet();
+    if (wallet) return wallet;
+    return null;
   }
 
   if (typeof window !== "undefined" && window.ethereum) {
@@ -133,14 +139,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setActiveWalletProvider(wallet.provider);
 
       try {
-        const accounts = await wallet.provider.request({ method: "eth_accounts" }) as string[];
+        const accounts = wallet.address
+          ? [wallet.address]
+          : await wallet.provider.request({ method: "eth_accounts" }) as string[];
         if (Array.isArray(accounts) && accounts.length > 0) {
-          const chain = await wallet.provider.request({ method: "eth_chainId" }) as string;
-          const chainIdNum = parseInt(chain, 16);
+          const chainIdNum = wallet.chainId ?? parseInt(await wallet.provider.request({ method: "eth_chainId" }) as string, 16);
           setAddress(accounts[0]);
           setChainId(chainIdNum);
 
-          // 3. Auto sign-in with the selected wallet provider.
           const session = await vaultSignIn(accounts[0], chainIdNum, wallet.provider);
           if (session) {
             setAddress(session.address || accounts[0]);
@@ -154,13 +160,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(async () => {
     setIsConnecting(true);
     try {
-      const wallet = await selectWalletProvider();
+      const wallet = await selectWalletProvider({ requestAccounts: true });
       if (!wallet) throw new Error("No wallet available");
       setActiveWalletProvider(wallet.provider);
 
-      const accounts = await wallet.provider.request({ method: "eth_requestAccounts" }) as string[];
-      const chain = await wallet.provider.request({ method: "eth_chainId" }) as string;
-      const chainIdNum = parseInt(chain, 16);
+      const accounts = wallet.address
+        ? [wallet.address]
+        : await wallet.provider.request({ method: "eth_requestAccounts" }) as string[];
+      const chainIdNum = wallet.chainId ?? parseInt(await wallet.provider.request({ method: "eth_chainId" }) as string, 16);
       setAddress(accounts[0]);
       setChainId(chainIdNum);
 
@@ -181,6 +188,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setRole(null);
     setChainId(null);
     setActiveWalletProvider(null);
+    disconnectFarcasterMiniAppWallet();
     fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
   }, []);
 

@@ -40,19 +40,6 @@ export async function addToFarcaster() {
   }
 }
 
-export async function getFarcasterWallet(): Promise<{
-  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-  on?: (event: string, handler: (...args: unknown[]) => void) => void;
-  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
-} | null> {
-  try {
-    const provider = await sdk.wallet.getEthereumProvider();
-    return provider as { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function signInWithFarcaster(nonce: string) {
   try {
     if (!(await isMiniApp())) return null;
