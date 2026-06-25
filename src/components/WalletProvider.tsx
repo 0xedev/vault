@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { SiweMessage } from "siwe";
 import { getAddress } from "viem";
-import { isMiniApp, getFarcasterWallet, signInWithFarcaster } from "@/lib/farcaster-sdk";
+import { isMiniApp, getFarcasterWallet } from "@/lib/farcaster-sdk";
 import { setActiveWalletProvider } from "@/lib/contract-helpers";
 
 type WalletLike = {
@@ -12,10 +12,8 @@ type WalletLike = {
   removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
 };
 
-type WalletSource = "farcaster" | "injected";
 type SelectedWallet = {
   provider: WalletLike;
-  source: WalletSource;
 };
 
 // Extend Window type
@@ -53,11 +51,11 @@ async function selectWalletProvider(): Promise<SelectedWallet | null> {
   const inMini = await isMiniApp();
   if (inMini) {
     const farcasterProvider = await getFarcasterWallet();
-    if (farcasterProvider) return { provider: farcasterProvider, source: "farcaster" };
+    if (farcasterProvider) return { provider: farcasterProvider };
   }
 
   if (typeof window !== "undefined" && window.ethereum) {
-    return { provider: window.ethereum, source: "injected" };
+    return { provider: window.ethereum };
   }
 
   return null;
@@ -78,16 +76,10 @@ async function verifySignedMessage(message: unknown, signature: unknown): Promis
   return verifyRes.json();
 }
 
-async function vaultSignIn(address: string, chainId: number, provider: WalletLike, source: WalletSource): Promise<{ address: string; role: string } | null> {
+async function vaultSignIn(address: string, chainId: number, provider: WalletLike): Promise<{ address: string; role: string } | null> {
   try {
     const nonceRes = await fetch("/api/auth/nonce");
     const { nonce } = await nonceRes.json();
-
-    if (source === "farcaster") {
-      const farcaster = await signInWithFarcaster(nonce);
-      if (!farcaster) return null;
-      return verifySignedMessage(farcaster.message, farcaster.signature);
-    }
 
     const siweAddr = getAddress(address);
     const message = new SiweMessage({
@@ -100,6 +92,8 @@ async function vaultSignIn(address: string, chainId: number, provider: WalletLik
       nonce,
     });
 
+    // In Mini App mode this still goes through Farcaster's SDK wallet provider,
+    // so the session is bound to the user's primary wallet instead of an auth signer.
     const signature = await provider.request({
       method: "personal_sign",
       params: [message.prepareMessage(), address],
@@ -146,8 +140,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           setAddress(accounts[0]);
           setChainId(chainIdNum);
 
-          // 3. Auto sign-in — Farcaster SIWF in Mini App, SIWE on web
-          const session = await vaultSignIn(accounts[0], chainIdNum, wallet.provider, wallet.source);
+          // 3. Auto sign-in with the selected wallet provider.
+          const session = await vaultSignIn(accounts[0], chainIdNum, wallet.provider);
           if (session) {
             setAddress(session.address || accounts[0]);
             setRole(session.role === "admin" ? "admin" : "user");
@@ -170,7 +164,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setAddress(accounts[0]);
       setChainId(chainIdNum);
 
-      const session = await vaultSignIn(accounts[0], chainIdNum, wallet.provider, wallet.source);
+      const session = await vaultSignIn(accounts[0], chainIdNum, wallet.provider);
       if (session) {
         setAddress(session.address || accounts[0]);
         setRole(session.role === "admin" ? "admin" : "user");
@@ -211,7 +205,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const chain = await window.ethereum!.request({ method: "eth_chainId" }) as string;
         const chainIdNum = parseInt(chain, 16);
         setChainId(chainIdNum);
-        const session = await vaultSignIn(nextAddress, chainIdNum, window.ethereum!, "injected");
+        const session = await vaultSignIn(nextAddress, chainIdNum, window.ethereum!);
         if (session) {
           setAddress(session.address || nextAddress);
           setRole(session.role === "admin" ? "admin" : "user");
