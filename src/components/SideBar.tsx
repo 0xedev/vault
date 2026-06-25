@@ -21,6 +21,8 @@ const items: SidebarItem[] = [
   { k: "/clanker",   t: "Clanker Tokens",    icon: <Icon.token/>,  badge: "12" },
   { sec: "Account" },
   { k: "/deals",     t: "Profile",           icon: <Icon.escrow/>, badge: "6" },
+  { sec: "About" },
+  { k: "/info",      t: "How it works",       icon: <Icon.shield/> },
 ];
 
 export default function SideBar({ open, onClose }: { open: boolean; onClose: () => void }) {

@@ -15,6 +15,7 @@ import Icon from "./icons";
 const mobileNavItems = [
   { href: "/", label: "Home", icon: <Icon.home /> },
   { href: "/market", label: "Market", icon: <Icon.market /> },
+  { href: "/info", label: "Info", icon: <Icon.shield /> },
   { href: "/deals", label: "Profile", icon: <Icon.escrow /> },
 ];
 

@@ -13,7 +13,13 @@ import StatusPill from "@/components/StatusPill";
 import { useWallet } from "@/components/WalletProvider";
 import { COLLECTIONS } from "@/lib/data";
 import { fmtETH, fmtCompact, appColor } from "@/lib/utils";
-import type { Loan, MiniApp, XAccount, FarcasterAccount, ClankerToken } from "@/lib/data";
+import type {
+  Loan,
+  MiniApp,
+  XAccount,
+  FarcasterAccount,
+  ClankerToken,
+} from "@/lib/data";
 
 type MobileOpportunity = {
   href: string;
@@ -212,7 +218,11 @@ export default function LandingPage() {
 
   const totalPrincipal = loans.reduce((sum, loan) => sum + loan.amt, 0);
   const totalListings =
-    loans.length + miniApps.length + xAccounts.length + farcaster.length + clanker.length;
+    loans.length +
+    miniApps.length +
+    xAccounts.length +
+    farcaster.length +
+    clanker.length;
   const activeLoans = loans.filter((l) => l.status === "funded").length;
   const allOpportunities = [
     ...loans.slice(0, 4).map((l) => ({
@@ -294,7 +304,12 @@ export default function LandingPage() {
     feedFilters.find((filter) => filter.value === feedFilter) || feedFilters[0];
 
   return (
-    <main id="main-content" role="main" aria-label="Main content" className="main">
+    <main
+      id="main-content"
+      role="main"
+      aria-label="Main content"
+      className="main"
+    >
       {/* DESKTOP */}
       <div className="hide-mobile">
         <section className="hero">
@@ -609,12 +624,7 @@ export default function LandingPage() {
 
             <Link href="/clanker" className="mobile-category-card">
               <div className="mobile-category-img-container">
-                <Image
-                  src="/logo.jpeg"
-                  alt="Clanker"
-                  fill
-                  sizes="160px"
-                />
+                <Image src="/logo.jpeg" alt="Clanker" fill sizes="160px" />
               </div>
               <div className="mobile-category-info">
                 <h3>Clanker</h3>
@@ -715,7 +725,6 @@ export default function LandingPage() {
       >
         <div className="row" style={{ gap: 8 }}>
           <VaultMark size={16} />{" "}
-          <span className="mono">baseshire.fi · v0.5.0</span>
         </div>
       </footer>
     </main>

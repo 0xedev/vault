@@ -151,7 +151,14 @@ export default function ClankerPage() {
   };
 
   const submitListing = async () => {
-    if (!address) return;
+    if (!address) {
+      setError("Connect your wallet before listing a token.");
+      return;
+    }
+    if (!isConnected) {
+      setError("Wallet is still connecting. Wait for sign-in to complete.");
+      return;
+    }
     if (!selectedListingToken) {
       setError("Choose one of your Clanker tokens or verify a contract address first.");
       return;
