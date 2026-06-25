@@ -119,10 +119,16 @@ export default function ClankerPage() {
     if (!openAfterAuth || isConnecting || isSignedIn) return;
     const timeout = window.setTimeout(() => {
       setOpenAfterAuth(false);
-      setError("Wallet connected, but sign-in did not complete. Try signing in again.");
+      if (isConnected && !role) {
+        setError("SIWF sign-in did not complete. Check the Farcaster SDK is loaded and try again.");
+      } else if (!isConnected) {
+        setError("Wallet connection failed. Make sure your wallet is unlocked.");
+      } else {
+        setError("Wallet connected, but sign-in did not complete. Try signing in again.");
+      }
     }, 1500);
     return () => window.clearTimeout(timeout);
-  }, [isConnecting, isSignedIn, openAfterAuth]);
+  }, [isConnecting, isSignedIn, openAfterAuth, isConnected, role]);
 
   const openListingModal = async () => {
     if (!isSignedIn) {

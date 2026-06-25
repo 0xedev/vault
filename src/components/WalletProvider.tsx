@@ -101,13 +101,25 @@ async function vaultSignIn(address: string, chainId: number, provider: WalletLik
   try {
     const nonceRes = await fetch("/api/auth/nonce");
     const { nonce } = await nonceRes.json();
-
-    if (await isMiniApp()) {
-      const result = await signInWithFarcaster(nonce);
-      if (!result) return null;
-      return verifyFarcasterSignIn(result.message, result.signature);
+    if (!nonce) {
+      console.warn("Vault sign-in: no nonce returned from server");
+      return null;
     }
 
+    const inMini = await isMiniApp();
+    if (inMini) {
+      console.log("Vault sign-in: using Farcaster SIWF");
+      const result = await signInWithFarcaster(nonce);
+      if (!result) {
+        console.warn("Vault sign-in: Farcaster SDK signIn failed");
+        return null;
+      }
+      const verified = await verifyFarcasterSignIn(result.message, result.signature);
+      if (!verified) console.warn("Vault sign-in: Farcaster server verification failed");
+      return verified;
+    }
+
+    console.log("Vault sign-in: using SIWE");
     const siweAddr = getAddress(address);
     const message = new SiweMessage({
       domain: window.location.host,
@@ -119,13 +131,13 @@ async function vaultSignIn(address: string, chainId: number, provider: WalletLik
       nonce,
     });
 
-    // In Mini App mode this still goes through Farcaster's SDK wallet provider,
-    // so the session is bound to the user's primary wallet instead of an auth signer.
     const signature = await provider.request({
       method: "personal_sign",
       params: [message.prepareMessage(), address],
     });
-    return verifySignedMessage(message, signature);
+    const verified = await verifySignedMessage(message, signature);
+    if (!verified) console.warn("Vault sign-in: SIWE server verification failed");
+    return verified;
   } catch (err) {
     console.warn("Vault sign-in failed:", err);
     return null;

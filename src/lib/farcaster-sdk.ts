@@ -42,8 +42,18 @@ export async function addToFarcaster() {
 
 export async function signInWithFarcaster(nonce: string) {
   try {
-    if (!(await isMiniApp())) return null;
-    return await sdk.actions.signIn({ nonce, acceptAuthAddress: true });
+    const inMini = await isMiniApp();
+    if (!inMini) {
+      console.warn("Farcaster sign-in skipped — not in Mini App context");
+      return null;
+    }
+    const result = await sdk.actions.signIn({ nonce, acceptAuthAddress: true });
+    if (!result?.message || !result?.signature) {
+      console.warn("Farcaster sign-in returned incomplete result:", result);
+      return null;
+    }
+    console.log("Farcaster sign-in succeeded, sending to server...");
+    return result;
   } catch (err) {
     console.warn("Farcaster sign-in failed:", err);
     return null;
