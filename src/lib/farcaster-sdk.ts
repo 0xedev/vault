@@ -47,7 +47,7 @@ export async function signInWithFarcaster(nonce: string) {
       console.warn("Farcaster sign-in skipped — not in Mini App context");
       return null;
     }
-    const result = await sdk.actions.signIn({ nonce, acceptAuthAddress: true });
+    const result = await sdk.actions.signIn({ nonce });
     if (!result?.message || !result?.signature) {
       console.warn("Farcaster sign-in returned incomplete result:", result);
       return null;
