@@ -227,6 +227,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
       const txHash = await contractTxFor(path);
       const res = await fetch(`/api/escrows/${deal.id}/${path}`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(txHash ? { ...body, txHash } : body),
       });
@@ -245,6 +246,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
     const txHash = hashes[hashes.length - 1];
     const res = await fetch(`/api/escrows/${deal.id}/proofs`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         proofType: "transfer",
@@ -357,6 +359,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
     try {
       const res = await fetch(`/api/deals/${deal.id}/messages`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body: draft }),
       });

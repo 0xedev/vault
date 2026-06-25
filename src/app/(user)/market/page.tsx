@@ -158,6 +158,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       // 3. POST to API
       const res = await fetch("/api/listings", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: `L-${Date.now()}`,

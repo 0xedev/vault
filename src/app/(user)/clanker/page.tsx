@@ -23,7 +23,8 @@ function Stat({ lab, v }: { lab: string; v: string }) {
 
 export default function ClankerPage() {
   const router = useRouter();
-  const { address, isConnected, connect } = useWallet();
+  const { address, isConnected, isConnecting, role, connect } = useWallet();
+  const isSignedIn = Boolean(address && role);
   const [tokens, setTokens] = useState<ClankerToken[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,6 +52,7 @@ export default function ClankerPage() {
   const [verifyingToken, setVerifyingToken] = useState(false);
   const [selectedListingToken, setSelectedListingToken] = useState<ClankerToken | null>(null);
   const [saleRights, setSaleRights] = useState<string[]>(["full_package"]);
+  const [openAfterAuth, setOpenAfterAuth] = useState(false);
 
   useEffect(() => {
     fetch("/api/marketplace/clanker")
@@ -69,7 +71,7 @@ export default function ClankerPage() {
     setManualEntry(false);
   };
 
-  const applyClankerToken = (token: ClankerToken) => {
+  const applyClankerToken = React.useCallback((token: ClankerToken) => {
     setSelectedListingToken(token);
     setName(token.name);
     setSymbol(token.symbol);
@@ -84,10 +86,10 @@ export default function ClankerPage() {
     setImageUrl(token.imageUrl || "");
     setDescription("");
     setError("");
-  };
+  }, []);
 
-  const loadOwnedTokens = async () => {
-    if (!isConnected || !address || ownedLoading || ownedLoaded) return;
+  const loadOwnedTokens = React.useCallback(async () => {
+    if (!isSignedIn || !address || ownedLoading || ownedLoaded) return;
     setOwnedLoading(true);
     setError("");
     try {
@@ -102,10 +104,29 @@ export default function ClankerPage() {
     } finally {
       setOwnedLoading(false);
     }
-  };
+  }, [address, applyClankerToken, isSignedIn, ownedLoaded, ownedLoading]);
+
+  useEffect(() => {
+    if (!openAfterAuth || !isSignedIn) return;
+    queueMicrotask(() => {
+      setOpenAfterAuth(false);
+      setListing(true);
+      void loadOwnedTokens();
+    });
+  }, [isSignedIn, loadOwnedTokens, openAfterAuth]);
+
+  useEffect(() => {
+    if (!openAfterAuth || isConnecting || isSignedIn) return;
+    const timeout = window.setTimeout(() => {
+      setOpenAfterAuth(false);
+      setError("Wallet connected, but sign-in did not complete. Try signing in again.");
+    }, 1500);
+    return () => window.clearTimeout(timeout);
+  }, [isConnecting, isSignedIn, openAfterAuth]);
 
   const openListingModal = async () => {
-    if (!isConnected) {
+    if (!isSignedIn) {
+      setOpenAfterAuth(true);
       await connect();
       return;
     }
@@ -155,8 +176,8 @@ export default function ClankerPage() {
       setError("Connect your wallet before listing a token.");
       return;
     }
-    if (!isConnected) {
-      setError("Wallet is still connecting. Wait for sign-in to complete.");
+    if (!role) {
+      setError("Sign in with your wallet before listing a token.");
       return;
     }
     if (!selectedListingToken) {
@@ -188,6 +209,7 @@ export default function ClankerPage() {
 
       const res = await fetch("/api/marketplace/clanker", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sellerAddress: address,
@@ -226,7 +248,7 @@ export default function ClankerPage() {
   };
 
   const fundEscrow = async (token: ClankerToken) => {
-    if (!isConnected || !address) {
+    if (!isSignedIn || !address) {
       await connect();
       return;
     }
@@ -239,6 +261,7 @@ export default function ClankerPage() {
       const txHash = await writeFundDeal(address as Address, BigInt(token.contractListingId), parseEther(String(token.price)));
       const res = await fetch("/api/escrows", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: token.id,
@@ -285,8 +308,8 @@ export default function ClankerPage() {
 
       <div className="row between" style={{ marginBottom: 14 }}>
         <div className="row" style={{ gap: 8 }}>
-          <button className="btn primary" onClick={openListingModal}>
-            {isConnected ? "List token" : "Connect to list"}
+          <button className="btn primary" onClick={openListingModal} disabled={isConnecting}>
+            {isSignedIn ? "List token" : isConnecting || openAfterAuth ? "Connecting..." : isConnected ? "Sign in to list" : "Connect to list"}
           </button>
         </div>
       </div>

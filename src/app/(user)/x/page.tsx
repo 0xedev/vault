@@ -114,6 +114,7 @@ export default function XAccountsPage() {
       // API
       const res = await fetch("/api/marketplace/x-accounts", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sellerAddress: address,
@@ -204,6 +205,7 @@ export default function XAccountsPage() {
       const txHash = await writeFundDeal(address as Address, BigInt(account.contractListingId), parseEther(String(account.price)));
       const res = await fetch("/api/escrows", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: account.id,

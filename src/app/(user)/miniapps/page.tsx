@@ -120,6 +120,7 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
       // 3. POST to API
       const res = await fetch("/api/marketplace/mini-apps", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sellerAddress: address,
@@ -350,6 +351,7 @@ export default function MiniAppsPage() {
       const txHash = await writeFundDeal(address as Address, BigInt(app.contractListingId), parseEther(String(app.price)));
       const res = await fetch("/api/escrows", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: app.id,

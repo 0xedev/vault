@@ -92,6 +92,7 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
       // API
       const res = await fetch("/api/marketplace/farcaster", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sellerAddress: address,
@@ -270,6 +271,7 @@ export default function FarcasterPage() {
       const txHash = await writeFundDeal(address as Address, BigInt(account.contractListingId), parseEther(String(account.price)));
       const res = await fetch("/api/escrows", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: account.id,

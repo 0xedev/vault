@@ -63,6 +63,7 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
       // 2. POST to API
       const res = await fetch("/api/offers", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: l.id,
@@ -209,6 +210,7 @@ function LoanDetailContent() {
       // 2. POST to API
       const res = await fetch("/api/offers", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: loan.id,
@@ -288,6 +290,7 @@ function LoanDetailContent() {
       // 2. Update API
       const res = await fetch("/api/offers", {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status, txHash }),
       });
@@ -386,6 +389,7 @@ function LoanDetailContent() {
       await waitForTx(await writeWithdrawOffer(address as Address, BigInt(l.contractListingId)));
       await fetch("/api/offers", {
         method: "PATCH",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: offerId, status: "rejected" }),
       });

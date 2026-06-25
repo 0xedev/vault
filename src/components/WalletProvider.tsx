@@ -5,15 +5,16 @@ import { SiweMessage } from "siwe";
 import { getAddress } from "viem";
 import { isMiniApp, getFarcasterWallet } from "@/lib/farcaster-sdk";
 
+type WalletLike = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  on?: (event: string, handler: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+};
 
 // Extend Window type
 declare global {
   interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-      on: (event: string, handler: (...args: unknown[]) => void) => void;
-      removeListener: (event: string, handler: (...args: unknown[]) => void) => void;
-    };
+    ethereum?: WalletLike;
   }
 }
 
@@ -41,7 +42,7 @@ export function useWallet() {
   return useContext(WalletContext);
 }
 
-async function siweSignIn(address: string, chainId: number): Promise<{ address: string; role: string } | null> {
+async function siweSignIn(address: string, chainId: number, provider: WalletLike): Promise<{ address: string; role: string } | null> {
   try {
     const siweAddr = getAddress(address);
     const nonceRes = await fetch("/api/auth/nonce");
@@ -57,7 +58,7 @@ async function siweSignIn(address: string, chainId: number): Promise<{ address: 
       nonce,
     });
 
-    const signature = await window.ethereum!.request({
+    const signature = await provider.request({
       method: "personal_sign",
       params: [message.prepareMessage(), address],
     });
@@ -110,7 +111,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           setChainId(chainIdNum);
 
           // 3. Auto SIWE — wallet connected but no session
-          const session = await siweSignIn(accounts[0], chainIdNum);
+          const session = await siweSignIn(accounts[0], chainIdNum, provider);
           if (session) {
             setRole(session.role === "admin" ? "admin" : "user");
           }
@@ -122,7 +123,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(async () => {
     setIsConnecting(true);
     try {
-      let provider: typeof window.ethereum | Awaited<ReturnType<typeof getFarcasterWallet>> = null;
+      let provider: WalletLike | null = null;
 
       if (typeof window !== "undefined" && window.ethereum) {
         provider = window.ethereum;
@@ -138,7 +139,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setAddress(accounts[0]);
       setChainId(chainIdNum);
 
-      const session = await siweSignIn(accounts[0], chainIdNum);
+      const session = await siweSignIn(accounts[0], chainIdNum, provider);
       if (session) {
         setAddress(session.address || accounts[0]);
         setRole(session.role === "admin" ? "admin" : "user");
@@ -176,7 +177,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const chain = await window.ethereum!.request({ method: "eth_chainId" }) as string;
         const chainIdNum = parseInt(chain, 16);
         setChainId(chainIdNum);
-        const session = await siweSignIn(nextAddress, chainIdNum);
+        const session = await siweSignIn(nextAddress, chainIdNum, window.ethereum!);
         if (session) {
           setAddress(session.address || nextAddress);
           setRole(session.role === "admin" ? "admin" : "user");
@@ -190,12 +191,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setChainId(parseInt(chain, 16));
     };
 
-    window.ethereum.on("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
-    window.ethereum.on("chainChanged", handleChainChanged as (...args: unknown[]) => void);
+    window.ethereum.on?.("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
+    window.ethereum.on?.("chainChanged", handleChainChanged as (...args: unknown[]) => void);
 
     return () => {
-      window.ethereum!.removeListener("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
-      window.ethereum!.removeListener("chainChanged", handleChainChanged as (...args: unknown[]) => void);
+      window.ethereum!.removeListener?.("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
+      window.ethereum!.removeListener?.("chainChanged", handleChainChanged as (...args: unknown[]) => void);
     };
   }, [disconnect]);
 
