@@ -11,15 +11,48 @@ const ESCROW_EVENT_ABI = parseAbi([
 ]);
 
 let activeWalletProvider: WalletProviderLike | null = null;
+let switchPromise: Promise<void> | null = null;
 
 export function setActiveWalletProvider(provider: WalletProviderLike | null) {
   activeWalletProvider = provider;
+  switchPromise = null;
 }
 
 export function getActiveWalletProvider() {
   if (activeWalletProvider) return activeWalletProvider;
   if (typeof window !== "undefined" && window.ethereum) return window.ethereum;
   return null;
+}
+
+async function switchToBase() {
+  const provider = getActiveWalletProvider();
+  if (!provider) return;
+  if (switchPromise) return switchPromise;
+  switchPromise = (async () => {
+    try {
+      await provider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0x2105" }],
+      });
+    } catch (err: unknown) {
+      const code = (err as { code?: number }).code;
+      if (code === 4902) {
+        await provider.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: "0x2105",
+            chainName: "Base",
+            rpcUrls: ["https://mainnet.base.org"],
+            nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+            blockExplorerUrls: ["https://basescan.org"],
+          }],
+        });
+      }
+    } finally {
+      switchPromise = null;
+    }
+  })();
+  return switchPromise;
 }
 
 export function getEscrowAddress(): Address {
@@ -40,10 +73,20 @@ export function getWalletClient() {
   if (!provider) {
     throw new Error("No wallet available");
   }
-  return createWalletClient({
+  const client = createWalletClient({
     chain: base,
     transport: fallback([custom(provider as never), http()]),
   });
+  const origWrite = client.writeContract.bind(client);
+  client.writeContract = ((args: Parameters<typeof origWrite>[0]) => {
+    return switchToBase()
+      .catch((err: unknown) => {
+        const code = (err as { code?: number }).code;
+        if (code === 4001) throw err;
+      })
+      .then(() => origWrite(args));
+  }) as typeof origWrite;
+  return client;
 }
 
 export function hashMetadata(metadata: Record<string, unknown>): `0x${string}` {
