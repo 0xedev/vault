@@ -28,6 +28,16 @@ export async function addToFarcaster() {
   }
 }
 
+export async function signInWithFarcaster(nonce: string) {
+  try {
+    if (!(await isMiniApp())) return null;
+    return await sdk.actions.signIn({ nonce, acceptAuthAddress: true });
+  } catch (err) {
+    console.warn("Farcaster sign-in failed:", err);
+    return null;
+  }
+}
+
 export async function shareAsCast(text: string, embedUrl?: string) {
   try {
     const result = await sdk.actions.composeCast({

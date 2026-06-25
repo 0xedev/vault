@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@farcaster/quick-auth";
 import { SiweMessage, generateNonce } from "siwe";
 import { getDatabase, databaseRequired, type DbClient } from "@/lib/api";
 import { csrfCheck } from "@/lib/security";
@@ -116,6 +117,50 @@ export async function verifySiweSession(req: NextRequest) {
   const address = data.address.toLowerCase();
   await db`UPDATE auth_nonces SET consumed_at = NOW(), address = ${address} WHERE nonce = ${nonce}`;
   return createSession(db, address, data.chainId);
+}
+
+export async function verifyFarcasterSiwfSession(req: NextRequest) {
+  const guarded = await mutationGuard(req);
+  if (guarded) return guarded;
+
+  const db = getDatabase();
+  if (!db) return databaseRequired();
+
+  const { message, signature } = await req.json();
+  if (typeof message !== "string" || typeof signature !== "string") {
+    return NextResponse.json({ error: "Invalid Farcaster sign-in payload" }, { status: 400 });
+  }
+
+  const siweMessage = new SiweMessage(message);
+  const nonce = String(siweMessage.nonce || "");
+
+  if (!(await consumeNonce(db, nonce))) {
+    return NextResponse.json({ error: "Nonce is invalid or expired" }, { status: 401 });
+  }
+
+  const domain = req.headers.get("host") || "";
+  if (!domain) {
+    return NextResponse.json({ error: "Missing request host" }, { status: 400 });
+  }
+
+  const quickAuth = createClient({
+    origin: process.env.FARCASTER_QUICK_AUTH_ORIGIN || "https://auth.farcaster.xyz",
+  });
+
+  try {
+    await quickAuth.verifySiwf({
+      domain,
+      message,
+      signature,
+    });
+  } catch (err) {
+    console.warn("[auth/farcaster] SIWF verification failed", err);
+    return NextResponse.json({ error: "Invalid Farcaster signature" }, { status: 401 });
+  }
+
+  const address = siweMessage.address.toLowerCase();
+  await db`UPDATE auth_nonces SET consumed_at = NOW(), address = ${address} WHERE nonce = ${nonce}`;
+  return createSession(db, address, siweMessage.chainId);
 }
 
 export async function destroySession(req: NextRequest) {

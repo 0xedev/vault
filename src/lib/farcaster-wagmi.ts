@@ -59,6 +59,11 @@ export async function connectFarcasterMiniAppWallet() {
   };
 }
 
+export async function getFarcasterMiniAppWalletProvider() {
+  const provider = await farcasterWagmiConfig.connectors[0].getProvider();
+  return provider as WalletProviderLike;
+}
+
 export async function reconnectFarcasterMiniAppWallet() {
   const connections = await reconnect(farcasterWagmiConfig, {
     connectors: [farcasterWagmiConfig.connectors[0]],

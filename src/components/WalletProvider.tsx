@@ -9,10 +9,11 @@ import React, {
 } from "react";
 import { SiweMessage } from "siwe";
 import { getAddress } from "viem";
-import { isMiniApp } from "@/lib/farcaster-sdk";
+import { isMiniApp, signInWithFarcaster } from "@/lib/farcaster-sdk";
 import {
   connectFarcasterMiniAppWallet,
   disconnectFarcasterMiniAppWallet,
+  getFarcasterMiniAppWalletProvider,
   reconnectFarcasterMiniAppWallet,
 } from "@/lib/farcaster-wagmi";
 import { setActiveWalletProvider } from "@/lib/contract-helpers";
@@ -128,6 +129,40 @@ async function siweSignIn(
   }
 }
 
+async function farcasterSignIn(): Promise<{ address: string; role: string } | null> {
+  try {
+    const nonceRes = await fetch("/api/auth/nonce");
+    const { nonce } = await nonceRes.json();
+    if (!nonce) return null;
+
+    const result = await signInWithFarcaster(nonce);
+    if (!result) return null;
+
+    const verifyRes = await fetch("/api/auth/farcaster", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: result.message,
+        signature: result.signature,
+      }),
+    });
+    if (!verifyRes.ok) {
+      const json = await verifyRes.json().catch(() => ({}));
+      console.warn(
+        "Vault Farcaster sign-in verification failed:",
+        json.error || verifyRes.statusText,
+      );
+      return null;
+    }
+
+    return verifyRes.json();
+  } catch (err) {
+    console.warn("Vault Farcaster sign-in failed:", err);
+    return null;
+  }
+}
+
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
   const [role, setRole] = useState<"user" | "admin" | null>(null);
@@ -151,7 +186,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         /* */
       }
 
-      // 2. No session — auto-connect Farcaster wallet (or injected wallet)
+      if (await isMiniApp()) return;
+
+      // 2. No session — auto-connect injected wallet outside Mini App
       const wallet = await selectWalletProvider();
       if (!wallet) return;
       setActiveWalletProvider(wallet.provider);
@@ -195,6 +232,26 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(async () => {
     setIsConnecting(true);
     try {
+      if (await isMiniApp()) {
+        const session = await farcasterSignIn();
+        if (!session) throw new Error("Farcaster sign-in did not complete");
+
+        setAddress(session.address);
+        setRole(session.role === "admin" ? "admin" : "user");
+
+        const provider = await getFarcasterMiniAppWalletProvider().catch(
+          () => null,
+        );
+        if (provider) {
+          setActiveWalletProvider(provider);
+          const chain = await provider
+            .request({ method: "eth_chainId" })
+            .catch(() => null);
+          if (typeof chain === "string") setChainId(parseInt(chain, 16));
+        }
+        return;
+      }
+
       const wallet = await selectWalletProvider({ requestAccounts: true });
       if (!wallet) throw new Error("No wallet available");
       setActiveWalletProvider(wallet.provider);
@@ -242,6 +299,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.ethereum) return;
+    let active = true;
 
     const handleAccountsChanged = async (accounts: string[]) => {
       if (accounts.length === 0) {
@@ -278,16 +336,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     const handleChainChanged = (chain: string) =>
       setChainId(parseInt(chain, 16));
 
-    window.ethereum.on?.(
-      "accountsChanged",
-      handleAccountsChanged as (...args: unknown[]) => void,
-    );
-    window.ethereum.on?.(
-      "chainChanged",
-      handleChainChanged as (...args: unknown[]) => void,
-    );
+    void isMiniApp().then((inMiniApp) => {
+      if (!active || inMiniApp) return;
+      window.ethereum?.on?.(
+        "accountsChanged",
+        handleAccountsChanged as (...args: unknown[]) => void,
+      );
+      window.ethereum?.on?.(
+        "chainChanged",
+        handleChainChanged as (...args: unknown[]) => void,
+      );
+    });
 
     return () => {
+      active = false;
       window.ethereum?.removeListener?.(
         "accountsChanged",
         handleAccountsChanged as (...args: unknown[]) => void,
