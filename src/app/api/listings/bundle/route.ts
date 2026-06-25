@@ -108,8 +108,8 @@ export async function POST(req: NextRequest) {
       asset.kind === "clanker" ? "token_ownership" :
       asset.kind === "mini_app" ? "dns" :
       "nft_ownership";
-    await db`INSERT INTO verifications (id, listing_id, marketplace, target, owner_address, method, status, checks)
-      VALUES (${`V-${Date.now()}-${i}`}, ${id}, ${asset.kind}, ${asset.label}, ${sellerAddress}, ${method}, 'pending', ${JSON.stringify([])})`;
+    await db`INSERT INTO verifications (id, marketplace, target, owner_address, method, status, checks)
+      VALUES (${`V-${Date.now()}-${i}`}, ${asset.kind}, ${asset.label}, ${sellerAddress}, ${method}, 'pending', ${JSON.stringify([])})`;
   }
 
   const bundle: BundleAsset[] = data.assets.map((a: z.infer<typeof bundleAssetSchema>, i: number) => ({
@@ -145,7 +145,6 @@ export async function DELETE(req: NextRequest) {
   if (listing.length === 0) return NextResponse.json({ error: "Bundle not found or not yours" }, { status: 404 });
 
   await auth.db`DELETE FROM listing_assets WHERE listing_id = ${bundleId}`;
-  await auth.db`DELETE FROM verifications WHERE listing_id = ${bundleId}`;
   await auth.db`UPDATE listings SET status = 'cancelled', updated_at = NOW() WHERE id = ${bundleId}`;
 
   return NextResponse.json({ data: { id: bundleId, status: "cancelled" } });

@@ -39,14 +39,6 @@ export async function PATCH(req: NextRequest) {
   if (!parsed.success) return badRequest("Invalid verification update", parsed.error.flatten());
 
   await db`UPDATE verifications SET status = ${parsed.data.status}, updated_at = NOW() WHERE id = ${parsed.data.id}`;
-  if (parsed.data.status === "approved") {
-    await db`
-      UPDATE listings
-      SET collateral_data = COALESCE(collateral_data, '{}'::jsonb) || '{"verified": true}'::jsonb,
-          updated_at = NOW()
-      WHERE id = (SELECT listing_id FROM verifications WHERE id = ${parsed.data.id})
-    `;
-  }
   await writeAudit(`VERIFICATION_${parsed.data.status.toUpperCase()}`, parsed.data.id, `Verification status changed to ${parsed.data.status}`, "admin", auth.user.address);
 
   return NextResponse.json({ data: parsed.data });

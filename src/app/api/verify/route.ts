@@ -28,20 +28,16 @@ export async function GET(req: NextRequest) {
 async function recordAttempt(db: DbClient, user: AuthUser, method: string, target: string, verified: boolean, result: Record<string, unknown>) {
   const attemptId = `VA-${Date.now()}`;
   const verificationRows = await db`
-    SELECT id, listing_id FROM verifications
+    SELECT id FROM verifications
     WHERE owner_address = ${user.address} AND method IN (${method}, ${method.replace("_", "-")}) AND target = ${target}
     ORDER BY created_at DESC
     LIMIT 1
   ` as Record<string, unknown>[];
   const verificationId = verificationRows[0]?.id ? String(verificationRows[0].id) : null;
-  const listingId = verificationRows[0]?.listing_id ? String(verificationRows[0].listing_id) : null;
-  await db`INSERT INTO verification_attempts (id, verification_id, listing_id, owner_address, method, target, status, result)
-    VALUES (${attemptId}, ${verificationId}, ${listingId}, ${user.address}, ${method}, ${target}, ${verified ? "approved" : "failed"}, ${JSON.stringify(result)})`;
+  await db`INSERT INTO verification_attempts (id, verification_id, owner_address, method, target, status, result)
+    VALUES (${attemptId}, ${verificationId}, ${user.address}, ${method}, ${target}, ${verified ? "approved" : "failed"}, ${JSON.stringify(result)})`;
   if (verificationId) {
     await db`UPDATE verifications SET status = ${verified ? "approved" : "pending"}, checks = ${JSON.stringify([result])}, updated_at = NOW() WHERE id = ${verificationId}`;
-  }
-  if (verified && listingId) {
-    await db`UPDATE listings SET collateral_data = COALESCE(collateral_data, '{}'::jsonb) || '{"verified": true}'::jsonb, updated_at = NOW() WHERE id = ${listingId}`;
   }
 }
 

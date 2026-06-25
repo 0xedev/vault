@@ -75,10 +75,10 @@ export async function POST(req: NextRequest) {
           String(asset.asset_type) === "mini_app" ? "dns" :
           "nft_ownership";
 
-        const existing = await db`SELECT id FROM verifications WHERE listing_id = ${data.listingId} AND marketplace = ${String(asset.asset_type)} AND target = ${target} LIMIT 1` as Record<string, unknown>[];
+        const existing = await db`SELECT id FROM verifications WHERE marketplace = ${String(asset.asset_type)} AND target = ${target} AND owner_address = ${data.sellerAddress} LIMIT 1` as Record<string, unknown>[];
         if (existing.length === 0) {
-          await db`INSERT INTO verifications (id, listing_id, marketplace, target, owner_address, method, status, checks)
-            VALUES (${`V-${Date.now()}-${asset.id}`}, ${data.listingId}, ${String(asset.asset_type)}, ${target}, ${data.sellerAddress}, ${method}, 'pending', ${JSON.stringify([])})`;
+          await db`INSERT INTO verifications (id, marketplace, target, owner_address, method, status, checks)
+            VALUES (${`V-${Date.now()}-${asset.id}`}, ${String(asset.asset_type)}, ${target}, ${data.sellerAddress}, ${method}, 'pending', ${JSON.stringify([])})`;
         }
       }
     }

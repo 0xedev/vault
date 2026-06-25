@@ -112,8 +112,8 @@ export async function POST(
   await db`INSERT INTO users (address) VALUES (${sellerAddress}) ON CONFLICT (address) DO NOTHING`;
   await db`INSERT INTO listings (id, seller_address, marketplace, title, description, price, collateral_data, status, moderation_status, chain_id, contract_address, contract_listing_id, tx_hash, tx_status)
     VALUES (${id}, ${sellerAddress}, ${dbKind}, ${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.price}, ${data}, 'active', 'pending', ${parsed.data.chainId || null}, ${parsed.data.contractAddress || null}, ${parsed.data.contractListingId || null}, ${parsed.data.txHash || null}, ${parsed.data.txHash ? "pending" : "offchain"})`;
-  await db`INSERT INTO verifications (id, listing_id, marketplace, target, owner_address, method, status, checks)
-    VALUES (${`V-${Date.now()}`}, ${id}, ${dbKind}, ${parsed.data.title}, ${sellerAddress}, ${kind === "mini-apps" ? "dns" : kind === "x-accounts" ? "x_tweet" : kind === "clanker" ? "token_ownership" : "farcaster_registry"}, 'pending', ${JSON.stringify([])})`;
+  await db`INSERT INTO verifications (id, marketplace, target, owner_address, method, status, checks)
+    VALUES (${`V-${Date.now()}`}, ${dbKind}, ${parsed.data.title}, ${sellerAddress}, ${kind === "mini-apps" ? "dns" : kind === "x-accounts" ? "x_tweet" : kind === "clanker" ? "token_ownership" : "farcaster_registry"}, 'pending', ${JSON.stringify([])})`;
 
   return NextResponse.json({ data: { id, status: "pending" } }, { status: 201 });
 }
