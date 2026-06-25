@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@farcaster/quick-auth";
 import { SiweMessage, generateNonce } from "siwe";
 import { getDatabase, databaseRequired, type DbClient } from "@/lib/api";
 import { csrfCheck } from "@/lib/security";
@@ -28,6 +29,37 @@ function isBootstrapAdmin(address: string) {
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${randomBytes(12).toString("hex")}`;
+}
+
+async function consumeNonce(db: DbClient, nonce: string) {
+  const nonceRows = await db`
+    SELECT * FROM auth_nonces
+    WHERE nonce = ${nonce} AND consumed_at IS NULL AND expires_at > NOW()
+    LIMIT 1
+  ` as Record<string, unknown>[];
+
+  return nonceRows.length > 0;
+}
+
+async function createSession(db: DbClient, addressInput: string, chainId?: number) {
+  const address = addressInput.toLowerCase();
+  const role = isBootstrapAdmin(address) ? "admin" : "user";
+  await db`INSERT INTO users (address, role) VALUES (${address}, ${role})
+    ON CONFLICT (address) DO UPDATE SET role = CASE
+      WHEN users.role = 'admin' OR ${role} = 'admin' THEN 'admin'::user_role
+      ELSE users.role
+    END`;
+
+  const sessionId = newId("S");
+  const expires = new Date(Date.now() + SESSION_TTL_MS);
+  const userRows = await db`SELECT role FROM users WHERE address = ${address} LIMIT 1` as Record<string, unknown>[];
+  const effectiveRole = String(userRows[0]?.role || role) === "admin" ? "admin" : "user";
+  await db`INSERT INTO sessions (id, address, role, expires_at) VALUES (${sessionId}, ${address}, ${effectiveRole}, ${expires})`;
+
+  const res = NextResponse.json({ address, chainId, role: effectiveRole });
+  res.cookies.set(SESSION_COOKIE, sessionId, sessionCookieOptions(expires));
+  authLogger("login", address, { role: effectiveRole });
+  return res;
 }
 
 export function sessionCookieOptions(expires: Date) {
@@ -71,13 +103,8 @@ export async function verifySiweSession(req: NextRequest) {
   const { message, signature } = await req.json();
   const siweMessage = new SiweMessage(message);
   const nonce = String(siweMessage.nonce || "");
-  const nonceRows = await db`
-    SELECT * FROM auth_nonces
-    WHERE nonce = ${nonce} AND consumed_at IS NULL AND expires_at > NOW()
-    LIMIT 1
-  ` as Record<string, unknown>[];
 
-  if (nonceRows.length === 0) {
+  if (!(await consumeNonce(db, nonce))) {
     return NextResponse.json({ error: "Nonce is invalid or expired" }, { status: 401 });
   }
 
@@ -88,24 +115,47 @@ export async function verifySiweSession(req: NextRequest) {
   }
 
   const address = data.address.toLowerCase();
-  const role = isBootstrapAdmin(address) ? "admin" : "user";
   await db`UPDATE auth_nonces SET consumed_at = NOW(), address = ${address} WHERE nonce = ${nonce}`;
-  await db`INSERT INTO users (address, role) VALUES (${address}, ${role})
-    ON CONFLICT (address) DO UPDATE SET role = CASE
-      WHEN users.role = 'admin' OR ${role} = 'admin' THEN 'admin'::user_role
-      ELSE users.role
-    END`;
+  return createSession(db, address, data.chainId);
+}
 
-  const sessionId = newId("S");
-  const expires = new Date(Date.now() + SESSION_TTL_MS);
-  const userRows = await db`SELECT role FROM users WHERE address = ${address} LIMIT 1` as Record<string, unknown>[];
-  const effectiveRole = String(userRows[0]?.role || role) === "admin" ? "admin" : "user";
-  await db`INSERT INTO sessions (id, address, role, expires_at) VALUES (${sessionId}, ${address}, ${effectiveRole}, ${expires})`;
+export async function verifyFarcasterSiwfSession(req: NextRequest) {
+  const guarded = await mutationGuard(req);
+  if (guarded) return guarded;
 
-  const res = NextResponse.json({ address, chainId: data.chainId, role: effectiveRole });
-  res.cookies.set(SESSION_COOKIE, sessionId, sessionCookieOptions(expires));
-  authLogger("login", address, { role: effectiveRole });
-  return res;
+  const db = getDatabase();
+  if (!db) return databaseRequired();
+
+  const { message, signature } = await req.json();
+  if (typeof message !== "string" || typeof signature !== "string") {
+    return NextResponse.json({ error: "Invalid Farcaster sign-in payload" }, { status: 400 });
+  }
+
+  const siweMessage = new SiweMessage(message);
+  const nonce = String(siweMessage.nonce || "");
+  if (!(await consumeNonce(db, nonce))) {
+    return NextResponse.json({ error: "Nonce is invalid or expired" }, { status: 401 });
+  }
+
+  const domain = req.headers.get("host") || "";
+  if (!domain) {
+    return NextResponse.json({ error: "Missing request host" }, { status: 400 });
+  }
+
+  const quickAuth = createClient({
+    origin: process.env.FARCASTER_QUICK_AUTH_ORIGIN || "https://auth.farcaster.xyz",
+  });
+
+  try {
+    await quickAuth.verifySiwf({ domain, message, signature });
+  } catch (err) {
+    console.warn("[auth/farcaster] SIWF verification failed", err);
+    return NextResponse.json({ error: "Invalid Farcaster signature" }, { status: 401 });
+  }
+
+  const address = siweMessage.address.toLowerCase();
+  await db`UPDATE auth_nonces SET consumed_at = NOW(), address = ${address} WHERE nonce = ${nonce}`;
+  return createSession(db, address, siweMessage.chainId);
 }
 
 export async function destroySession(req: NextRequest) {
