@@ -202,6 +202,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === "undefined") return;
 
     (async () => {
+      const inMiniApp = await isMiniApp();
+      let hasSession = false;
+
       // 1. Try session cookie first
       try {
         const res = await fetch("/api/auth/session");
@@ -210,16 +213,30 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           setSessionAddress(json.user.address);
           if (isEvmAddress(json.user.address)) setAddress(json.user.address);
           setRole(json.user.role === "admin" ? "admin" : "user");
-          if (await isMiniApp()) {
-            await attachWallet().catch(() => null);
-          }
-          return;
+          hasSession = true;
         }
       } catch {
         /* */
       }
 
-      if (await isMiniApp()) return;
+      if (inMiniApp) {
+        setIsConnecting(true);
+        try {
+          await attachWallet({ requestAccounts: true }).catch(() => null);
+          if (!hasSession) {
+            const session = await farcasterSignIn();
+            if (session) {
+              setSessionAddress(session.address);
+              setRole(session.role === "admin" ? "admin" : "user");
+            }
+          }
+        } finally {
+          setIsConnecting(false);
+        }
+        return;
+      }
+
+      if (hasSession) return;
 
       // 2. No session — auto-connect injected wallet outside Mini App
       try {

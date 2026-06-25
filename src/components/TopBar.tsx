@@ -25,7 +25,14 @@ function formatIdentity(address: string | null) {
 
 export default function TopBar({ onMenu }: { onMenu: () => void }) {
   const pathname = usePathname();
-  const { address, isConnected, isConnecting, connect, disconnect } = useWallet();
+  const {
+    address,
+    isAuthenticated,
+    isConnected,
+    isConnecting,
+    connect,
+    disconnect,
+  } = useWallet();
 
   return (
     <header className="topbar">
@@ -55,14 +62,14 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
           <Icon.bell/>
           <span style={{ position: "absolute", top: 4, right: 6, width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }}/>
         </button>
-        {isConnected ? (
+        {isConnected && isAuthenticated ? (
           <div className="wallet" style={{ cursor: "pointer" }} onClick={disconnect}>
             <span className="dot"/>
             <span>{formatIdentity(address)}</span>
           </div>
         ) : (
           <button className="btn primary" onClick={connect} disabled={isConnecting}>
-            {isConnecting ? "Connecting…" : "Connect wallet"}
+            {isConnecting ? "Connecting…" : isConnected ? "Sign in" : "Connect wallet"}
           </button>
         )}
       </div>
