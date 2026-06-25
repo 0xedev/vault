@@ -131,20 +131,15 @@ async function siweSignIn(
 
 async function farcasterSignIn(): Promise<{ address: string; role: string } | null> {
   try {
-    const nonceRes = await fetch("/api/auth/nonce");
-    const { nonce } = await nonceRes.json();
-    if (!nonce) return null;
-
-    const result = await signInWithFarcaster(nonce);
-    if (!result) return null;
+    const result = await signInWithFarcaster();
+    if (!result?.token) return null;
 
     const verifyRes = await fetch("/api/auth/farcaster", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        message: result.message,
-        signature: result.signature,
+        token: result.token,
       }),
     });
     if (!verifyRes.ok) {
