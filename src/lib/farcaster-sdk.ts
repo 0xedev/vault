@@ -1,4 +1,5 @@
 import { sdk } from "@farcaster/miniapp-sdk";
+import { logClientError } from "./client-log";
 
 let _isMiniApp: boolean | null = null;
 
@@ -6,7 +7,8 @@ export async function isMiniApp(): Promise<boolean> {
   if (_isMiniApp !== null) return _isMiniApp;
   try {
     _isMiniApp = await sdk.isInMiniApp();
-  } catch {
+  } catch (err) {
+    logClientError("farcaster-sdk:isMiniApp", err);
     _isMiniApp = false;
   }
   return _isMiniApp;
@@ -30,12 +32,21 @@ export async function addToFarcaster() {
 
 export async function signInWithFarcaster(options: { force?: boolean } = {}) {
   try {
-    if (!(await isMiniApp())) return null;
+    const inMiniApp = await isMiniApp();
+    if (!inMiniApp) {
+      logClientError("farcaster-sdk:signInWithFarcaster:not-miniapp", "isMiniApp returned false, aborting sign-in");
+      return null;
+    }
     const quickAuthOptions = options.force
       ? ({ force: true } as unknown as Parameters<typeof sdk.quickAuth.getToken>[0])
       : undefined;
-    return await sdk.quickAuth.getToken(quickAuthOptions);
+    const result = await sdk.quickAuth.getToken(quickAuthOptions);
+    if (!result?.token) {
+      logClientError("farcaster-sdk:signInWithFarcaster:no-token", "getToken returned no token", { hasResult: !!result, force: !!options.force });
+    }
+    return result;
   } catch (err) {
+    logClientError("farcaster-sdk:signInWithFarcaster:exception", err, { force: !!options.force });
     console.warn("Farcaster sign-in failed:", err);
     return null;
   }

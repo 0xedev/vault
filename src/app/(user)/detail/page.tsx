@@ -176,14 +176,14 @@ function LoanDetailContent() {
     meta.name = "fc:miniapp";
     meta.content = JSON.stringify({
       version: "1",
-      imageUrl: "https://baseshirehathaway.com/nft.png",
+      imageUrl: "https://baseshirehethaway.com/nft.png",
       button: {
         title: "View NFT listing",
         action: {
           type: "launch_frame",
           name: "Baseshire Hathaway",
           url: `${window.location.origin}/detail?id=${loanId}`,
-          splashImageUrl: "https://baseshirehathaway.com/logo.png",
+          splashImageUrl: "https://baseshirehethaway.com/logo.png",
           splashBackgroundColor: "#0052ff",
         },
       },

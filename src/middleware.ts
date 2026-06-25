@@ -10,7 +10,9 @@ export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
 
   res.headers.set("X-Content-Type-Options", "nosniff");
-  res.headers.set("X-Frame-Options", "DENY");
+  if (pathname.startsWith("/admin")) {
+    res.headers.set("X-Frame-Options", "DENY");
+  }
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
@@ -26,7 +28,7 @@ export async function middleware(req: NextRequest) {
     "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
     "img-src 'self' data: blob: https:",
     "font-src 'self' fonts.gstatic.com",
-    "connect-src 'self' https://base-mainnet.g.alchemy.com https://eth-mainnet.g.alchemy.com https://sepolia.base.org https://mainnet.base.org https://*.neon.tech wss://*.neon.tech",
+    "connect-src 'self' https://auth.farcaster.xyz https://api.farcaster.xyz https://base-mainnet.g.alchemy.com https://eth-mainnet.g.alchemy.com https://sepolia.base.org https://mainnet.base.org https://*.neon.tech wss://*.neon.tech",
     "frame-src 'self'",
     "object-src 'none'",
     "base-uri 'self'",

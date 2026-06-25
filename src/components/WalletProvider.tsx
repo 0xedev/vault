@@ -16,6 +16,7 @@ import {
   reconnectFarcasterMiniAppWallet,
 } from "@/lib/farcaster-wagmi";
 import { setActiveWalletProvider } from "@/lib/contract-helpers";
+import { logClientError } from "@/lib/client-log";
 
 type WalletLike = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -78,8 +79,10 @@ async function selectWalletProvider(
         ? await connectFarcasterMiniAppWallet()
         : await reconnectFarcasterMiniAppWallet();
       if (wallet) return wallet;
+      logClientError("wallet:selectWalletProvider:mini-app-no-wallet", "Mini app wallet returned null", { requestAccounts: !!options.requestAccounts });
       return null;
     } catch (err) {
+      logClientError("wallet:selectWalletProvider:mini-app-exception", err);
       console.warn("Farcaster Mini App wallet unavailable:", err);
       return null;
     }
@@ -137,7 +140,10 @@ async function farcasterSignIn(
 ): Promise<{ address: string; role: string } | null> {
   try {
     const result = await signInWithFarcaster(options);
-    if (!result?.token) return null;
+    if (!result?.token) {
+      logClientError("wallet:farcasterSignIn:no-token", "signInWithFarcaster returned no token", { force: !!options.force });
+      return null;
+    }
 
     const verifyRes = await fetch("/api/auth/farcaster", {
       method: "POST",
@@ -149,6 +155,7 @@ async function farcasterSignIn(
     });
     if (!verifyRes.ok) {
       const json = await verifyRes.json().catch(() => ({}));
+      logClientError("wallet:farcasterSignIn:verify-failed", json.error || `status ${verifyRes.status}`, { status: verifyRes.status });
       console.warn(
         "Vault Farcaster sign-in verification failed:",
         json.error || verifyRes.statusText,
@@ -158,6 +165,7 @@ async function farcasterSignIn(
 
     return verifyRes.json();
   } catch (err) {
+    logClientError("wallet:farcasterSignIn:exception", err);
     console.warn("Vault Farcaster sign-in failed:", err);
     return null;
   }
@@ -176,7 +184,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const attachWallet = useCallback(async (options: { requestAccounts?: boolean } = {}) => {
     const wallet = await selectWalletProvider(options);
-    if (!wallet) return null;
+    if (!wallet) {
+      logClientError("wallet:attachWallet:no-provider", "selectWalletProvider returned null", { requestAccounts: !!options.requestAccounts });
+      return null;
+    }
     setActiveWalletProvider(wallet.provider);
 
     const accounts = wallet.address
@@ -184,7 +195,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       : ((await wallet.provider.request({
           method: options.requestAccounts ? "eth_requestAccounts" : "eth_accounts",
         })) as string[]);
-    if (!Array.isArray(accounts) || !isEvmAddress(accounts[0])) return null;
+    if (!Array.isArray(accounts) || !isEvmAddress(accounts[0])) {
+      logClientError("wallet:attachWallet:no-accounts", "No valid accounts returned", { isArray: Array.isArray(accounts) });
+      return null;
+    }
 
     const chainIdNum =
       wallet.chainId ??
@@ -288,6 +302,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setRole(session.role === "admin" ? "admin" : "user");
       }
     } catch (err) {
+      logClientError("wallet:connect:exception", err);
       console.error("Wallet connection failed:", err);
     } finally {
       setIsConnecting(false);

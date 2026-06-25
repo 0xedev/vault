@@ -179,14 +179,14 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
       : deal.name.slice(0, 24);
     meta.content = JSON.stringify({
       version: "1",
-      imageUrl: "https://baseshirehathaway.com/logo.png",
+      imageUrl: "https://baseshirehethaway.com/logo.png",
       button: {
         title: `View ${assetLabel}`,
         action: {
           type: "launch_frame",
           name: "Baseshire Hathaway",
           url: `${window.location.origin}/deals?id=${deal.id}`,
-          splashImageUrl: "https://baseshirehathaway.com/logo.png",
+          splashImageUrl: "https://baseshirehethaway.com/logo.png",
           splashBackgroundColor: "#0052ff",
         },
       },

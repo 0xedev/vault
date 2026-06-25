@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Baseshire Hathaway — Crypto Conglomerate",
   description: "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
-  metadataBase: new URL("https://baseshirehathaway.com"),
+  metadataBase: new URL("https://baseshirehethaway.com"),
   openGraph: {
     title: "Baseshire Hathaway — Crypto Conglomerate",
     description: "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
@@ -43,14 +43,14 @@ export default function RootLayout({
       <head>
         <meta name="fc:miniapp" content={JSON.stringify({
           version: "1",
-          imageUrl: "https://baseshirehathaway.com/logo.png",
+          imageUrl: "https://baseshirehethaway.com/logo.png",
           button: {
             title: "Browse marketplace",
             action: {
               type: "launch_frame",
               name: "Baseshire Hathaway",
-              url: "https://baseshirehathaway.com",
-              splashImageUrl: "https://baseshirehathaway.com/logo.png",
+              url: "https://baseshirehethaway.com",
+              splashImageUrl: "https://baseshirehethaway.com/logo.png",
               splashBackgroundColor: "#0052ff",
             },
           },
