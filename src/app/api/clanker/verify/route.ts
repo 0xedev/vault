@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { verifyClankerTokenOwnership } from "@/lib/clanker";
 
 export async function GET(req: NextRequest) {
@@ -11,7 +11,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "A valid token contract address is required." }, { status: 400 });
   }
 
-  const result = await verifyClankerTokenOwnership(auth.user.address, contractAddress);
+  const walletParam = req.nextUrl.searchParams.get("wallet") || "";
+  const owner = actorAddressForRequest(auth.user, walletParam);
+  const result = await verifyClankerTokenOwnership(owner, contractAddress);
   if (!result.verified) {
     return NextResponse.json({ error: result.reason || "Unable to verify ownership." }, { status: 403 });
   }

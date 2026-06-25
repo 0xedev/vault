@@ -93,7 +93,7 @@ export default function ClankerPage() {
     setOwnedLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/clanker/owned");
+      const res = await fetch(`/api/clanker/owned?wallet=${encodeURIComponent(address!)}`);
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Unable to load your Clanker tokens");
       setOwnedTokens(json.data || []);
@@ -145,7 +145,7 @@ export default function ClankerPage() {
     setVerifyingToken(true);
     setError("");
     try {
-      const res = await fetch(`/api/clanker/verify?contractAddress=${encodeURIComponent(contractAddress)}`);
+      const res = await fetch(`/api/clanker/verify?contractAddress=${encodeURIComponent(contractAddress)}&wallet=${encodeURIComponent(address || "")}`);
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Unable to verify token ownership");
       applyClankerToken(json.data);
