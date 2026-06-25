@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { SiweMessage } from "siwe";
 import { getAddress } from "viem";
-import { isMiniApp, getFarcasterWallet } from "@/lib/farcaster-sdk";
+import { isMiniApp, getFarcasterWallet, signInWithFarcaster } from "@/lib/farcaster-sdk";
 
 type WalletLike = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -58,19 +58,33 @@ async function siweSignIn(address: string, chainId: number, provider: WalletLike
       nonce,
     });
 
-    const signature = await provider.request({
-      method: "personal_sign",
-      params: [message.prepareMessage(), address],
-    });
+    let verifyBody: Record<string, unknown> | null = null;
+    try {
+      const signature = await provider.request({
+        method: "personal_sign",
+        params: [message.prepareMessage(), address],
+      });
+      verifyBody = { message, signature };
+    } catch {
+      const farcaster = await signInWithFarcaster(nonce);
+      if (!farcaster) return null;
+      verifyBody = { message: farcaster.message, signature: farcaster.signature };
+    }
 
     const verifyRes = await fetch("/api/auth/verify", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, signature }),
+      body: JSON.stringify(verifyBody),
     });
-    if (!verifyRes.ok) return null;
+    if (!verifyRes.ok) {
+      const json = await verifyRes.json().catch(() => ({}));
+      console.warn("Vault sign-in verification failed:", json.error || verifyRes.statusText);
+      return null;
+    }
     return verifyRes.json();
-  } catch {
+  } catch (err) {
+    console.warn("Vault sign-in failed:", err);
     return null;
   }
 }
