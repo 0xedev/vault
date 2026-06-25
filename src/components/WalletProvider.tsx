@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { SiweMessage } from "siwe";
 import { getAddress } from "viem";
-import { isMiniApp } from "@/lib/farcaster-sdk";
+import { isMiniApp, signInWithFarcaster } from "@/lib/farcaster-sdk";
 import { connectFarcasterMiniAppWallet, disconnectFarcasterMiniAppWallet, reconnectFarcasterMiniAppWallet } from "@/lib/farcaster-wagmi";
 import { setActiveWalletProvider } from "@/lib/contract-helpers";
 
@@ -82,10 +82,31 @@ async function verifySignedMessage(message: unknown, signature: unknown): Promis
   return verifyRes.json();
 }
 
+async function verifyFarcasterSignIn(message: unknown, signature: unknown): Promise<{ address: string; role: string } | null> {
+  const verifyRes = await fetch("/api/auth/farcaster", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, signature }),
+  });
+  if (!verifyRes.ok) {
+    const json = await verifyRes.json().catch(() => ({}));
+    console.warn("Vault Farcaster sign-in verification failed:", json.error || verifyRes.statusText);
+    return null;
+  }
+  return verifyRes.json();
+}
+
 async function vaultSignIn(address: string, chainId: number, provider: WalletLike): Promise<{ address: string; role: string } | null> {
   try {
     const nonceRes = await fetch("/api/auth/nonce");
     const { nonce } = await nonceRes.json();
+
+    if (await isMiniApp()) {
+      const result = await signInWithFarcaster(nonce);
+      if (!result) return null;
+      return verifyFarcasterSignIn(result.message, result.signature);
+    }
 
     const siweAddr = getAddress(address);
     const message = new SiweMessage({
