@@ -218,11 +218,36 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div className="col" style={{ gap: 6 }}>
-            <span className="label">Deliverables ({Object.values(deliverables).filter(Boolean).length} selected)</span>
+            <span className="label">
+              Deliverables ({Object.values(deliverables).filter(Boolean).length}{" "}
+              selected)
+            </span>
             <div className="grid grid-2" style={{ gap: 6 }}>
               {FC_DELIVERABLE_OPTIONS.map((d) => (
-                <label key={d.key} style={{ padding: "8px 10px", border: deliverables[d.key] ? "1px solid var(--accent)" : "1px solid var(--line)", borderRadius: 6, cursor: "pointer", background: deliverables[d.key] ? "rgba(127,157,197,0.08)" : "transparent", fontSize: 12.5, display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="checkbox" checked={!!deliverables[d.key]} onChange={() => toggleDeliverable(d.key)} style={{ accentColor: "var(--accent)" }} />
+                <label
+                  key={d.key}
+                  style={{
+                    padding: "8px 10px",
+                    border: deliverables[d.key]
+                      ? "1px solid var(--accent)"
+                      : "1px solid var(--line)",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    background: deliverables[d.key]
+                      ? "rgba(127,157,197,0.08)"
+                      : "transparent",
+                    fontSize: 12.5,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!deliverables[d.key]}
+                    onChange={() => toggleDeliverable(d.key)}
+                    style={{ accentColor: "var(--accent)" }}
+                  />
                   {d.label}
                 </label>
               ))}
@@ -242,6 +267,56 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
               placeholder="What comes with this FID?"
             />
           </div>
+          {error && (
+            <div className="warn-banner" style={{ color: "var(--risk)" }}>
+              {error}
+            </div>
+          )}
+
+          {!done && (
+            <div
+              className="card"
+              style={{
+                padding: 14,
+                background: "rgba(127,157,197,0.08)",
+                border: "1px solid var(--line)",
+              }}
+            >
+              <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  On-chain verification
+                </div>
+                <span className="muted-2">
+                  We check the Farcaster IdRegistry to confirm your connected
+                  wallet ({address?.slice(0, 6)}…{address?.slice(-4)}) owns FID
+                  #{fid}.
+                </span>
+              </div>
+              <button
+                className="btn sm primary"
+                onClick={checkFarcasterVerification}
+                disabled={verifying || !fid}
+              >
+                {verifying ? "Checking on-chain…" : "Verify ownership"}
+              </button>
+            </div>
+          )}
+
+          {verified && (
+            <div
+              className="card"
+              style={{
+                padding: 14,
+                background: "rgba(127,157,197,0.12)",
+                border: "1px solid var(--accent)",
+              }}
+            >
+              <div className="pill funded" style={{ width: "fit-content" }}>
+                <span className="pdot" />
+                {done || "Ownership verified!"}
+              </div>
+            </div>
+          )}
           <div className="modal-f">
             <button
               className="btn"

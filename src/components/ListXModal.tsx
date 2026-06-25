@@ -207,12 +207,42 @@ export default function ListXModal({ onClose }: { onClose: () => void }) {
               placeholder="What comes with this handle?"
             />
           </div>
+          {error && (
+            <div className="warn-banner" style={{ color: "var(--risk)" }}>
+              {error}
+            </div>
+          )}
           <div className="col" style={{ gap: 6 }}>
-            <span className="label">Deliverables ({Object.values(deliverables).filter(Boolean).length} selected)</span>
+            <span className="label">
+              Deliverables ({Object.values(deliverables).filter(Boolean).length}{" "}
+              selected)
+            </span>
             <div className="grid grid-2" style={{ gap: 6 }}>
               {X_DELIVERABLE_OPTIONS.map((d) => (
-                <label key={d.key} style={{ padding: "8px 10px", border: deliverables[d.key] ? "1px solid var(--accent)" : "1px solid var(--line)", borderRadius: 6, cursor: "pointer", background: deliverables[d.key] ? "rgba(127,157,197,0.08)" : "transparent", fontSize: 12.5, display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="checkbox" checked={!!deliverables[d.key]} onChange={() => toggleDeliverable(d.key)} style={{ accentColor: "var(--accent)" }} />
+                <label
+                  key={d.key}
+                  style={{
+                    padding: "8px 10px",
+                    border: deliverables[d.key]
+                      ? "1px solid var(--accent)"
+                      : "1px solid var(--line)",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    background: deliverables[d.key]
+                      ? "rgba(127,157,197,0.08)"
+                      : "transparent",
+                    fontSize: 12.5,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!deliverables[d.key]}
+                    onChange={() => toggleDeliverable(d.key)}
+                    style={{ accentColor: "var(--accent)" }}
+                  />
                   {d.label}
                 </label>
               ))}
@@ -220,14 +250,46 @@ export default function ListXModal({ onClose }: { onClose: () => void }) {
           </div>
 
           {verifyCode && !verified && (
-            <div className="card" style={{ padding: 14, background: "rgba(127,157,197,0.08)", border: "1px solid var(--line)" }}>
+            <div
+              className="card"
+              style={{
+                padding: 14,
+                background: "rgba(127,157,197,0.08)",
+                border: "1px solid var(--line)",
+              }}
+            >
               <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>Prove ownership — post this tweet:</div>
-                <code className="mono" style={{ background: "var(--surface-2)", padding: "3px 8px", borderRadius: 4, fontSize: 11, display: "block", marginBottom: 8 }}>Verifying {handle?.replace("@", "")} ownership for Vault: {verifyCode}</code>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  Prove ownership — post this tweet:
+                </div>
+                <code
+                  className="mono"
+                  style={{
+                    background: "var(--surface-2)",
+                    padding: "3px 8px",
+                    borderRadius: 4,
+                    fontSize: 11,
+                    display: "block",
+                    marginBottom: 8,
+                  }}
+                >
+                  Verifying {handle?.replace("@", "")} ownership for Vault:{" "}
+                  {verifyCode}
+                </code>
                 <span className="label">Paste tweet URL</span>
-                <input className="input" value={tweetUrl} onChange={(e) => setTweetUrl(e.target.value)} placeholder="https://x.com/.../status/..." style={{ marginTop: 4 }} />
+                <input
+                  className="input"
+                  value={tweetUrl}
+                  onChange={(e) => setTweetUrl(e.target.value)}
+                  placeholder="https://x.com/.../status/..."
+                  style={{ marginTop: 4 }}
+                />
               </div>
-              <button className="btn sm primary" onClick={() => checkVerification(tweetUrl)} disabled={verifying || !tweetUrl}>
+              <button
+                className="btn sm primary"
+                onClick={() => checkVerification(tweetUrl)}
+                disabled={verifying || !tweetUrl}
+              >
                 {verifying ? "Checking…" : "Check verification"}
               </button>
             </div>

@@ -199,50 +199,185 @@ export default function ListMiniAppModal({ onClose }: Props) {
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div>
               <span className="label">Live URL</span>
-              <input className="input" value={url} onChange={(e) => { setUrl(e.target.value); fetchOgPreview(e.target.value); }} placeholder="https://example.com" />
+              <input
+                className="input"
+                value={url}
+                onChange={(e) => {
+                  setUrl(e.target.value);
+                  fetchOgPreview(e.target.value);
+                }}
+                placeholder="https://example.com"
+              />
+              {fetchingOg && (
+                <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  Fetching preview…
+                </div>
+              )}
             </div>
             <div>
               <span className="label">Repo URL</span>
-              <input className="input" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="https://github.com/owner/repo" />
+              <input
+                className="input"
+                value={repo}
+                onChange={(e) => setRepo(e.target.value)}
+                placeholder="https://github.com/owner/repo"
+              />
             </div>
           </div>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div>
               <span className="label">DAU</span>
-              <input className="input mono" value={dau} onChange={(e) => setDau(e.target.value)} placeholder="1234" />
+              <input
+                className="input mono"
+                value={dau}
+                onChange={(e) => setDau(e.target.value)}
+                placeholder="1234"
+              />
             </div>
             <div>
               <span className="label">MRR (Ξ)</span>
-              <input className="input mono" value={mrr} onChange={(e) => setMrr(e.target.value)} placeholder="0.5" />
+              <input
+                className="input mono"
+                value={mrr}
+                onChange={(e) => setMrr(e.target.value)}
+                placeholder="0.5"
+              />
             </div>
           </div>
           <div className="col" style={{ gap: 4 }}>
             <span className="label">Asking price (Ξ)</span>
-            <input className="input mono" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="5.0" />
+            <input
+              className="input mono"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="5.0"
+            />
           </div>
 
           <div className="col" style={{ gap: 6 }}>
-            <span className="label">Deliverables ({Object.values(deliverables).filter(Boolean).length} selected)</span>
+            <span className="label">
+              Deliverables ({Object.values(deliverables).filter(Boolean).length}{" "}
+              selected)
+            </span>
             <div className="grid grid-2" style={{ gap: 6 }}>
               {DELIVERABLE_OPTIONS.map((d) => (
-                <label key={d.key} style={{ padding: "8px 10px", border: deliverables[d.key] ? "1px solid var(--accent)" : "1px solid var(--line)", borderRadius: 6, cursor: "pointer", background: deliverables[d.key] ? "rgba(127,157,197,0.08)" : "transparent", fontSize: 12.5, display: "flex", alignItems: "center", gap: 8 }}>
-                  <input type="checkbox" checked={!!deliverables[d.key]} onChange={() => toggleDeliverable(d.key)} style={{ accentColor: "var(--accent)" }} />
+                <label
+                  key={d.key}
+                  style={{
+                    padding: "8px 10px",
+                    border: deliverables[d.key]
+                      ? "1px solid var(--accent)"
+                      : "1px solid var(--line)",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    background: deliverables[d.key]
+                      ? "rgba(127,157,197,0.08)"
+                      : "transparent",
+                    fontSize: 12.5,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!deliverables[d.key]}
+                    onChange={() => toggleDeliverable(d.key)}
+                    style={{ accentColor: "var(--accent)" }}
+                  />
                   {d.label}
                 </label>
               ))}
             </div>
           </div>
           {verifyCode && !verified && (
-            <div className="card" style={{ padding: 14, background: "rgba(127,157,197,0.08)", border: "1px solid var(--line)" }}>
+            <div
+              className="card"
+              style={{
+                padding: 14,
+                background: "rgba(127,157,197,0.08)",
+                border: "1px solid var(--line)",
+              }}
+            >
               <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>Prove ownership:</div>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  Prove ownership:
+                </div>
                 <div className="col" style={{ gap: 4 }}>
-                  <span>Add this TXT record to your domain DNS:<br /><code className="mono" style={{ background: "var(--surface-2)", padding: "2px 6px", borderRadius: 3, fontSize: 11 }}>vault-verify={verifyCode}</code></span>
+                  <span>
+                    Add this TXT record to your domain DNS:
+                    <br />
+                    <code
+                      className="mono"
+                      style={{
+                        background: "var(--surface-2)",
+                        padding: "2px 6px",
+                        borderRadius: 3,
+                        fontSize: 11,
+                      }}
+                    >
+                      vault-verify={verifyCode}
+                    </code>
+                  </span>
                 </div>
               </div>
-              <button className="btn sm primary" onClick={checkVerification} disabled={verifying}>
+              <button
+                className="btn sm primary"
+                onClick={checkVerification}
+                disabled={verifying}
+              >
                 {verifying ? "Checking DNS…" : "Check verification"}
               </button>
+            </div>
+          )}
+
+          {error && (
+            <div className="warn-banner" style={{ color: "var(--risk)" }}>
+              {error}
+            </div>
+          )}
+
+          {done && !verified && (
+            <div
+              className="card"
+              style={{
+                padding: 14,
+                background: "rgba(127,157,197,0.08)",
+                border: "1px solid var(--line)",
+              }}
+            >
+              <div
+                className="pill funded"
+                style={{ width: "fit-content", marginBottom: 10 }}
+              >
+                <span className="pdot" />
+                {done}
+              </div>
+              <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                  Prove ownership:
+                </div>
+                <span className="muted-2">
+                  Add the TXT record shown above and click Verify to confirm
+                  domain ownership.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {verified && (
+            <div
+              className="card"
+              style={{
+                padding: 14,
+                background: "rgba(127,157,197,0.12)",
+                border: "1px solid var(--accent)",
+              }}
+            >
+              <div className="pill funded" style={{ width: "fit-content" }}>
+                <span className="pdot" />
+                Ownership verified!
+              </div>
             </div>
           )}
 
