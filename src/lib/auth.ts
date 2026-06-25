@@ -137,7 +137,8 @@ export async function verifyFarcasterSiwfSession(req: NextRequest) {
     return NextResponse.json({ error: "Nonce is invalid or expired" }, { status: 401 });
   }
 
-  const domain = req.headers.get("host") || "";
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+  const domain = host.split(":")[0];
   if (!domain) {
     return NextResponse.json({ error: "Missing request host" }, { status: 400 });
   }
@@ -149,7 +150,8 @@ export async function verifyFarcasterSiwfSession(req: NextRequest) {
   try {
     await quickAuth.verifySiwf({ domain, message, signature });
   } catch (err) {
-    console.warn("[auth/farcaster] SIWF verification failed", err);
+    const cause = err instanceof Error ? err.message : String(err);
+    console.warn("[auth/farcaster] SIWF verification failed", { domain, cause });
     return NextResponse.json({ error: "Invalid Farcaster signature" }, { status: 401 });
   }
 
