@@ -18,6 +18,7 @@ const bundleListingSchema = z.object({
   sellerAddress: z.string().startsWith("0x").length(42).optional(),
   name: z.string().min(2, "Bundle name is required"),
   description: z.string().optional().default(""),
+  imageUrl: z.string().optional().default(""),
   totalPrice: z.number().positive(),
   assets: z.array(bundleAssetSchema).min(1, "At least one asset is required").max(10, "Maximum 10 assets per bundle"),
   chainId: z.number().int().positive().optional(),
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
   const collateralData = JSON.stringify({
     name: data.name,
     description: data.description,
+    imageUrl: data.imageUrl || "",
     assets: data.assets.map((a: z.infer<typeof bundleAssetSchema>, i: number) => ({
       ...a,
       position: i,

@@ -18,6 +18,7 @@
     "@farcaster/miniapp-wagmi-connector": "^2.0.0",
     "@farcaster/quick-auth": "^0.0.8",
     "@neondatabase/serverless": "^1.1.0",
+    "@vercel/blob": "^2.4.1",
     "@wagmi/core": "^2.22.1",
     "clanker-sdk": "^4.2.16",
     "dotenv": "^17.4.2",

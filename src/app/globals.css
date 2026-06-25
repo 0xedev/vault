@@ -3424,6 +3424,15 @@ select:focus-visible {
   flex-direction: column;
   gap: 4px;
 }
+.bundle-card-img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
 .bundle-tag {
   align-self: flex-start;
   padding: 2px 8px;

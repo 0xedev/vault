@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState } from "react";
 import Icon from "@/components/icons";
@@ -36,6 +37,8 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
   const { address } = useWallet();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [price, setPrice] = useState("");
   const [assets, setAssets] = useState<BundleFormAsset[]>([emptyAsset()]);
   const [submitting, setSubmitting] = useState(false);
@@ -69,13 +72,31 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
     totalPrice > 0 &&
     !hasDuplicates;
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload-image", { method: "POST", credentials: "include", body: formData });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Upload failed");
+      setImageUrl(json.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Image upload failed");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!address) return;
     setSubmitting(true);
     setError("");
 
     try {
-      const metadata = { name, description, totalPrice, assets, createdAt: new Date().toISOString() };
+      const metadata = { name, description, totalPrice, assets, imageUrl, createdAt: new Date().toISOString() };
       const metadataHash = hashMetadata(metadata);
       const priceWei = parseEther(String(totalPrice));
 
@@ -90,6 +111,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
           sellerAddress: address,
           name,
           description,
+          imageUrl,
           totalPrice,
           assets: assets.map((a) => ({
             kind: a.kind,
@@ -149,6 +171,27 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
               style={{ minHeight: 56, resize: "vertical", padding: "10px 12px" }}
               aria-label="Bundle description"
             />
+          </div>
+          <div>
+            <span className="label">Cover image</span>
+            <div className="row" style={{ gap: 8 }}>
+              <input
+                className="input"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="Image URL or upload below"
+                style={{ flex: 1 }}
+              />
+              <label className="btn sm" style={{ cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
+                {uploadingImage ? "Uploading…" : "Upload"}
+              </label>
+            </div>
+            {imageUrl && (
+              <div style={{ marginTop: 6, width: "100%", aspectRatio: "16/10", borderRadius: 8, overflow: "hidden", background: "var(--surface-2)", border: "1px solid var(--line)" }}>
+                <img src={imageUrl} alt="Cover preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              </div>
+            )}
           </div>
           <div>
             <span className="label">Bundle price (Ξ)</span>

@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React from "react";
 import Link from "next/link";
@@ -19,6 +20,11 @@ export default function BundleCard({ bundle }: { bundle: BundleListing }) {
 
   return (
     <Link href={`/deals`} className="bundle-card">
+      {bundle.imageUrl && (
+        <div className="bundle-card-img">
+          <img src={bundle.imageUrl} alt={bundle.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        </div>
+      )}
       <div className="bundle-card-head">
         <span className="bundle-tag">Bundle</span>
         <strong className="bundle-name">{bundle.name}</strong>

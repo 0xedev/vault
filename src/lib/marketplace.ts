@@ -184,6 +184,7 @@ export function mapBundleListing(row: ListingRow): BundleListing {
     id: String(row.id),
     name: asString(data.name || row.title, "Bundle"),
     description: asString(row.description || data.description, ""),
+    imageUrl: asString(data.imageUrl),
     assets,
     totalPrice: asNumber(row.price),
     currency: asString(row.currency, "ETH"),

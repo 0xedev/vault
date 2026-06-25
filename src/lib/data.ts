@@ -36,6 +36,7 @@ export interface BundleListing {
   id: string;
   name: string;
   description: string;
+  imageUrl?: string;
   assets: BundleAsset[];
   totalPrice: number;
   currency: string;
