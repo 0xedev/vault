@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 export const dynamic = "force-dynamic";
 
@@ -140,7 +141,11 @@ function DashboardPreview({ loans }: { loans: Loan[] }) {
                   flexShrink: 0,
                 }}
               >
-                <NFTArt seed={l.coll} />
+                {l.imageUrl ? (
+                  <img src={l.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                ) : (
+                  <NFTArt seed={l.coll} />
+                )}
               </div>
               <div className="col" style={{ gap: 1 }}>
                 <span style={{ fontSize: 13 }}>
@@ -232,7 +237,11 @@ export default function LandingPage() {
       meta: `${fmtETH(l.amt)} Ξ · ${l.apr}% APR · ${l.term}d`,
       value: `${l.ltv}% LTV`,
       color: "#4A6CF7",
-      icon: <NFTArt seed={l.coll} />,
+      icon: l.imageUrl ? (
+        <img src={l.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+      ) : (
+        <NFTArt seed={l.coll} />
+      ),
     })),
     ...miniApps.slice(0, 4).map((topMiniApp) => ({
       href: "/miniapps",

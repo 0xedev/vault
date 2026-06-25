@@ -35,6 +35,7 @@ export function mapLoanListing(row: ListingRow) {
     bid: asNumber(data.bid),
     value: asNumber(data.value),
     borrower: shortAddress(row.seller_address),
+    imageUrl: asString(data.imageUrl),
     sellerAddress: String(row.seller_address || ""),
     chainId: asNumber(row.chain_id),
     contractAddress: asString(row.contract_address),

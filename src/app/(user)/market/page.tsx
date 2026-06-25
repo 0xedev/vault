@@ -70,9 +70,11 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       seed: number;
       value: number;
       contractAddress: string;
+      imageUrl: string;
     }[]
   >([]);
   const [selectedContract, setSelectedContract] = useState("");
+  const [selectedNftImageUrl, setSelectedNftImageUrl] = useState("");
   const [scanning, setScanning] = useState(true);
   const [collSeed] = useState(() => Math.floor(Math.random() * 100));
 
@@ -92,6 +94,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           name?: string;
           floorPriceEth?: number;
           collection?: { name?: string };
+          image?: { cachedUrl?: string; thumbnailUrl?: string };
         }[];
         const found = nfts
           .filter((n) => n.name || n.collection?.name)
@@ -102,6 +105,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
             seed: parseInt(n.tokenId) || Math.floor(Math.random() * 10000),
             value: n.floorPriceEth || 0,
             contractAddress: n.contract.address,
+            imageUrl: n.image?.thumbnailUrl || n.image?.cachedUrl || "",
           }));
         setDetectedNfts(found);
         setScanning(false);
@@ -125,6 +129,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
         name?: string;
         floorPriceEth?: number;
         collection?: { name?: string };
+        image?: { cachedUrl?: string; thumbnailUrl?: string };
       }[];
       const found = nfts
         .filter((n) => n.name || n.collection?.name)
@@ -135,6 +140,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           seed: parseInt(n.tokenId) || Math.floor(Math.random() * 10000),
           value: n.floorPriceEth || 0,
           contractAddress: n.contract.address,
+          imageUrl: n.image?.thumbnailUrl || n.image?.cachedUrl || "",
         }));
       setDetectedNfts(found);
     } catch {
@@ -229,6 +235,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           collection,
           tokenId,
           ltv: impliedLtv,
+          imageUrl: selectedNftImageUrl,
           chainId: 8453,
           contractAddress: getEscrowAddress(),
           contractListingId,
@@ -250,10 +257,12 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     t: string,
     value: number,
     contractAddr: string,
+    imageUrl: string,
   ) => {
     setCollection(c);
     setTokenId(t);
     setSelectedContract(contractAddr);
+    setSelectedNftImageUrl(imageUrl);
     setAmount(value ? (value * 0.5).toFixed(1) : "");
   };
 
@@ -329,6 +338,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                           n.tokenId,
                           n.value,
                           n.contractAddress,
+                          n.imageUrl,
                         )
                       }
                       className="card"

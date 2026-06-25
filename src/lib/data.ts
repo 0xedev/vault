@@ -86,6 +86,7 @@ export interface Loan {
   bid: number;
   value: number;
   borrower: string;
+  imageUrl?: string;
   chainId?: number;
   contractAddress?: string;
   contractListingId?: string;

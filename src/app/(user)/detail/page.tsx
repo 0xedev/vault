@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 export const dynamic = "force-dynamic";
 
@@ -433,7 +434,11 @@ function LoanDetailContent() {
         <div className="col" style={{ gap: 18 }}>
           <div className="card" style={{ padding: 18, display: "grid", gridTemplateColumns: "180px 1fr", gap: 18 }}>
             <div style={{ borderRadius: 10, overflow: "hidden" }}>
-              <NFTArt seed={l.coll} label={l.token} />
+              {l.imageUrl ? (
+                <img src={l.imageUrl} alt={`${collectionName} ${l.token}`} style={{ width: "100%", height: "100%", objectFit: "cover", aspectRatio: "1" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              ) : (
+                <NFTArt seed={l.coll} label={l.token} />
+              )}
             </div>
             <div className="col" style={{ gap: 6 }}>
               <div className="eyebrow">Collateral</div>

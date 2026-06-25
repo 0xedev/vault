@@ -15,6 +15,7 @@ const listingSchema = z.object({
   tokenId: z.string().min(1),
   ltv: z.number().min(0).max(100),
   value: z.number().nonnegative().optional(),
+  imageUrl: z.string().optional(),
   chainId: z.number().int().positive().optional(),
   contractAddress: z.string().startsWith("0x").optional(),
   contractListingId: z.string().optional(),
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
     ltv: data.ltv,
     status: "open",
     value: data.value || 0,
+    imageUrl: data.imageUrl || "",
   });
 
   await db`INSERT INTO users (address) VALUES (${sellerAddress}) ON CONFLICT (address) DO NOTHING`;
