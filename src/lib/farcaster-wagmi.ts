@@ -1,13 +1,30 @@
 "use client";
 
-import { connect, createConfig, disconnect, getAccount, http, reconnect } from "@wagmi/core";
+import {
+  connect,
+  createConfig,
+  disconnect,
+  getAccount,
+  http,
+  reconnect,
+} from "@wagmi/core";
 import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector";
-import { arbitrum, base, baseSepolia, bsc, mainnet, optimism } from "viem/chains";
+import {
+  arbitrum,
+  base,
+  baseSepolia,
+  bsc,
+  mainnet,
+  optimism,
+} from "viem/chains";
 
 type WalletProviderLike = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
   on?: (event: string, handler: (...args: unknown[]) => void) => void;
-  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+  removeListener?: (
+    event: string,
+    handler: (...args: unknown[]) => void,
+  ) => void;
 };
 
 const miniAppConnector = farcasterMiniApp();
@@ -27,26 +44,17 @@ export const farcasterWagmiConfig = createConfig({
 });
 
 export async function connectFarcasterMiniAppWallet() {
-  const account = getAccount(farcasterWagmiConfig);
-  if (account.isConnected && account.address && account.chainId && account.connector) {
-    const provider = await account.connector.getProvider();
-    return {
-      address: account.address,
-      chainId: account.chainId,
-      provider: provider as WalletProviderLike,
-    };
-  }
-
   const connected = await connect(farcasterWagmiConfig, {
     connector: farcasterWagmiConfig.connectors[0],
   });
   const accountAfterConnect = getAccount(farcasterWagmiConfig);
-  const connector = accountAfterConnect.connector || farcasterWagmiConfig.connectors[0];
+  const connector =
+    accountAfterConnect.connector || farcasterWagmiConfig.connectors[0];
   const provider = await connector.getProvider();
 
   return {
-    address: connected.accounts[0],
-    chainId: connected.chainId,
+    address: connected.accounts[0] || accountAfterConnect.address,
+    chainId: connected.chainId || accountAfterConnect.chainId,
     provider: provider as WalletProviderLike,
   };
 }
