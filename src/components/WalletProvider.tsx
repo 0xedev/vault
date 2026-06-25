@@ -132,9 +132,11 @@ async function siweSignIn(
   }
 }
 
-async function farcasterSignIn(): Promise<{ address: string; role: string } | null> {
+async function farcasterSignIn(
+  options: { force?: boolean } = {},
+): Promise<{ address: string; role: string } | null> {
   try {
-    const result = await signInWithFarcaster();
+    const result = await signInWithFarcaster(options);
     if (!result?.token) return null;
 
     const verifyRes = await fetch("/api/auth/farcaster", {
@@ -262,7 +264,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setIsConnecting(true);
     try {
       if (await isMiniApp()) {
-        const session = await farcasterSignIn();
+        const session = await farcasterSignIn({ force: true });
         if (!session) throw new Error("Farcaster sign-in did not complete");
 
         const wallet = await attachWallet({ requestAccounts: true });

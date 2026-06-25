@@ -17,6 +17,10 @@ const SESSION_COOKIE = "vault_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const NONCE_TTL_MS = 10 * 60 * 1000;
 
+function uniqueValues(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
 function adminWallets() {
   return (process.env.ADMIN_WALLETS || "")
     .split(",")
@@ -46,6 +50,18 @@ function isBootstrapAdmin(address: string) {
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${randomBytes(12).toString("hex")}`;
+}
+
+function farcasterAuthDomains(req: NextRequest) {
+  const forwardedHost = req.headers.get("x-forwarded-host") || "";
+  const host = req.headers.get("host") || "";
+  const envHost = process.env.NEXT_PUBLIC_URL
+    ? new URL(process.env.NEXT_PUBLIC_URL).host
+    : "";
+
+  // Quick Auth JWT audience is the SIWF domain, which matches URL.host.
+  // Keep the port for local/tunnel URLs; using URL.hostname breaks localhost:3000.
+  return uniqueValues([forwardedHost, host, envHost].map((domain) => domain.toLowerCase()));
 }
 
 async function consumeNonce(db: DbClient, nonce: string) {
@@ -148,10 +164,8 @@ export async function verifyFarcasterQuickAuthSession(req: NextRequest) {
     return NextResponse.json({ error: "Quick Auth token is required" }, { status: 400 });
   }
 
-  const domain = process.env.NEXT_PUBLIC_URL
-    ? new URL(process.env.NEXT_PUBLIC_URL).hostname
-    : req.headers.get("host") || "";
-  if (!domain) {
+  const domains = farcasterAuthDomains(req);
+  if (domains.length === 0) {
     return NextResponse.json({ error: "Missing request host" }, { status: 400 });
   }
 
@@ -160,10 +174,21 @@ export async function verifyFarcasterQuickAuthSession(req: NextRequest) {
   });
 
   try {
-    const payload = await quickAuth.verifyJwt({
-      domain,
-      token,
-    });
+    let payload: Awaited<ReturnType<typeof quickAuth.verifyJwt>> | null = null;
+    let lastError: unknown;
+    for (const domain of domains) {
+      try {
+        payload = await quickAuth.verifyJwt({
+          domain,
+          token,
+        });
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+    if (!payload) throw lastError;
+
     const fid = Number(payload.sub);
     if (!Number.isFinite(fid) || fid <= 0) {
       return NextResponse.json({ error: "Invalid Farcaster user" }, { status: 401 });
@@ -171,7 +196,10 @@ export async function verifyFarcasterQuickAuthSession(req: NextRequest) {
 
     return createSession(db, farcasterAddress(fid));
   } catch (err) {
-    console.warn("[auth/farcaster] Quick Auth verification failed", err);
+    console.warn("[auth/farcaster] Quick Auth verification failed", {
+      domains,
+      error: err,
+    });
     return NextResponse.json({ error: "Invalid Farcaster token" }, { status: 401 });
   }
 }

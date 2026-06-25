@@ -43,14 +43,14 @@ export default function RootLayout({
       <head>
         <meta name="fc:miniapp" content={JSON.stringify({
           version: "1",
-          imageUrl: "https://baseshirehethaway.com/logo.png",
+          imageUrl: "https://baseshirehathaway.com/logo.png",
           button: {
             title: "Browse marketplace",
             action: {
               type: "launch_frame",
               name: "Baseshire Hathaway",
-              url: "https://baseshirehethaway.com",
-              splashImageUrl: "https://baseshirehethaway.com/logo.png",
+              url: "https://baseshirehathaway.com",
+              splashImageUrl: "https://baseshirehathaway.com/logo.png",
               splashBackgroundColor: "#0052ff",
             },
           },

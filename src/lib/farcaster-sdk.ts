@@ -28,10 +28,13 @@ export async function addToFarcaster() {
   }
 }
 
-export async function signInWithFarcaster() {
+export async function signInWithFarcaster(options: { force?: boolean } = {}) {
   try {
     if (!(await isMiniApp())) return null;
-    return await sdk.quickAuth.getToken();
+    const quickAuthOptions = options.force
+      ? ({ force: true } as unknown as Parameters<typeof sdk.quickAuth.getToken>[0])
+      : undefined;
+    return await sdk.quickAuth.getToken(quickAuthOptions);
   } catch (err) {
     console.warn("Farcaster sign-in failed:", err);
     return null;
