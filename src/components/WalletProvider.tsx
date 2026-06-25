@@ -110,13 +110,13 @@ async function vaultSignIn(address: string, chainId: number, provider: WalletLik
     if (inMini) {
       console.log("Vault sign-in: using Farcaster SIWF");
       const result = await signInWithFarcaster(nonce);
-      if (!result) {
-        console.warn("Vault sign-in: Farcaster SDK signIn failed");
-        return null;
+      if (result) {
+        const verified = await verifyFarcasterSignIn(result.message, result.signature);
+        if (verified) return verified;
+        console.warn("Vault sign-in: Farcaster SIWF server verification failed, falling back to SIWE");
+      } else {
+        console.warn("Vault sign-in: Farcaster SDK signIn failed, falling back to SIWE");
       }
-      const verified = await verifyFarcasterSignIn(result.message, result.signature);
-      if (!verified) console.warn("Vault sign-in: Farcaster server verification failed");
-      return verified;
     }
 
     console.log("Vault sign-in: using SIWE");
