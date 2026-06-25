@@ -13,7 +13,6 @@ import { isMiniApp, signInWithFarcaster } from "@/lib/farcaster-sdk";
 import {
   connectFarcasterMiniAppWallet,
   disconnectFarcasterMiniAppWallet,
-  getFarcasterMiniAppWalletProvider,
   reconnectFarcasterMiniAppWallet,
 } from "@/lib/farcaster-wagmi";
 import { setActiveWalletProvider } from "@/lib/contract-helpers";
@@ -41,8 +40,10 @@ declare global {
 
 type WalletState = {
   address: string | null;
+  sessionAddress: string | null;
   role: "user" | "admin" | null;
   isConnected: boolean;
+  isAuthenticated: boolean;
   isConnecting: boolean;
   chainId: number | null;
   connect: () => Promise<void>;
@@ -51,8 +52,10 @@ type WalletState = {
 
 const WalletContext = createContext<WalletState>({
   address: null,
+  sessionAddress: null,
   role: null,
   isConnected: false,
+  isAuthenticated: false,
   isConnecting: false,
   chainId: null,
   connect: async () => {},
@@ -158,11 +161,42 @@ async function farcasterSignIn(): Promise<{ address: string; role: string } | nu
   }
 }
 
+function isEvmAddress(address: string | null | undefined): address is `0x${string}` {
+  return typeof address === "string" && /^0x[a-fA-F0-9]{40}$/.test(address);
+}
+
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = useState<string | null>(null);
+  const [sessionAddress, setSessionAddress] = useState<string | null>(null);
   const [role, setRole] = useState<"user" | "admin" | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+
+  const attachWallet = useCallback(async (options: { requestAccounts?: boolean } = {}) => {
+    const wallet = await selectWalletProvider(options);
+    if (!wallet) return null;
+    setActiveWalletProvider(wallet.provider);
+
+    const accounts = wallet.address
+      ? [wallet.address]
+      : ((await wallet.provider.request({
+          method: options.requestAccounts ? "eth_requestAccounts" : "eth_accounts",
+        })) as string[]);
+    if (!Array.isArray(accounts) || !isEvmAddress(accounts[0])) return null;
+
+    const chainIdNum =
+      wallet.chainId ??
+      parseInt(
+        (await wallet.provider.request({
+          method: "eth_chainId",
+        })) as string,
+        16,
+      );
+
+    setAddress(accounts[0]);
+    setChainId(chainIdNum);
+    return { address: accounts[0], chainId: chainIdNum, provider: wallet.provider };
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -173,8 +207,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const res = await fetch("/api/auth/session");
         const json = await res.json();
         if (json?.user?.address) {
-          setAddress(json.user.address);
+          setSessionAddress(json.user.address);
+          if (isEvmAddress(json.user.address)) setAddress(json.user.address);
           setRole(json.user.role === "admin" ? "admin" : "user");
+          if (await isMiniApp()) {
+            await attachWallet().catch(() => null);
+          }
           return;
         }
       } catch {
@@ -184,37 +222,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (await isMiniApp()) return;
 
       // 2. No session — auto-connect injected wallet outside Mini App
-      const wallet = await selectWalletProvider();
-      if (!wallet) return;
-      setActiveWalletProvider(wallet.provider);
-
       try {
-        const accounts = wallet.address
-          ? [wallet.address]
-          : ((await wallet.provider.request({
-              method: "eth_accounts",
-            })) as string[]);
-        if (Array.isArray(accounts) && accounts.length > 0) {
-          const chainIdNum =
-            wallet.chainId ??
-            parseInt(
-              (await wallet.provider.request({
-                method: "eth_chainId",
-              })) as string,
-              16,
-            );
-          setAddress(accounts[0]);
-          setChainId(chainIdNum);
-
-          // The Farcaster connector returns the primary Farcaster address.
-          // SIWE with this address binds the session to the same wallet.
+        const wallet = await attachWallet();
+        if (wallet) {
           const session = await siweSignIn(
-            accounts[0],
-            chainIdNum,
+            wallet.address,
+            wallet.chainId,
             wallet.provider,
           );
           if (session) {
-            setAddress(session.address || accounts[0]);
+            setSessionAddress(session.address);
             setRole(session.role === "admin" ? "admin" : "user");
           }
         }
@@ -222,7 +239,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         /* */
       }
     })();
-  }, []);
+  }, [attachWallet]);
 
   const connect = useCallback(async () => {
     setIsConnecting(true);
@@ -231,47 +248,24 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const session = await farcasterSignIn();
         if (!session) throw new Error("Farcaster sign-in did not complete");
 
-        setAddress(session.address);
-        setRole(session.role === "admin" ? "admin" : "user");
+        const wallet = await attachWallet({ requestAccounts: true });
+        if (!wallet) throw new Error("Mini App wallet connection did not complete");
 
-        const provider = await getFarcasterMiniAppWalletProvider().catch(
-          () => null,
-        );
-        if (provider) {
-          setActiveWalletProvider(provider);
-          const chain = await provider
-            .request({ method: "eth_chainId" })
-            .catch(() => null);
-          if (typeof chain === "string") setChainId(parseInt(chain, 16));
-        }
+        setSessionAddress(session.address);
+        setRole(session.role === "admin" ? "admin" : "user");
         return;
       }
 
-      const wallet = await selectWalletProvider({ requestAccounts: true });
+      const wallet = await attachWallet({ requestAccounts: true });
       if (!wallet) throw new Error("No wallet available");
-      setActiveWalletProvider(wallet.provider);
-
-      const accounts = wallet.address
-        ? [wallet.address]
-        : ((await wallet.provider.request({
-            method: "eth_requestAccounts",
-          })) as string[]);
-      const chainIdNum =
-        wallet.chainId ??
-        parseInt(
-          (await wallet.provider.request({ method: "eth_chainId" })) as string,
-          16,
-        );
-      setAddress(accounts[0]);
-      setChainId(chainIdNum);
 
       const session = await siweSignIn(
-        accounts[0],
-        chainIdNum,
+        wallet.address,
+        wallet.chainId,
         wallet.provider,
       );
       if (session) {
-        setAddress(session.address || accounts[0]);
+        setSessionAddress(session.address);
         setRole(session.role === "admin" ? "admin" : "user");
       }
     } catch (err) {
@@ -279,10 +273,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  }, []);
+  }, [attachWallet]);
 
   const disconnect = useCallback(() => {
     setAddress(null);
+    setSessionAddress(null);
     setRole(null);
     setChainId(null);
     setActiveWalletProvider(null);
@@ -301,8 +296,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         disconnect();
         return;
       }
+      if (!isEvmAddress(accounts[0])) return;
       setActiveWalletProvider(window.ethereum!);
       setAddress(accounts[0]);
+      setSessionAddress(null);
       setRole(null);
       try {
         await fetch("/api/auth/logout", {
@@ -320,7 +317,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           window.ethereum!,
         );
         if (session) {
-          setAddress(session.address || accounts[0]);
+          setSessionAddress(session.address);
+          setAddress(accounts[0]);
           setRole(session.role === "admin" ? "admin" : "user");
         }
       } catch {
@@ -360,8 +358,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     <WalletContext.Provider
       value={{
         address,
+        sessionAddress,
         role,
         isConnected: !!address,
+        isAuthenticated: !!role,
         isConnecting,
         chainId,
         connect,
