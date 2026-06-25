@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { SiweMessage } from "siwe";
 import { getAddress } from "viem";
+import { isMiniApp, getFarcasterWallet } from "@/lib/farcaster-sdk";
 
 
 // Extend Window type
@@ -91,16 +92,19 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         if (json?.user?.address) {
           setAddress(json.user.address);
           setRole(json.user.role === "admin" ? "admin" : "user");
-          return; // Already authenticated via session
+          return;
         }
       } catch { /* */ }
 
-      // 2. No session — check if wallet is already connected
-      if (!window.ethereum) return;
+      // 2. No session — try window.ethereum, then Farcaster wallet
+      const inMini = await isMiniApp();
+      const provider = window.ethereum || (inMini ? await getFarcasterWallet() : null);
+      if (!provider) return;
+
       try {
-        const accounts = await window.ethereum.request({ method: "eth_accounts" }) as string[];
+        const accounts = await provider.request({ method: "eth_accounts" }) as string[];
         if (Array.isArray(accounts) && accounts.length > 0) {
-          const chain = await window.ethereum.request({ method: "eth_chainId" }) as string;
+          const chain = await provider.request({ method: "eth_chainId" }) as string;
           const chainIdNum = parseInt(chain, 16);
           setAddress(accounts[0]);
           setChainId(chainIdNum);
@@ -118,18 +122,26 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(async () => {
     setIsConnecting(true);
     try {
-      if (typeof window !== "undefined" && window.ethereum) {
-        const accounts = await window.ethereum.request({ method: "eth_requestAccounts" }) as string[];
-        const chain = await window.ethereum.request({ method: "eth_chainId" }) as string;
-        const chainIdNum = parseInt(chain, 16);
-        setAddress(accounts[0]);
-        setChainId(chainIdNum);
+      let provider: typeof window.ethereum | Awaited<ReturnType<typeof getFarcasterWallet>> = null;
 
-        const session = await siweSignIn(accounts[0], chainIdNum);
-        if (session) {
-          setAddress(session.address || accounts[0]);
-          setRole(session.role === "admin" ? "admin" : "user");
-        }
+      if (typeof window !== "undefined" && window.ethereum) {
+        provider = window.ethereum;
+      } else if (typeof window !== "undefined") {
+        provider = await getFarcasterWallet();
+      }
+
+      if (!provider) throw new Error("No wallet available");
+
+      const accounts = await provider.request({ method: "eth_requestAccounts" }) as string[];
+      const chain = await provider.request({ method: "eth_chainId" }) as string;
+      const chainIdNum = parseInt(chain, 16);
+      setAddress(accounts[0]);
+      setChainId(chainIdNum);
+
+      const session = await siweSignIn(accounts[0], chainIdNum);
+      if (session) {
+        setAddress(session.address || accounts[0]);
+        setRole(session.role === "admin" ? "admin" : "user");
       }
     } catch (err) {
       console.error("Wallet connection failed:", err);
