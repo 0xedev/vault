@@ -1,6 +1,5 @@
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@farcaster/quick-auth";
 import { SiweMessage, generateNonce } from "siwe";
 import { getDatabase, databaseRequired, type DbClient } from "@/lib/api";
 import { csrfCheck } from "@/lib/security";
@@ -131,43 +130,37 @@ export async function verifyFarcasterSiwfSession(req: NextRequest) {
     return NextResponse.json({ error: "Invalid Farcaster sign-in payload" }, { status: 400 });
   }
 
-  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
-  const reqDomain = host.split(":")[0];
-
-  const siweMessage = new SiweMessage(message);
-  const nonce = String(siweMessage.nonce || "");
-  const msgDomain = String(siweMessage.domain || "");
-  const verifyDomain = msgDomain || reqDomain;
-
-  console.log("[auth/farcaster] SIWF payload", {
-    reqDomain,
-    msgDomain,
-    verifyDomain,
-    nonce: nonce.slice(0, 8) + "...",
-    address: siweMessage.address,
-    signatureLength: signature.length,
-  });
-
-  if (!(await consumeNonce(db, nonce))) {
-    console.warn("[auth/farcaster] Nonce invalid or expired", nonce);
-    return NextResponse.json({ error: "Nonce is invalid or expired" }, { status: 401 });
-  }
-
-  const quickAuth = createClient({
-    origin: process.env.FARCASTER_QUICK_AUTH_ORIGIN || "https://auth.farcaster.xyz",
-  });
-
+  // Verify the SIWE message locally — no external auth server dependency
   try {
-    await quickAuth.verifySiwf({ domain: verifyDomain, message, signature });
+    const siweMessage = new SiweMessage(message);
+    const nonce = String(siweMessage.nonce || "");
+
+    if (!(await consumeNonce(db, nonce))) {
+      return NextResponse.json({ error: "Nonce is invalid or expired" }, { status: 401 });
+    }
+
+    const domain = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+    const siweDomain = String(siweMessage.domain || "");
+    const expectedDomain = domain.split(":")[0];
+
+    // Domain must match
+    if (siweDomain && siweDomain !== expectedDomain) {
+      console.warn("[auth/farcaster] Domain mismatch", { siweDomain, expectedDomain });
+      return NextResponse.json({ error: "Domain mismatch" }, { status: 401 });
+    }
+
+    const { success, data } = await siweMessage.verify({ signature, nonce, domain: siweDomain || expectedDomain });
+    if (!success || !data.address) {
+      return NextResponse.json({ error: "Invalid Farcaster signature" }, { status: 401 });
+    }
+
+    const address = data.address.toLowerCase();
+    await db`UPDATE auth_nonces SET consumed_at = NOW(), address = ${address} WHERE nonce = ${nonce}`;
+    return createSession(db, address, siweMessage.chainId);
   } catch (err) {
-    const cause = err instanceof Error ? err.message : String(err);
-    console.warn("[auth/farcaster] SIWF verification failed", { verifyDomain, msgDomain, cause });
+    console.warn("[auth/farcaster] SIWF verification failed", err instanceof Error ? err.message : String(err));
     return NextResponse.json({ error: "Invalid Farcaster signature" }, { status: 401 });
   }
-
-  const address = siweMessage.address.toLowerCase();
-  await db`UPDATE auth_nonces SET consumed_at = NOW(), address = ${address} WHERE nonce = ${nonce}`;
-  return createSession(db, address, siweMessage.chainId);
 }
 
 export async function destroySession(req: NextRequest) {
