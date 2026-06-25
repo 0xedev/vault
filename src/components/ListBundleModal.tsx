@@ -36,11 +36,12 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
   const { address } = useWallet();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
   const [assets, setAssets] = useState<BundleFormAsset[]>([emptyAsset()]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const totalPrice = assets.reduce((sum, a) => sum + (Number(a.price) || 0), 0);
+  const totalPrice = Number(price || 0);
 
   const updateAsset = (i: number, update: Partial<BundleFormAsset>) => {
     setAssets((prev) => prev.map((a, idx) => (idx === i ? { ...a, ...update } : a)));
@@ -74,7 +75,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
     setError("");
 
     try {
-      const metadata = { name, description, assets, createdAt: new Date().toISOString() };
+      const metadata = { name, description, totalPrice, assets, createdAt: new Date().toISOString() };
       const metadataHash = hashMetadata(metadata);
       const priceWei = parseEther(String(totalPrice));
 
@@ -146,6 +147,19 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
               maxLength={500}
               style={{ minHeight: 56, resize: "vertical", padding: "10px 12px" }}
               aria-label="Bundle description"
+            />
+          </div>
+          <div>
+            <span className="label">Bundle price (Ξ)</span>
+            <input
+              className="input mono"
+              type="number"
+              min="0"
+              step="0.0001"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="0.00"
+              aria-label="Bundle price in ETH"
             />
           </div>
 
