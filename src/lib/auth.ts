@@ -131,16 +131,26 @@ export async function verifyFarcasterSiwfSession(req: NextRequest) {
     return NextResponse.json({ error: "Invalid Farcaster sign-in payload" }, { status: 400 });
   }
 
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
+  const reqDomain = host.split(":")[0];
+
   const siweMessage = new SiweMessage(message);
   const nonce = String(siweMessage.nonce || "");
-  if (!(await consumeNonce(db, nonce))) {
-    return NextResponse.json({ error: "Nonce is invalid or expired" }, { status: 401 });
-  }
+  const msgDomain = String(siweMessage.domain || "");
+  const verifyDomain = msgDomain || reqDomain;
 
-  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
-  const domain = host.split(":")[0];
-  if (!domain) {
-    return NextResponse.json({ error: "Missing request host" }, { status: 400 });
+  console.log("[auth/farcaster] SIWF payload", {
+    reqDomain,
+    msgDomain,
+    verifyDomain,
+    nonce: nonce.slice(0, 8) + "...",
+    address: siweMessage.address,
+    signatureLength: signature.length,
+  });
+
+  if (!(await consumeNonce(db, nonce))) {
+    console.warn("[auth/farcaster] Nonce invalid or expired", nonce);
+    return NextResponse.json({ error: "Nonce is invalid or expired" }, { status: 401 });
   }
 
   const quickAuth = createClient({
@@ -148,10 +158,10 @@ export async function verifyFarcasterSiwfSession(req: NextRequest) {
   });
 
   try {
-    await quickAuth.verifySiwf({ domain, message, signature });
+    await quickAuth.verifySiwf({ domain: verifyDomain, message, signature });
   } catch (err) {
     const cause = err instanceof Error ? err.message : String(err);
-    console.warn("[auth/farcaster] SIWF verification failed", { domain, cause });
+    console.warn("[auth/farcaster] SIWF verification failed", { verifyDomain, msgDomain, cause });
     return NextResponse.json({ error: "Invalid Farcaster signature" }, { status: 401 });
   }
 
