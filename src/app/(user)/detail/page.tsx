@@ -292,7 +292,7 @@ function LoanDetailContent() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status, txHash }),
+        body: JSON.stringify({ id, status, actorAddress: address, txHash }),
       });
       if (!res.ok) throw new Error("Unable to update offer");
       setOffers((current) => current.map((o) => o.id === id ? { ...o, status } : o));
@@ -391,7 +391,7 @@ function LoanDetailContent() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: offerId, status: "rejected" }),
+        body: JSON.stringify({ id: offerId, status: "rejected", actorAddress: address }),
       });
       setOffers((current) => current.map((o) => o.id === offerId ? { ...o, status: "withdrawn" } : o));
     } catch (err) {

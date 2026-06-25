@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { relativeDeadline, shortAddress, stageLabel, asNumber, asString, asBoolean, jsonArray, jsonRecord } from "@/lib/api";
-import { requireUser } from "@/lib/auth";
+import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { readDeal, mapDealStage, readDealEscrowBalance } from "@/lib/contract";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const auth = await requireUser(_req);
+  const auth = await requireUser(req);
   if ("response" in auth) return auth.response;
   const db = auth.db;
+  const url = new URL(req.url);
+  const actorAddress = actorAddressForRequest(auth.user, url.searchParams.get("walletAddress"));
 
   const rows = auth.user.role === "admin"
     ? await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.is_bundle, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id}` as Record<string, unknown>[]
-    : await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.is_bundle, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id} AND (e.buyer_address = ${auth.user.address} OR e.seller_address = ${auth.user.address})` as Record<string, unknown>[];
+    : await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.is_bundle, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id} AND (e.buyer_address = ${actorAddress} OR e.seller_address = ${actorAddress})` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Escrow not found" }, { status: 404 });
 
   const r = rows[0];

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
 import { mapClankerListing, mapFarcasterListing, mapLoanListing, mapMiniAppListing, mapXAccountListing, mapBundleListing } from "@/lib/marketplace";
-import { requireUser } from "@/lib/auth";
+import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { verifyClankerTokenOwnership } from "@/lib/clanker";
 
 const dbKindMap: Record<string, string> = {
@@ -92,13 +92,14 @@ export async function POST(
   if (!parsed.success) return badRequest("Invalid marketplace listing", parsed.error.flatten());
 
   const db = auth.db;
+  const sellerAddress = actorAddressForRequest(auth.user, parsed.data.sellerAddress);
   if (kind === "clanker") {
     const tokenAddress = String(parsed.data.data.tokenAddress || "");
     if (!tokenAddress.startsWith("0x") || tokenAddress.length !== 42) {
       return badRequest("A valid Clanker token contract address is required.");
     }
 
-    const ownership = await verifyClankerTokenOwnership(auth.user.address, tokenAddress);
+    const ownership = await verifyClankerTokenOwnership(sellerAddress, tokenAddress);
     if (!ownership.verified) {
       return NextResponse.json({ error: ownership.reason || "This wallet cannot list that Clanker token." }, { status: 403 });
     }
@@ -108,11 +109,11 @@ export async function POST(
   const id = `${idPrefix}-${Date.now()}`;
   const data = JSON.stringify(parsed.data.data);
 
-  await db`INSERT INTO users (address) VALUES (${auth.user.address}) ON CONFLICT (address) DO NOTHING`;
+  await db`INSERT INTO users (address) VALUES (${sellerAddress}) ON CONFLICT (address) DO NOTHING`;
   await db`INSERT INTO listings (id, seller_address, marketplace, title, description, price, collateral_data, status, moderation_status, chain_id, contract_address, contract_listing_id, tx_hash, tx_status)
-    VALUES (${id}, ${auth.user.address}, ${dbKind}, ${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.price}, ${data}, 'active', 'pending', ${parsed.data.chainId || null}, ${parsed.data.contractAddress || null}, ${parsed.data.contractListingId || null}, ${parsed.data.txHash || null}, ${parsed.data.txHash ? "pending" : "offchain"})`;
+    VALUES (${id}, ${sellerAddress}, ${dbKind}, ${parsed.data.title}, ${parsed.data.description || null}, ${parsed.data.price}, ${data}, 'active', 'pending', ${parsed.data.chainId || null}, ${parsed.data.contractAddress || null}, ${parsed.data.contractListingId || null}, ${parsed.data.txHash || null}, ${parsed.data.txHash ? "pending" : "offchain"})`;
   await db`INSERT INTO verifications (id, listing_id, marketplace, target, owner_address, method, status, checks)
-    VALUES (${`V-${Date.now()}`}, ${id}, ${dbKind}, ${parsed.data.title}, ${auth.user.address}, ${kind === "mini-apps" ? "dns" : kind === "x-accounts" ? "x_tweet" : kind === "clanker" ? "token_ownership" : "farcaster_registry"}, 'pending', ${JSON.stringify([])})`;
+    VALUES (${`V-${Date.now()}`}, ${id}, ${dbKind}, ${parsed.data.title}, ${sellerAddress}, ${kind === "mini-apps" ? "dns" : kind === "x-accounts" ? "x_tweet" : kind === "clanker" ? "token_ownership" : "farcaster_registry"}, 'pending', ${JSON.stringify([])})`;
 
   return NextResponse.json({ data: { id, status: "pending" } }, { status: 201 });
 }

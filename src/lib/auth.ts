@@ -10,6 +10,7 @@ import { authLogger } from "@/lib/logger";
 export type AuthUser = {
   address: string;
   role: "user" | "admin";
+  fid?: number;
 };
 
 const SESSION_COOKIE = "vault_session";
@@ -23,8 +24,24 @@ function adminWallets() {
     .filter(Boolean);
 }
 
+function isFarcasterAddress(address: string) {
+  return address.startsWith("farcaster:");
+}
+
+function farcasterAddress(fid: number) {
+  return `farcaster:${fid}`;
+}
+
+export function isEvmAddress(address: unknown): address is `0x${string}` {
+  return typeof address === "string" && /^0x[a-fA-F0-9]{40}$/.test(address);
+}
+
+export function actorAddressForRequest(user: AuthUser, walletAddress: unknown) {
+  return isEvmAddress(walletAddress) ? walletAddress.toLowerCase() : user.address;
+}
+
 function isBootstrapAdmin(address: string) {
-  return adminWallets().includes(address.toLowerCase());
+  return !isFarcasterAddress(address) && adminWallets().includes(address.toLowerCase());
 }
 
 function newId(prefix: string) {
@@ -119,26 +136,21 @@ export async function verifySiweSession(req: NextRequest) {
   return createSession(db, address, data.chainId);
 }
 
-export async function verifyFarcasterSiwfSession(req: NextRequest) {
+export async function verifyFarcasterQuickAuthSession(req: NextRequest) {
   const guarded = await mutationGuard(req);
   if (guarded) return guarded;
 
   const db = getDatabase();
   if (!db) return databaseRequired();
 
-  const { message, signature } = await req.json();
-  if (typeof message !== "string" || typeof signature !== "string") {
-    return NextResponse.json({ error: "Invalid Farcaster sign-in payload" }, { status: 400 });
+  const { token } = await req.json();
+  if (typeof token !== "string" || !token) {
+    return NextResponse.json({ error: "Quick Auth token is required" }, { status: 400 });
   }
 
-  const siweMessage = new SiweMessage(message);
-  const nonce = String(siweMessage.nonce || "");
-
-  if (!(await consumeNonce(db, nonce))) {
-    return NextResponse.json({ error: "Nonce is invalid or expired" }, { status: 401 });
-  }
-
-  const domain = req.headers.get("host") || "";
+  const domain = process.env.NEXT_PUBLIC_URL
+    ? new URL(process.env.NEXT_PUBLIC_URL).hostname
+    : req.headers.get("host") || "";
   if (!domain) {
     return NextResponse.json({ error: "Missing request host" }, { status: 400 });
   }
@@ -148,19 +160,20 @@ export async function verifyFarcasterSiwfSession(req: NextRequest) {
   });
 
   try {
-    await quickAuth.verifySiwf({
+    const payload = await quickAuth.verifyJwt({
       domain,
-      message,
-      signature,
+      token,
     });
-  } catch (err) {
-    console.warn("[auth/farcaster] SIWF verification failed", err);
-    return NextResponse.json({ error: "Invalid Farcaster signature" }, { status: 401 });
-  }
+    const fid = Number(payload.sub);
+    if (!Number.isFinite(fid) || fid <= 0) {
+      return NextResponse.json({ error: "Invalid Farcaster user" }, { status: 401 });
+    }
 
-  const address = siweMessage.address.toLowerCase();
-  await db`UPDATE auth_nonces SET consumed_at = NOW(), address = ${address} WHERE nonce = ${nonce}`;
-  return createSession(db, address, siweMessage.chainId);
+    return createSession(db, farcasterAddress(fid));
+  } catch (err) {
+    console.warn("[auth/farcaster] Quick Auth verification failed", err);
+    return NextResponse.json({ error: "Invalid Farcaster token" }, { status: 401 });
+  }
 }
 
 export async function destroySession(req: NextRequest) {
@@ -192,7 +205,8 @@ export async function getSession(req: NextRequest): Promise<AuthUser | null> {
   if (rows.length === 0) return null;
   const address = String(rows[0].address || "").toLowerCase();
   const role = String(rows[0].role || "user") === "admin" || isBootstrapAdmin(address) ? "admin" : "user";
-  return { address, role };
+  const fid = isFarcasterAddress(address) ? Number(address.replace("farcaster:", "")) : undefined;
+  return { address, role, fid: Number.isFinite(fid) ? fid : undefined };
 }
 
 export async function getSessionResponse(req: NextRequest) {

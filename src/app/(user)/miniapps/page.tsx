@@ -355,6 +355,7 @@ export default function MiniAppsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: app.id,
+          buyerAddress: address,
           sellerAddress: app.sellerAddress,
           amount: app.price,
           currency: "ETH",

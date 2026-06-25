@@ -15,6 +15,14 @@ const topNavItems: [string, string][] = [
   ["/deals",     "Profile"],
 ];
 
+function formatIdentity(address: string | null) {
+  if (!address) return "";
+  if (address.startsWith("farcaster:")) {
+    return `FID ${address.replace("farcaster:", "")}`;
+  }
+  return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
 export default function TopBar({ onMenu }: { onMenu: () => void }) {
   const pathname = usePathname();
   const { address, isConnected, isConnecting, connect, disconnect } = useWallet();
@@ -50,7 +58,7 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
         {isConnected ? (
           <div className="wallet" style={{ cursor: "pointer" }} onClick={disconnect}>
             <span className="dot"/>
-            <span>{address?.slice(0, 6)}…{address?.slice(-4)}</span>
+            <span>{formatIdentity(address)}</span>
           </div>
         ) : (
           <button className="btn primary" onClick={connect} disabled={isConnecting}>

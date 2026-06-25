@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { keccak256, toHex, encodeAbiParameters, parseAbiParameters } from "viem";
 import { asNumber, badRequest, jsonArray, jsonRecord, type DbClient } from "@/lib/api";
-import { requireAdmin, requireUser, rotateSession } from "@/lib/auth";
+import { actorAddressForRequest, requireAdmin, requireUser, rotateSession } from "@/lib/auth";
 import { writeAudit } from "@/lib/admin";
 import { getEscrowAddress, getPublicClient } from "@/lib/contract";
 import { verifyClankerRightsTransferred } from "@/lib/clanker";
@@ -11,11 +11,13 @@ export const proofSchema = z.object({
   proofType: z.enum(["transfer", "delivery", "evidence", "other"]).default("evidence"),
   url: z.string().url(),
   contentHash: z.string().min(8),
+  actorAddress: z.string().startsWith("0x").length(42).optional(),
   txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
   note: z.string().max(1000).optional(),
 });
 
 const actionSchema = z.object({
+  actorAddress: z.string().startsWith("0x").length(42).optional(),
   txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
   note: z.string().max(1000).optional(),
 });
@@ -117,12 +119,13 @@ export async function addEscrowProof(req: NextRequest, escrowId: string) {
   if ("response" in auth) return auth.response;
   const parsed = proofSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid proof", parsed.error.flatten());
+  const actorAddress = actorAddressForRequest(auth.user, parsed.data.actorAddress);
 
   const rows = await auth.db`
     SELECT e.*, l.marketplace, l.collateral_data
     FROM escrows e
     LEFT JOIN listings l ON l.id = e.listing_id
-    WHERE e.id = ${escrowId} AND (e.buyer_address = ${auth.user.address} OR e.seller_address = ${auth.user.address})
+    WHERE e.id = ${escrowId} AND (e.buyer_address = ${actorAddress} OR e.seller_address = ${actorAddress})
     LIMIT 1
   ` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Escrow not found for this session" }, { status: 404 });
@@ -137,7 +140,7 @@ export async function addEscrowProof(req: NextRequest, escrowId: string) {
 
   const id = `P-${Date.now()}`;
   await auth.db`INSERT INTO escrow_proofs (id, escrow_id, actor_address, proof_type, url, content_hash, note)
-    VALUES (${id}, ${escrowId}, ${auth.user.address}, ${parsed.data.proofType}, ${parsed.data.url}, ${parsed.data.contentHash}, ${parsed.data.note || null})`;
+    VALUES (${id}, ${escrowId}, ${actorAddress}, ${parsed.data.proofType}, ${parsed.data.url}, ${parsed.data.contentHash}, ${parsed.data.note || null})`;
   await auth.db`UPDATE escrows SET stage = 'asset_transferred', tx_hash = COALESCE(${parsed.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${parsed.data.txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END, updated_at = NOW() WHERE id = ${escrowId} AND stage IN ('funds_locked', 'asset_transferred')`;
   return NextResponse.json({ data: { id, escrowId, ...parsed.data } }, { status: 201 });
 }
@@ -147,8 +150,9 @@ export async function confirmEscrow(req: NextRequest, escrowId: string) {
   if ("response" in auth) return auth.response;
   const body = actionSchema.safeParse(await req.json().catch(() => ({})));
   if (!body.success) return badRequest("Invalid confirmation", body.error.flatten());
+  const actorAddress = actorAddressForRequest(auth.user, body.data.actorAddress);
 
-  const rows = await auth.db`SELECT * FROM escrows WHERE id = ${escrowId} AND buyer_address = ${auth.user.address} LIMIT 1` as Record<string, unknown>[];
+  const rows = await auth.db`SELECT * FROM escrows WHERE id = ${escrowId} AND buyer_address = ${actorAddress} LIMIT 1` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Only the buyer can confirm this escrow" }, { status: 403 });
   await auth.db`UPDATE escrows SET stage = 'awaiting_confirmation', tx_hash = COALESCE(${body.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${body.data.txHash || null} IS NULL THEN tx_status ELSE 'pending' END, updated_at = NOW() WHERE id = ${escrowId}`;
   return NextResponse.json({ data: { id: escrowId, stage: "awaiting_confirmation" } });
@@ -159,12 +163,13 @@ export async function releaseEscrow(req: NextRequest, escrowId: string) {
   if ("response" in auth) return auth.response;
   const body = actionSchema.safeParse(await req.json().catch(() => ({})));
   if (!body.success) return badRequest("Invalid release", body.error.flatten());
+  const actorAddress = actorAddressForRequest(auth.user, body.data.actorAddress);
 
   const rows = await auth.db`
     SELECT e.*, l.marketplace, l.collateral_data
     FROM escrows e
     LEFT JOIN listings l ON l.id = e.listing_id
-    WHERE e.id = ${escrowId} AND e.buyer_address = ${auth.user.address}
+    WHERE e.id = ${escrowId} AND e.buyer_address = ${actorAddress}
     LIMIT 1
   ` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Only the buyer can release this escrow" }, { status: 403 });
@@ -191,8 +196,9 @@ export async function refundEscrow(req: NextRequest, escrowId: string) {
   if ("response" in auth) return auth.response;
   const body = actionSchema.safeParse(await req.json().catch(() => ({})));
   if (!body.success) return badRequest("Invalid refund", body.error.flatten());
+  const actorAddress = actorAddressForRequest(auth.user, body.data.actorAddress);
 
-  const rows = await auth.db`SELECT * FROM escrows WHERE id = ${escrowId} AND (buyer_address = ${auth.user.address} OR seller_address = ${auth.user.address}) LIMIT 1` as Record<string, unknown>[];
+  const rows = await auth.db`SELECT * FROM escrows WHERE id = ${escrowId} AND (buyer_address = ${actorAddress} OR seller_address = ${actorAddress}) LIMIT 1` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Escrow not found for this session" }, { status: 404 });
   const invalidTx = await requireConfirmedEscrowTx(rows[0], body.data.txHash);
   if (invalidTx) return invalidTx;
@@ -205,19 +211,21 @@ export async function disputeEscrow(req: NextRequest, escrowId: string) {
   if ("response" in auth) return auth.response;
   const body = z.object({
     reason: z.string().min(10).max(500),
+    actorAddress: z.string().startsWith("0x").length(42).optional(),
     txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
   }).safeParse(await req.json());
   if (!body.success) return badRequest("Invalid dispute", body.error.flatten());
+  const actorAddress = actorAddressForRequest(auth.user, body.data.actorAddress);
 
-  const rows = await auth.db`SELECT * FROM escrows WHERE id = ${escrowId} AND (buyer_address = ${auth.user.address} OR seller_address = ${auth.user.address}) LIMIT 1` as Record<string, unknown>[];
+  const rows = await auth.db`SELECT * FROM escrows WHERE id = ${escrowId} AND (buyer_address = ${actorAddress} OR seller_address = ${actorAddress}) LIMIT 1` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Escrow not found for this session" }, { status: 404 });
   const invalidTx = await requireConfirmedEscrowTx(rows[0], body.data.txHash);
   if (invalidTx) return invalidTx;
   const escrow = rows[0];
-  const against = String(escrow.buyer_address).toLowerCase() === auth.user.address ? String(escrow.seller_address) : String(escrow.buyer_address);
+  const against = String(escrow.buyer_address).toLowerCase() === actorAddress ? String(escrow.seller_address) : String(escrow.buyer_address);
   const disputeId = `D-${Date.now()}`;
   await auth.db`INSERT INTO disputes (id, escrow_id, filer_address, against_address, reason, status, priority)
-    VALUES (${disputeId}, ${escrowId}, ${auth.user.address}, ${against}, ${body.data.reason}, 'open', 'medium')`;
+    VALUES (${disputeId}, ${escrowId}, ${actorAddress}, ${against}, ${body.data.reason}, 'open', 'medium')`;
   await auth.db`UPDATE escrows SET stage = 'disputed', updated_at = NOW() WHERE id = ${escrowId}`;
   return NextResponse.json({ data: { id: disputeId, escrowId, status: "open" } }, { status: 201 });
 }

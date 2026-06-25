@@ -275,6 +275,7 @@ export default function FarcasterPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: account.id,
+          buyerAddress: address,
           sellerAddress: account.sellerAddress,
           amount: account.price,
           currency: "ETH",

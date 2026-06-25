@@ -160,11 +160,12 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
   const isClankerDeal = Boolean(deal.clankerTransfer?.tokenAddress);
 
   useEffect(() => {
-    fetch(`/api/deals/${deal.id}/messages`)
+    const query = address ? `?walletAddress=${encodeURIComponent(address)}` : "";
+    fetch(`/api/deals/${deal.id}/messages${query}`)
       .then(r => r.json())
       .then(json => setMessages(json.data || []))
       .catch(() => {});
-  }, [deal.id]);
+  }, [address, deal.id]);
 
   // Farcaster Mini App embed for this deal
   useEffect(() => {
@@ -229,7 +230,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(txHash ? { ...body, txHash } : body),
+        body: JSON.stringify({ ...body, actorAddress: address, ...(txHash ? { txHash } : {}) }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Escrow action failed");
@@ -250,6 +251,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         proofType: "transfer",
+        actorAddress: address,
         url: `https://basescan.org/tx/${txHash}`,
         contentHash: txHash,
         txHash,
@@ -361,7 +363,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: draft }),
+        body: JSON.stringify({ actorAddress: address, body: draft }),
       });
       const json = await res.json();
       if (json.data) setMessages(prev => [...prev, json.data]);
@@ -600,17 +602,18 @@ export default function DealsPage() {
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null);
   const [dealDetail, setDealDetail] = useState<DealDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const { isConnected, isConnecting, connect, role } = useWallet();
+  const { isConnected, isConnecting, connect, role, address } = useWallet();
 
   const loadEscrows = React.useCallback(() => {
-    return fetch("/api/escrows")
+    const query = address ? `?walletAddress=${encodeURIComponent(address)}` : "";
+    return fetch(`/api/escrows${query}`)
       .then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error || "Unable to load deals");
         return json;
       })
       .then((json) => { setEscrows(json.data || []); setLoading(false); });
-  }, []);
+  }, [address]);
 
   useEffect(() => {
     if (!isConnected || !role) { queueMicrotask(() => { setLoading(false); setError("Authentication required"); }); return; }
@@ -622,11 +625,12 @@ export default function DealsPage() {
   useEffect(() => {
     if (!selectedDealId) { queueMicrotask(() => setDealDetail(null)); return; }
     queueMicrotask(() => setDetailLoading(true));
-    fetch(`/api/escrows/${selectedDealId}`)
+    const query = address ? `?walletAddress=${encodeURIComponent(address)}` : "";
+    fetch(`/api/escrows/${selectedDealId}${query}`)
       .then(r => r.json())
       .then(json => { setDealDetail(json.data || null); setDetailLoading(false); })
       .catch(() => setDetailLoading(false));
-  }, [selectedDealId]);
+  }, [address, selectedDealId]);
 
   /* -- computed -- */
   const active     = escrows.filter(e => e.stage !== "Released" && e.stage !== "Refunded");

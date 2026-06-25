@@ -3,7 +3,7 @@ import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
 import { mapBundleListing } from "@/lib/marketplace";
 import type { BundleAsset } from "@/lib/data";
-import { requireUser } from "@/lib/auth";
+import { actorAddressForRequest, requireUser } from "@/lib/auth";
 
 const bundleAssetSchema = z.object({
   kind: z.enum(["nft_loan", "mini_app", "x_account", "farcaster", "clanker"]),
@@ -15,6 +15,7 @@ const bundleAssetSchema = z.object({
 
 const bundleListingSchema = z.object({
   id: z.string().min(1).optional(),
+  sellerAddress: z.string().startsWith("0x").length(42).optional(),
   name: z.string().min(2, "Bundle name is required"),
   description: z.string().optional().default(""),
   totalPrice: z.number().positive(),
@@ -78,6 +79,7 @@ export async function POST(req: NextRequest) {
 
   const db = auth.db;
   const data = parsed.data;
+  const sellerAddress = actorAddressForRequest(auth.user, data.sellerAddress);
   const id = data.id || `B-${Date.now()}`;
 
   const collateralData = JSON.stringify({
@@ -89,10 +91,10 @@ export async function POST(req: NextRequest) {
     })),
   });
 
-  await db`INSERT INTO users (address) VALUES (${auth.user.address}) ON CONFLICT (address) DO NOTHING`;
+  await db`INSERT INTO users (address) VALUES (${sellerAddress}) ON CONFLICT (address) DO NOTHING`;
 
   await db`INSERT INTO listings (id, seller_address, marketplace, title, description, price, collateral_data, status, moderation_status, is_bundle, chain_id, contract_address, contract_listing_id, tx_hash, tx_status)
-    VALUES (${id}, ${auth.user.address}, 'bundle', ${data.name}, ${data.description || null}, ${data.totalPrice}, ${collateralData}, 'active', 'pending', 'true', ${data.chainId || null}, ${data.contractAddress || null}, ${data.contractListingId || null}, ${data.txHash || null}, ${data.txHash ? "pending" : "offchain"})`;
+    VALUES (${id}, ${sellerAddress}, 'bundle', ${data.name}, ${data.description || null}, ${data.totalPrice}, ${collateralData}, 'active', 'pending', 'true', ${data.chainId || null}, ${data.contractAddress || null}, ${data.contractListingId || null}, ${data.txHash || null}, ${data.txHash ? "pending" : "offchain"})`;
 
   for (let i = 0; i < data.assets.length; i++) {
     const asset = data.assets[i];
@@ -107,7 +109,7 @@ export async function POST(req: NextRequest) {
       asset.kind === "mini_app" ? "dns" :
       "nft_ownership";
     await db`INSERT INTO verifications (id, listing_id, marketplace, target, owner_address, method, status, checks)
-      VALUES (${`V-${Date.now()}-${i}`}, ${id}, ${asset.kind}, ${asset.label}, ${auth.user.address}, ${method}, 'pending', ${JSON.stringify([])})`;
+      VALUES (${`V-${Date.now()}-${i}`}, ${id}, ${asset.kind}, ${asset.label}, ${sellerAddress}, ${method}, 'pending', ${JSON.stringify([])})`;
   }
 
   const bundle: BundleAsset[] = data.assets.map((a: z.infer<typeof bundleAssetSchema>, i: number) => ({

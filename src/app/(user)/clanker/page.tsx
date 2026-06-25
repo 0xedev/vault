@@ -271,6 +271,7 @@ export default function ClankerPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           listingId: token.id,
+          buyerAddress: address,
           sellerAddress: token.sellerAddress,
           amount: token.price,
           currency: "ETH",

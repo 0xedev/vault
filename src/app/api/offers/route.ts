@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase, shortAddress } from "@/lib/api";
-import { forbidden, requireUser } from "@/lib/auth";
+import { actorAddressForRequest, forbidden, requireUser } from "@/lib/auth";
 import { getEscrowAddress, getPublicClient, readOffer, readOfferCount } from "@/lib/contract";
 import { getAddress } from "viem";
 
@@ -19,6 +19,7 @@ const offerSchema = z.object({
 const offerStatusSchema = z.object({
   id: z.string().min(1),
   status: z.enum(["accepted", "rejected"]),
+  actorAddress: z.string().startsWith("0x").length(42).optional(),
   txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
 });
 
@@ -88,13 +89,14 @@ export async function POST(req: NextRequest) {
   }
 
   const db = auth.db;
+  const offererAddress = actorAddressForRequest(auth.user, parsed.data.offererAddress);
   const id = `O-${Date.now()}`;
 
-  await db`INSERT INTO users (address) VALUES (${auth.user.address}) ON CONFLICT (address) DO NOTHING`;
+  await db`INSERT INTO users (address) VALUES (${offererAddress}) ON CONFLICT (address) DO NOTHING`;
   await db`INSERT INTO offers (id, listing_id, offerer_address, amount, apr, term_days, status, chain_id, tx_hash, tx_status)
-    VALUES (${id}, ${parsed.data.listingId}, ${auth.user.address}, ${parsed.data.amount}, ${parsed.data.apr || null}, ${parsed.data.termDays || null}, 'pending', ${parsed.data.chainId || null}, ${parsed.data.txHash || null}, ${parsed.data.txHash ? "pending" : "offchain"})`;
+    VALUES (${id}, ${parsed.data.listingId}, ${offererAddress}, ${parsed.data.amount}, ${parsed.data.apr || null}, ${parsed.data.termDays || null}, 'pending', ${parsed.data.chainId || null}, ${parsed.data.txHash || null}, ${parsed.data.txHash ? "pending" : "offchain"})`;
 
-  return NextResponse.json({ data: { id, ...parsed.data, offererAddress: auth.user.address, status: "pending", createdAt: new Date().toISOString() } }, { status: 201 });
+  return NextResponse.json({ data: { id, ...parsed.data, offererAddress, status: "pending", createdAt: new Date().toISOString() } }, { status: 201 });
 }
 
 export async function PATCH(req: NextRequest) {
@@ -103,6 +105,7 @@ export async function PATCH(req: NextRequest) {
 
   const parsed = offerStatusSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid offer status", parsed.error.flatten());
+  const actorAddress = actorAddressForRequest(auth.user, parsed.data.actorAddress);
 
   const db = auth.db;
   const rows = await db`
@@ -114,8 +117,8 @@ export async function PATCH(req: NextRequest) {
   ` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Offer not found" }, { status: 404 });
 
-  const isSeller = String(rows[0].seller_address).toLowerCase() === auth.user.address;
-  const isOfferer = String(rows[0].offerer_address).toLowerCase() === auth.user.address;
+  const isSeller = String(rows[0].seller_address).toLowerCase() === actorAddress;
+  const isOfferer = String(rows[0].offerer_address).toLowerCase() === actorAddress;
   const isRejection = parsed.data.status === "rejected";
 
   if (!isSeller && auth.user.role !== "admin" && !(isOfferer && isRejection)) {
