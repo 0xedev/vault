@@ -4,11 +4,18 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { SiweMessage } from "siwe";
 import { getAddress } from "viem";
 import { isMiniApp, getFarcasterWallet, signInWithFarcaster } from "@/lib/farcaster-sdk";
+import { setActiveWalletProvider } from "@/lib/contract-helpers";
 
 type WalletLike = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
   on?: (event: string, handler: (...args: unknown[]) => void) => void;
   removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+};
+
+type WalletSource = "farcaster" | "injected";
+type SelectedWallet = {
+  provider: WalletLike;
+  source: WalletSource;
 };
 
 // Extend Window type
@@ -42,12 +49,47 @@ export function useWallet() {
   return useContext(WalletContext);
 }
 
-async function siweSignIn(address: string, chainId: number, provider: WalletLike): Promise<{ address: string; role: string } | null> {
+async function selectWalletProvider(): Promise<SelectedWallet | null> {
+  const inMini = await isMiniApp();
+  if (inMini) {
+    const farcasterProvider = await getFarcasterWallet();
+    if (farcasterProvider) return { provider: farcasterProvider, source: "farcaster" };
+  }
+
+  if (typeof window !== "undefined" && window.ethereum) {
+    return { provider: window.ethereum, source: "injected" };
+  }
+
+  return null;
+}
+
+async function verifySignedMessage(message: unknown, signature: unknown): Promise<{ address: string; role: string } | null> {
+  const verifyRes = await fetch("/api/auth/verify", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, signature }),
+  });
+  if (!verifyRes.ok) {
+    const json = await verifyRes.json().catch(() => ({}));
+    console.warn("Vault sign-in verification failed:", json.error || verifyRes.statusText);
+    return null;
+  }
+  return verifyRes.json();
+}
+
+async function vaultSignIn(address: string, chainId: number, provider: WalletLike, source: WalletSource): Promise<{ address: string; role: string } | null> {
   try {
-    const siweAddr = getAddress(address);
     const nonceRes = await fetch("/api/auth/nonce");
     const { nonce } = await nonceRes.json();
 
+    if (source === "farcaster") {
+      const farcaster = await signInWithFarcaster(nonce);
+      if (!farcaster) return null;
+      return verifySignedMessage(farcaster.message, farcaster.signature);
+    }
+
+    const siweAddr = getAddress(address);
     const message = new SiweMessage({
       domain: window.location.host,
       address: siweAddr,
@@ -58,31 +100,11 @@ async function siweSignIn(address: string, chainId: number, provider: WalletLike
       nonce,
     });
 
-    let verifyBody: Record<string, unknown> | null = null;
-    try {
-      const signature = await provider.request({
-        method: "personal_sign",
-        params: [message.prepareMessage(), address],
-      });
-      verifyBody = { message, signature };
-    } catch {
-      const farcaster = await signInWithFarcaster(nonce);
-      if (!farcaster) return null;
-      verifyBody = { message: farcaster.message, signature: farcaster.signature };
-    }
-
-    const verifyRes = await fetch("/api/auth/verify", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(verifyBody),
+    const signature = await provider.request({
+      method: "personal_sign",
+      params: [message.prepareMessage(), address],
     });
-    if (!verifyRes.ok) {
-      const json = await verifyRes.json().catch(() => ({}));
-      console.warn("Vault sign-in verification failed:", json.error || verifyRes.statusText);
-      return null;
-    }
-    return verifyRes.json();
+    return verifySignedMessage(message, signature);
   } catch (err) {
     console.warn("Vault sign-in failed:", err);
     return null;
@@ -111,22 +133,23 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         }
       } catch { /* */ }
 
-      // 2. No session — try window.ethereum, then Farcaster wallet
-      const inMini = await isMiniApp();
-      const provider = window.ethereum || (inMini ? await getFarcasterWallet() : null);
-      if (!provider) return;
+      // 2. No session — use Farcaster SDK first inside Mini App, otherwise injected wallet
+      const wallet = await selectWalletProvider();
+      if (!wallet) return;
+      setActiveWalletProvider(wallet.provider);
 
       try {
-        const accounts = await provider.request({ method: "eth_accounts" }) as string[];
+        const accounts = await wallet.provider.request({ method: "eth_accounts" }) as string[];
         if (Array.isArray(accounts) && accounts.length > 0) {
-          const chain = await provider.request({ method: "eth_chainId" }) as string;
+          const chain = await wallet.provider.request({ method: "eth_chainId" }) as string;
           const chainIdNum = parseInt(chain, 16);
           setAddress(accounts[0]);
           setChainId(chainIdNum);
 
-          // 3. Auto SIWE — wallet connected but no session
-          const session = await siweSignIn(accounts[0], chainIdNum, provider);
+          // 3. Auto sign-in — Farcaster SIWF in Mini App, SIWE on web
+          const session = await vaultSignIn(accounts[0], chainIdNum, wallet.provider, wallet.source);
           if (session) {
+            setAddress(session.address || accounts[0]);
             setRole(session.role === "admin" ? "admin" : "user");
           }
         }
@@ -137,23 +160,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const connect = useCallback(async () => {
     setIsConnecting(true);
     try {
-      let provider: WalletLike | null = null;
+      const wallet = await selectWalletProvider();
+      if (!wallet) throw new Error("No wallet available");
+      setActiveWalletProvider(wallet.provider);
 
-      if (typeof window !== "undefined" && window.ethereum) {
-        provider = window.ethereum;
-      } else if (typeof window !== "undefined") {
-        provider = await getFarcasterWallet();
-      }
-
-      if (!provider) throw new Error("No wallet available");
-
-      const accounts = await provider.request({ method: "eth_requestAccounts" }) as string[];
-      const chain = await provider.request({ method: "eth_chainId" }) as string;
+      const accounts = await wallet.provider.request({ method: "eth_requestAccounts" }) as string[];
+      const chain = await wallet.provider.request({ method: "eth_chainId" }) as string;
       const chainIdNum = parseInt(chain, 16);
       setAddress(accounts[0]);
       setChainId(chainIdNum);
 
-      const session = await siweSignIn(accounts[0], chainIdNum, provider);
+      const session = await vaultSignIn(accounts[0], chainIdNum, wallet.provider, wallet.source);
       if (session) {
         setAddress(session.address || accounts[0]);
         setRole(session.role === "admin" ? "admin" : "user");
@@ -169,12 +186,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setAddress(null);
     setRole(null);
     setChainId(null);
+    setActiveWalletProvider(null);
     fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
   }, []);
 
   // Listen for account/chain changes
   useEffect(() => {
     if (typeof window === "undefined" || !window.ethereum) return;
+    let active = true;
 
     const handleAccountsChanged = async (accounts: string[]) => {
       if (accounts.length === 0) {
@@ -183,6 +202,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       }
 
       const nextAddress = accounts[0];
+      setActiveWalletProvider(window.ethereum!);
       setAddress(nextAddress);
       setRole(null);
 
@@ -191,7 +211,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const chain = await window.ethereum!.request({ method: "eth_chainId" }) as string;
         const chainIdNum = parseInt(chain, 16);
         setChainId(chainIdNum);
-        const session = await siweSignIn(nextAddress, chainIdNum, window.ethereum!);
+        const session = await vaultSignIn(nextAddress, chainIdNum, window.ethereum!, "injected");
         if (session) {
           setAddress(session.address || nextAddress);
           setRole(session.role === "admin" ? "admin" : "user");
@@ -205,12 +225,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setChainId(parseInt(chain, 16));
     };
 
-    window.ethereum.on?.("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
-    window.ethereum.on?.("chainChanged", handleChainChanged as (...args: unknown[]) => void);
+    void isMiniApp().then((inMini) => {
+      if (!active || inMini) return;
+      window.ethereum?.on?.("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
+      window.ethereum?.on?.("chainChanged", handleChainChanged as (...args: unknown[]) => void);
+    });
 
     return () => {
-      window.ethereum!.removeListener?.("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
-      window.ethereum!.removeListener?.("chainChanged", handleChainChanged as (...args: unknown[]) => void);
+      active = false;
+      window.ethereum?.removeListener?.("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
+      window.ethereum?.removeListener?.("chainChanged", handleChainChanged as (...args: unknown[]) => void);
     };
   }, [disconnect]);
 

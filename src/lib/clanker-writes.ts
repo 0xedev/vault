@@ -12,6 +12,7 @@ import {
   type Hash,
 } from "viem";
 import { arbitrum, base, baseSepolia, bsc, mainnet, optimism } from "viem/chains";
+import { getActiveWalletProvider } from "@/lib/contract-helpers";
 
 const ERC20_ABI = [
   {
@@ -63,10 +64,11 @@ function chainForId(chainId?: number): Chain {
 }
 
 function requireWallet() {
-  if (typeof window === "undefined" || !window.ethereum) {
+  const provider = getActiveWalletProvider();
+  if (!provider) {
     throw new Error("No wallet available");
   }
-  return window.ethereum;
+  return provider;
 }
 
 function publicClientFor(chain: Chain) {

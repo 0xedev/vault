@@ -11,6 +11,7 @@ import NFTArt from "@/components/NFTArt";
 import { COLLECTIONS } from "@/lib/data";
 import { useWallet } from "@/components/WalletProvider";
 import { approveNft, getEscrowAddress, writeListNFT, waitForListingId, parseContractError } from "@/lib/contract";
+import { getActiveWalletProvider } from "@/lib/contract-helpers";
 import { parseEther } from "viem";
 import type { ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount, BundleListing } from "@/lib/data";
 import BundleCard from "@/components/BundleCard";
@@ -128,9 +129,10 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       if (!address) throw new Error("Wallet not connected");
 
       // 1. Sign a message proving intent to list
-      if (window.ethereum) {
+      const provider = getActiveWalletProvider();
+      if (provider) {
         const message = `List ${collection} ${tokenId} as collateral for ${amount} Ξ loan at ${apr}% APR / ${term} days on Vault`;
-        await window.ethereum.request({
+        await provider.request({
           method: "personal_sign",
           params: [message, address],
         });

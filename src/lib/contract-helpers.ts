@@ -1,10 +1,26 @@
 import { createPublicClient, createWalletClient, custom, decodeEventLog, http, keccak256, parseAbi, toHex, type Address, type Hash } from "viem";
 import { base } from "viem/chains";
 
+type WalletProviderLike = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+};
+
 const ESCROW_EVENT_ABI = parseAbi([
   "event Listed(uint256 indexed listingId, address borrower, address nftContract, uint256 tokenId, uint256 amount, uint256 apr, uint256 term)",
   "event DealListed(uint256 indexed dealId, address seller, uint256 price, bytes32 metadataHash)",
 ]);
+
+let activeWalletProvider: WalletProviderLike | null = null;
+
+export function setActiveWalletProvider(provider: WalletProviderLike | null) {
+  activeWalletProvider = provider;
+}
+
+export function getActiveWalletProvider() {
+  if (activeWalletProvider) return activeWalletProvider;
+  if (typeof window !== "undefined" && window.ethereum) return window.ethereum;
+  return null;
+}
 
 export function getEscrowAddress(): Address {
   const addr = process.env.NEXT_PUBLIC_ESCROW_CONTRACT;
@@ -20,12 +36,13 @@ export function getPublicClient() {
 }
 
 export function getWalletClient() {
-  if (typeof window === "undefined" || !window.ethereum) {
+  const provider = getActiveWalletProvider();
+  if (!provider) {
     throw new Error("No wallet available");
   }
   return createWalletClient({
     chain: base,
-    transport: custom(window.ethereum as never),
+    transport: custom(provider as never),
   });
 }
 
