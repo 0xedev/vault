@@ -1,4 +1,4 @@
-import { createPublicClient, createWalletClient, custom, decodeEventLog, http, keccak256, parseAbi, toHex, type Address, type Hash } from "viem";
+import { createPublicClient, createWalletClient, custom, decodeEventLog, fallback, http, keccak256, parseAbi, toHex, type Address, type Hash } from "viem";
 import { base } from "viem/chains";
 
 type WalletProviderLike = {
@@ -42,7 +42,7 @@ export function getWalletClient() {
   }
   return createWalletClient({
     chain: base,
-    transport: custom(provider as never),
+    transport: fallback([custom(provider as never), http()]),
   });
 }
 
