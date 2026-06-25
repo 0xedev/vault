@@ -112,7 +112,10 @@ async function vaultSignIn(address: string, chainId: number, provider: WalletLik
       const result = await signInWithFarcaster(nonce);
       if (result) {
         const verified = await verifyFarcasterSignIn(result.message, result.signature);
-        if (verified) return verified;
+        if (verified) {
+          console.log("Vault sign-in: SIWF succeeded with Farcaster address", verified.address);
+          return verified;
+        }
         console.warn("Vault sign-in: Farcaster SIWF server verification failed, falling back to SIWE");
       } else {
         console.warn("Vault sign-in: Farcaster SDK signIn failed, falling back to SIWE");
@@ -182,6 +185,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
           const session = await vaultSignIn(accounts[0], chainIdNum, wallet.provider);
           if (session) {
+            // In Mini App context, prefer the Farcaster SIWF address over eth_accounts
             setAddress(session.address || accounts[0]);
             setRole(session.role === "admin" ? "admin" : "user");
           }
