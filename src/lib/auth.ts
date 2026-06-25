@@ -118,51 +118,6 @@ export async function verifySiweSession(req: NextRequest) {
   return createSession(db, address, data.chainId);
 }
 
-export async function verifyFarcasterSiwfSession(req: NextRequest) {
-  const guarded = await mutationGuard(req);
-  if (guarded) return guarded;
-
-  const db = getDatabase();
-  if (!db) return databaseRequired();
-
-  const { message, signature } = await req.json();
-  if (typeof message !== "string" || typeof signature !== "string") {
-    return NextResponse.json({ error: "Invalid Farcaster sign-in payload" }, { status: 400 });
-  }
-
-  // Verify the SIWE message locally — no external auth server dependency
-  try {
-    const siweMessage = new SiweMessage(message);
-    const nonce = String(siweMessage.nonce || "");
-
-    if (!(await consumeNonce(db, nonce))) {
-      return NextResponse.json({ error: "Nonce is invalid or expired" }, { status: 401 });
-    }
-
-    const domain = req.headers.get("x-forwarded-host") || req.headers.get("host") || "";
-    const siweDomain = String(siweMessage.domain || "");
-    const expectedDomain = domain.split(":")[0];
-
-    // Domain must match
-    if (siweDomain && siweDomain !== expectedDomain) {
-      console.warn("[auth/farcaster] Domain mismatch", { siweDomain, expectedDomain });
-      return NextResponse.json({ error: "Domain mismatch" }, { status: 401 });
-    }
-
-    const { success, data } = await siweMessage.verify({ signature, nonce, domain: siweDomain || expectedDomain });
-    if (!success || !data.address) {
-      return NextResponse.json({ error: "Invalid Farcaster signature" }, { status: 401 });
-    }
-
-    const address = data.address.toLowerCase();
-    await db`UPDATE auth_nonces SET consumed_at = NOW(), address = ${address} WHERE nonce = ${nonce}`;
-    return createSession(db, address, siweMessage.chainId);
-  } catch (err) {
-    console.warn("[auth/farcaster] SIWF verification failed", err instanceof Error ? err.message : String(err));
-    return NextResponse.json({ error: "Invalid Farcaster signature" }, { status: 401 });
-  }
-}
-
 export async function destroySession(req: NextRequest) {
   const guarded = await mutationGuard(req);
   if (guarded) return guarded;

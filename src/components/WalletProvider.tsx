@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import { SiweMessage } from "siwe";
 import { getAddress } from "viem";
-import { isMiniApp, signInWithFarcaster } from "@/lib/farcaster-sdk";
 import { connectFarcasterMiniAppWallet, disconnectFarcasterMiniAppWallet, reconnectFarcasterMiniAppWallet } from "@/lib/farcaster-wagmi";
 import { setActiveWalletProvider } from "@/lib/contract-helpers";
 
@@ -19,7 +18,6 @@ type SelectedWallet = {
   chainId?: number;
 };
 
-// Extend Window type
 declare global {
   interface Window {
     ethereum?: WalletLike;
@@ -51,15 +49,15 @@ export function useWallet() {
 }
 
 async function selectWalletProvider(options: { requestAccounts?: boolean } = {}): Promise<SelectedWallet | null> {
-  const inMini = await isMiniApp();
-  if (inMini) {
+  // In Mini App: use Farcaster wagmi connector (returns primary Farcaster address)
+  try {
     const wallet = options.requestAccounts
       ? await connectFarcasterMiniAppWallet()
       : await reconnectFarcasterMiniAppWallet();
     if (wallet) return wallet;
-    return null;
-  }
+  } catch { /* not in Mini App or connector unavailable */ }
 
+  // Fallback: browser-injected wallet
   if (typeof window !== "undefined" && window.ethereum) {
     return { provider: window.ethereum };
   }
@@ -67,67 +65,17 @@ async function selectWalletProvider(options: { requestAccounts?: boolean } = {})
   return null;
 }
 
-async function verifySignedMessage(message: unknown, signature: unknown): Promise<{ address: string; role: string } | null> {
-  const verifyRes = await fetch("/api/auth/verify", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, signature }),
-  });
-  if (!verifyRes.ok) {
-    const json = await verifyRes.json().catch(() => ({}));
-    console.warn("Vault sign-in verification failed:", json.error || verifyRes.statusText);
-    return null;
-  }
-  return verifyRes.json();
-}
-
-async function verifyFarcasterSignIn(message: unknown, signature: unknown): Promise<{ address: string; role: string } | null> {
-  const verifyRes = await fetch("/api/auth/farcaster", {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, signature }),
-  });
-  if (!verifyRes.ok) {
-    const json = await verifyRes.json().catch(() => ({}));
-    console.warn("Vault Farcaster sign-in verification failed:", json.error || verifyRes.statusText);
-    return null;
-  }
-  return verifyRes.json();
-}
-
-async function vaultSignIn(address: string, chainId: number, provider: WalletLike): Promise<{ address: string; role: string } | null> {
+async function siweSignIn(address: string, chainId: number, provider: WalletLike): Promise<{ address: string; role: string } | null> {
   try {
     const nonceRes = await fetch("/api/auth/nonce");
     const { nonce } = await nonceRes.json();
-    if (!nonce) {
-      console.warn("Vault sign-in: no nonce returned from server");
-      return null;
-    }
+    if (!nonce) return null;
 
-    const inMini = await isMiniApp();
-    if (inMini) {
-      console.log("Vault sign-in: using Farcaster SIWF");
-      const result = await signInWithFarcaster(nonce);
-      if (result) {
-        const verified = await verifyFarcasterSignIn(result.message, result.signature);
-        if (verified) {
-          console.log("Vault sign-in: SIWF succeeded with Farcaster address", verified.address);
-          return verified;
-        }
-        console.warn("Vault sign-in: Farcaster SIWF server verification failed, falling back to SIWE");
-      } else {
-        console.warn("Vault sign-in: Farcaster SDK signIn failed, falling back to SIWE");
-      }
-    }
-
-    console.log("Vault sign-in: using SIWE");
     const siweAddr = getAddress(address);
     const message = new SiweMessage({
       domain: window.location.host,
       address: siweAddr,
-      statement: "Sign in to Vault.",
+      statement: "Sign in to Baseshire Hathaway.",
       uri: window.location.origin,
       version: "1",
       chainId,
@@ -138,11 +86,16 @@ async function vaultSignIn(address: string, chainId: number, provider: WalletLik
       method: "personal_sign",
       params: [message.prepareMessage(), address],
     });
-    const verified = await verifySignedMessage(message, signature);
-    if (!verified) console.warn("Vault sign-in: SIWE server verification failed");
-    return verified;
-  } catch (err) {
-    console.warn("Vault sign-in failed:", err);
+
+    const verifyRes = await fetch("/api/auth/verify", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, signature }),
+    });
+    if (!verifyRes.ok) return null;
+    return verifyRes.json();
+  } catch {
     return null;
   }
 }
@@ -153,12 +106,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // On mount, restore session then auto-auth if wallet is already connected
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     (async () => {
-      // 1. Try session cookie first (fast path, no wallet needed)
+      // 1. Try session cookie first
       try {
         const res = await fetch("/api/auth/session");
         const json = await res.json();
@@ -169,7 +121,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         }
       } catch { /* */ }
 
-      // 2. No session — use Farcaster SDK first inside Mini App, otherwise injected wallet
+      // 2. No session — auto-connect Farcaster wallet (or injected wallet)
       const wallet = await selectWalletProvider();
       if (!wallet) return;
       setActiveWalletProvider(wallet.provider);
@@ -183,9 +135,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           setAddress(accounts[0]);
           setChainId(chainIdNum);
 
-          const session = await vaultSignIn(accounts[0], chainIdNum, wallet.provider);
+          // The Farcaster connector returns the primary Farcaster address.
+          // SIWE with this address binds the session to the same wallet.
+          const session = await siweSignIn(accounts[0], chainIdNum, wallet.provider);
           if (session) {
-            // In Mini App context, prefer the Farcaster SIWF address over eth_accounts
             setAddress(session.address || accounts[0]);
             setRole(session.role === "admin" ? "admin" : "user");
           }
@@ -208,7 +161,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       setAddress(accounts[0]);
       setChainId(chainIdNum);
 
-      const session = await vaultSignIn(accounts[0], chainIdNum, wallet.provider);
+      const session = await siweSignIn(accounts[0], chainIdNum, wallet.provider);
       if (session) {
         setAddress(session.address || accounts[0]);
         setRole(session.role === "admin" ? "admin" : "user");
@@ -226,69 +179,43 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setChainId(null);
     setActiveWalletProvider(null);
     disconnectFarcasterMiniAppWallet();
-    fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(() => {});
   }, []);
 
-  // Listen for account/chain changes
   useEffect(() => {
     if (typeof window === "undefined" || !window.ethereum) return;
-    let active = true;
 
     const handleAccountsChanged = async (accounts: string[]) => {
-      if (accounts.length === 0) {
-        disconnect();
-        return;
-      }
-
-      const nextAddress = accounts[0];
+      if (accounts.length === 0) { disconnect(); return; }
       setActiveWalletProvider(window.ethereum!);
-      setAddress(nextAddress);
+      setAddress(accounts[0]);
       setRole(null);
-
       try {
-        await fetch("/api/auth/logout", { method: "POST" });
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
         const chain = await window.ethereum!.request({ method: "eth_chainId" }) as string;
         const chainIdNum = parseInt(chain, 16);
         setChainId(chainIdNum);
-        const session = await vaultSignIn(nextAddress, chainIdNum, window.ethereum!);
+        const session = await siweSignIn(accounts[0], chainIdNum, window.ethereum!);
         if (session) {
-          setAddress(session.address || nextAddress);
+          setAddress(session.address || accounts[0]);
           setRole(session.role === "admin" ? "admin" : "user");
         }
-      } catch {
-        setRole(null);
-      }
+      } catch { setRole(null); }
     };
 
-    const handleChainChanged = (chain: string) => {
-      setChainId(parseInt(chain, 16));
-    };
+    const handleChainChanged = (chain: string) => setChainId(parseInt(chain, 16));
 
-    void isMiniApp().then((inMini) => {
-      if (!active || inMini) return;
-      window.ethereum?.on?.("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
-      window.ethereum?.on?.("chainChanged", handleChainChanged as (...args: unknown[]) => void);
-    });
+    window.ethereum.on?.("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
+    window.ethereum.on?.("chainChanged", handleChainChanged as (...args: unknown[]) => void);
 
     return () => {
-      active = false;
       window.ethereum?.removeListener?.("accountsChanged", handleAccountsChanged as (...args: unknown[]) => void);
       window.ethereum?.removeListener?.("chainChanged", handleChainChanged as (...args: unknown[]) => void);
     };
   }, [disconnect]);
 
   return (
-    <WalletContext.Provider
-      value={{
-        address,
-        role,
-        isConnected: !!address,
-        isConnecting,
-        chainId,
-        connect,
-        disconnect,
-      }}
-    >
+    <WalletContext.Provider value={{ address, role, isConnected: !!address, isConnecting, chainId, connect, disconnect }}>
       {children}
     </WalletContext.Provider>
   );
