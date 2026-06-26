@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const db = auth.db;
 
-  const rows = await db`SELECT * FROM verifications ORDER BY created_at DESC` as Record<string, unknown>[];
+  const rows = await db`SELECT * FROM verifications ORDER BY created_at DESC LIMIT 500` as Record<string, unknown>[];
   const data = rows.map((row) => ({
     id: row.id,
     market: mapMarket(row.marketplace),

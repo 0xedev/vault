@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const db = auth.db;
 
-  const rows = await db`SELECT * FROM support_tickets ORDER BY updated_at DESC` as Record<string, unknown>[];
+  const rows = await db`SELECT * FROM support_tickets ORDER BY updated_at DESC LIMIT 500` as Record<string, unknown>[];
   const data = rows.map((row) => ({
     id: row.id,
     from: row.from_address ? shortAddress(row.from_address) : "guest",

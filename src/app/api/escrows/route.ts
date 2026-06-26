@@ -50,6 +50,9 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data;
   const buyerAddress = actorAddressForRequest(auth.user, data.buyerAddress);
+  if (buyerAddress.toLowerCase() === data.sellerAddress.toLowerCase()) {
+    return NextResponse.json({ error: "Buyer and seller must be different addresses" }, { status: 400 });
+  }
   const id = `E-${Date.now()}`;
   await db`INSERT INTO users (address) VALUES (${buyerAddress}) ON CONFLICT (address) DO NOTHING`;
   await db`INSERT INTO users (address) VALUES (${data.sellerAddress}) ON CONFLICT (address) DO NOTHING`;

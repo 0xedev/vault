@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
     LEFT JOIN escrows e ON (e.buyer_address = u.address OR e.seller_address = u.address) AND e.stage NOT IN ('released', 'refunded')
     GROUP BY u.address
     ORDER BY u.joined_at DESC
+    LIMIT 500
   ` as Record<string, unknown>[];
 
   const data = rows.map((row) => ({

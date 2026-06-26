@@ -47,7 +47,7 @@ export async function assertSafeUrl(raw: string): Promise<void> {
 
   // Resolve hostname to IP and check
   try {
-    const records = await lookup(host, { family: 4 });
+    const records = await lookup(host, { family: 0 });
     if (records.address && isPrivateIp(records.address)) {
       throw new Error("URL resolves to a private IP range");
     }
