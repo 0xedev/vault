@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2P Messaging & Escrow — Vault vs Binance P2P vs Bybit P2P</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-2: #f8fafc;
+    --surface: #f1f5f9;
+    --surface-2: #e2e8f0;
+    --line: rgba(0,82,255,0.08);
+    --line-strong: rgba(0,82,255,0.16);
+    --ink: #0f172a;
+    --ink-2: #1e293b;
+    --ink-3: #475569;
+    --ink-4: #64748b;
+    --accent: #0052ff;
+    --accent-ink: #ffffff;
+    --warn: #f59e0b;
+    --risk: #ef4444;
+    --go: #22c55e;
+    --mono: "JetBrains Mono","Berkeley Mono","IBM Plex Mono",ui-monospace,monospace;
+    --sans: "Geist","Inter Tight",-apple-system,system-ui,sans-serif;
+    --serif: "Instrument Serif","GT Super","Tiempos Headline",Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:var(--sans); background:var(--bg); color:var(--ink); padding:48px 24px; }
+  .container { max-width:1200px; margin:0 auto; }
+
+  header {
+    border-bottom:1px solid var(--line); padding-bottom:24px; margin-bottom:40px;
+    display:flex; align-items:center; gap:16px;
+  }
+  header .logo { width:36px; height:36px; border-radius:8px; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; font-family:var(--serif); font-size:18px; font-weight:600; }
+  header h1 { font-family:var(--serif); font-size:28px; font-weight:400; }
+  header h1 em { font-style:italic; color:var(--accent); }
+  .eyebrow { font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-4); font-weight:600; }
+
+  /* Comparison table */
+  table { width:100%; border-collapse:separate; border-spacing:0; border:1px solid var(--line); border-radius:14px; overflow:hidden; font-size:13px; }
+  thead { background:var(--surface); }
+  thead th { padding:14px 16px; text-align:left; font-family:var(--mono); font-size:11px; color:var(--ink-4); text-transform:uppercase; letter-spacing:.06em; font-weight:600; border-bottom:1px solid var(--line); }
+  thead th:first-child { width:220px; }
+  tbody td { padding:14px 16px; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.6; }
+  tbody tr:last-child td { border-bottom:0; }
+  tbody td:first-child { font-family:var(--mono); font-size:12px; color:var(--ink-3); font-weight:600; background:var(--bg-2); }
+  tbody td:nth-child(2) { }
+  tbody td:nth-child(3) { background:color-mix(in oklab, var(--warn) 6%, var(--bg)); }
+  tbody td:nth-child(4) { background:color-mix(in oklab, var(--warn) 6%, var(--bg)); }
+
+  .tag { display:inline-block; padding:2px 8px; border-radius:6px; font-size:10px; font-weight:600; }
+  .tag-yes { background:color-mix(in oklab, var(--go) 20%, transparent); color:#166534; }
+  .tag-no  { background:color-mix(in oklab, var(--risk) 15%, transparent); color:#991b1b; }
+  .tag-part { background:color-mix(in oklab, var(--warn) 20%, transparent); color:#92400e; }
+
+  /* Section headings */
+  .section-title { font-family:var(--serif); font-size:22px; font-weight:400; margin:44px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  .section-title em { font-style:italic; color:var(--accent); }
+
+  .verdict { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:28px 32px; margin-top:32px; }
+  .verdict h3 { font-family:var(--serif); font-size:20px; font-weight:400; margin-bottom:8px; }
+  .verdict p { font-size:14px; color:var(--ink-3); line-height:1.7; }
+
+  .flow-mini {
+    display:flex; align-items:center; gap:6px;
+    flex-wrap:wrap; font-family:var(--mono); font-size:10px;
+    margin-top:6px;
+  }
+  .flow-mini .node {
+    padding:4px 8px; border-radius:6px;
+    background:var(--surface); border:1px solid var(--line);
+    white-space:nowrap;
+  }
+  .flow-mini .arr { color:var(--accent); font-weight:700; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="logo">V</div>
+  <div>
+    <span class="eyebrow">Competitive Analysis</span>
+    <h1>P2P Messaging & Escrow — <em>Vault vs Binance P2P vs Bybit P2P</em></h1>
+  </div>
+</header>
+
+<h2 class="section-title">1. Escrow <em>Mechanism</em></h2>
+<table>
+  <thead>
+    <tr><th>Aspect</th><th>Vault (Baseshire Hethaway)</th><th>Binance P2P</th><th>Bybit P2P</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Escrow type</td>
+      <td>On-chain (Base) + off-chain ledger hybrid. Smart contract optional, off-chain escrow records default.</td>
+      <td>Fully <strong>centralised</strong>. Binance holds the seller's crypto in its internal wallet. No on-chain movement during trade.</td>
+      <td>Fully <strong>centralised</strong>. Bybit locks the seller's crypto in its custodial wallet. Same as Binance.</td>
+    </tr>
+    <tr>
+      <td>Fund custody</td>
+      <td>Smart contract escrow (Base) or platform ledger. Funds visible on-chain if contract-backed.</td>
+      <td>Binance internal ledger only. Users cannot verify escrow on-chain. Trust is entirely in Binance.</td>
+      <td>Bybit internal ledger only. Same custodial model as Binance.</td>
+    </tr>
+    <tr>
+      <td>Asset types</td>
+      <td>NFTs, mini-apps, X handles, Farcaster FIDs, Clanker tokens, bundles — <strong>illiquid digital assets</strong></td>
+      <td>Crypto-to-fiat only (USDT, BTC, ETH, BNB, etc. ↔ local currency)</td>
+      <td>Crypto-to-fiat only (USDT, USDC, BTC, ETH ↔ local currency)</td>
+    </tr>
+    <tr>
+      <td>Verifiable on-chain</td>
+      <td><span class="tag tag-yes">YES</span> — when contract-backed, escrow state queryable on Base</td>
+      <td><span class="tag tag-no">NO</span> — entirely internal</td>
+      <td><span class="tag tag-no">NO</span> — entirely internal</td>
+    </tr>
+    <tr>
+      <td>Self-custody option</td>
+      <td><span class="tag tag-yes">YES</span> — users can hold own keys; escrow is a smart contract</td>
+      <td><span class="tag tag-no">NO</span> — crypto must be deposited to Binance first</td>
+      <td><span class="tag tag-no">NO</span> — crypto must be deposited to Bybit first</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 class="section-title">2. Trade <em>Chat</em> & Messaging</h2>
+<table>
+  <thead>
+    <tr><th>Aspect</th><th>Vault</th><th>Binance P2P</th><th>Bybit P2P</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Chat availability</td>
+      <td>Deal Room — buyer + seller in a per-escrow chat. Polling every 5s for new messages.</td>
+      <td>In-trade chat window. Available after order is placed. Real-time via WebSocket.</td>
+      <td>In-trade chat window. Available after order is placed. Real-time via WebSocket.</td>
+    </tr>
+    <tr>
+      <td>Real-time</td>
+      <td><span class="tag tag-part">POLLING</span> — 5-second interval, no WebSocket</td>
+      <td><span class="tag tag-yes">WEBSOCKET</span> — instant delivery</td>
+      <td><span class="tag tag-yes">WEBSOCKET</span> — instant delivery</td>
+    </tr>
+    <tr>
+      <td>Encryption</td>
+      <td><strong>AES-256-GCM</strong> at rest. Per-escrow key derived via scrypt(MESSAGE_ENCRYPTION_KEY, escrowId). Random IV per message. <strong>Server-side only.</strong></td>
+      <td><span class="tag tag-no">NONE</span> — messages stored in plaintext on Binance servers. Support staff can read all chats.</td>
+      <td><span class="tag tag-no">NONE</span> — same as Binance. Plaintext storage. Support can read.</td>
+    </tr>
+    <tr>
+      <td>E2E encryption</td>
+      <td><span class="tag tag-no">NO</span> — decrypted server-side before sending to client. No client-side crypto.</td>
+      <td><span class="tag tag-no">NO</span></td>
+      <td><span class="tag tag-no">NO</span></td>
+    </tr>
+    <tr>
+      <td>Participants</td>
+      <td>Exactly 2 (buyer + seller). Admin cannot read messages (encrypted).</td>
+      <td>2 (buyer + seller) + Binance support can read all messages for dispute resolution.</td>
+      <td>2 (buyer + seller) + Bybit support can read all messages.</td>
+    </tr>
+    <tr>
+      <td>Message retention</td>
+      <td>Indefinite in <code style="font-size:11px">deal_messages</code> table. Oldest 200 loaded. No auto-delete.</td>
+      <td>Retained for compliance period (varies by jurisdiction). Typically 5-7 years.</td>
+      <td>Same as Binance — regulatory retention requirements.</td>
+    </tr>
+    <tr>
+      <td>Attachments / images</td>
+      <td><span class="tag tag-no">NO</span> — text only, max 5000 chars</td>
+      <td><span class="tag tag-yes">YES</span> — can upload images (payment receipts, screenshots)</td>
+      <td><span class="tag tag-yes">YES</span> — image upload supported</td>
+    </tr>
+    <tr>
+      <td>Auto-translate</td>
+      <td><span class="tag tag-no">NO</span></td>
+      <td><span class="tag tag-yes">YES</span> — built-in translation for cross-border trades</td>
+      <td><span class="tag tag-yes">YES</span> — built-in translation</td>
+    </tr>
+    <tr>
+      <td>Pre-written messages</td>
+      <td><span class="tag tag-no">NO</span></td>
+      <td><span class="tag tag-yes">YES</span> — quick replies ("I've paid", "Please release")</td>
+      <td><span class="tag tag-yes">YES</span> — quick reply templates</td>
+    </tr>
+    <tr>
+      <td>Read receipts</td>
+      <td><span class="tag tag-no">NO</span></td>
+      <td><span class="tag tag-yes">YES</span> — shows when counterparty read the message</td>
+      <td><span class="tag tag-yes">YES</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 class="section-title">3. Trade <em>Lifecycle</em> & Release Flow</h2>
+<table>
+  <thead>
+    <tr><th>Aspect</th><th>Vault</th><th>Binance P2P</th><th>Bybit P2P</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Trade states</td>
+      <td>
+        <div class="flow-mini">
+          <span class="node">awaiting_deposit</span><span class="arr">&rarr;</span>
+          <span class="node">funds_locked</span><span class="arr">&rarr;</span>
+          <span class="node">asset_transferred</span><span class="arr">&rarr;</span>
+          <span class="node">awaiting_confirmation</span><span class="arr">&rarr;</span>
+          <span class="node">released</span>
+        </div>
+        7 stages including disputed/refunded
+      </td>
+      <td>
+        <div class="flow-mini">
+          <span class="node">Pending payment</span><span class="arr">&rarr;</span>
+          <span class="node">Paid</span><span class="arr">&rarr;</span>
+          <span class="node">Released</span>
+        </div>
+        Simpler 3-stage flow
+      </td>
+      <td>
+        <div class="flow-mini">
+          <span class="node">Pending</span><span class="arr">&rarr;</span>
+          <span class="node">Paid</span><span class="arr">&rarr;</span>
+          <span class="node">Completed</span>
+        </div>
+        Same 3-stage as Binance
+      </td>
+    </tr>
+    <tr>
+      <td>Release trigger</td>
+      <td>Buyer confirms receipt OR seller provides proof + auto-release if all deliverables checked. Hybrid: on-chain tx or platform ledger.</td>
+      <td>Buyer manually clicks "Release" after confirming fiat received in bank. Seller cannot release.</td>
+      <td>Buyer manually clicks "Release". Same as Binance.</td>
+    </tr>
+    <tr>
+      <td>Auto-release</td>
+      <td><span class="tag tag-no">NO</span> — no time-based auto-release</td>
+      <td><span class="tag tag-yes">YES</span> — if buyer doesn't respond, auto-releases after payment window (typically 15-30 min for fiat).</td>
+      <td><span class="tag tag-yes">YES</span> — same auto-release mechanism</td>
+    </tr>
+    <tr>
+      <td>Deliverables checklist</td>
+      <td><span class="tag tag-yes">YES</span> — per-asset checklist with proof submission (URL + content hash). Each item confirmed individually.</td>
+      <td><span class="tag tag-no">NO</span> — single fiat payment, no breakdown</td>
+      <td><span class="tag tag-no">NO</span> — single payment</td>
+    </tr>
+    <tr>
+      <td>Proof of delivery</td>
+      <td><strong>Structured</strong>: <code style="font-size:11px">escrow_proofs</code> table — proofType, URL, contentHash, optional txHash. On-chain verification for Farcaster/Clanker.</td>
+      <td>Informal — seller uploads screenshot in chat. Support reviews manually during disputes.</td>
+      <td>Same as Binance — screenshot in chat.</td>
+    </tr>
+    <tr>
+      <td>Timeout / expiry</td>
+      <td><code style="font-size:11px">deadline</code> field on escrows table but not enforced automatically.</td>
+      <td>Strict time limits: payment window (15-360 min depending on payment method). Auto-cancel if unpaid.</td>
+      <td>Same strict time limits as Binance.</td>
+    </tr>
+    <tr>
+      <td>Cancel by buyer</td>
+      <td><span class="tag tag-part">PARTIAL</span> — can't cancel after funds locked, only refund path</td>
+      <td><span class="tag tag-yes">YES</span> — can cancel before marking "Paid" (within daily limit)</td>
+      <td><span class="tag tag-yes">YES</span> — same as Binance</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 class="section-title">4. Dispute <em>Resolution</em></h2>
+<table>
+  <thead>
+    <tr><th>Aspect</th><th>Vault</th><th>Binance P2P</th><th>Bybit P2P</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Dispute filing</td>
+      <td>Either party can file a dispute with reason (10-500 chars). Escrow moves to <code style="font-size:11px">disputed</code> stage. Structured — creates <code style="font-size:11px">disputes</code> row with filer, against, evidence_hashes.</td>
+      <td>Either party clicks "Appeal". Opens a support ticket. Moderator assigned.</td>
+      <td>Same as Binance — "Appeal" button opens a case.</td>
+    </tr>
+    <tr>
+      <td>Resolution options</td>
+      <td><strong>3 verdicts</strong>: release (to seller), refund (to buyer), split (both amounts specified). On-chain settlement possible with txHash.</td>
+      <td>Support decides: release to seller or refund to buyer. Binary outcome.</td>
+      <td>Same binary outcome as Binance.</td>
+    </tr>
+    <tr>
+      <td>Evidence</td>
+      <td>Proof of delivery (escrow_proofs), on-chain verification (Farcaster custody, Clanker rights). Evidence hashes stored in disputes table.</td>
+      <td>Chat logs, uploaded screenshots, bank statements. Reviewed manually by support.</td>
+      <td>Same manual review as Binance.</td>
+    </tr>
+    <tr>
+      <td>Resolution time</td>
+      <td>No SLA — admin-mediated. Depends on admin availability.</td>
+      <td>Typically minutes to hours. 24/7 support team with SLAs.</td>
+      <td>Typically minutes to hours. 24/7 support team.</td>
+    </tr>
+    <tr>
+      <td>Fee during dispute</td>
+      <td>No additional dispute fee. Platform fee is 2.5% (shown in Deal Room).</td>
+      <td>No fee for P2P trades. Binance makes money on spread, not fees.</td>
+      <td>No P2P trading fees. Bybit profits from spread.</td>
+    </tr>
+    <tr>
+      <td>Audit trail</td>
+      <td><strong>Full</strong>: <code style="font-size:11px">audit_logs</code> table records every action (release, refund, dispute, resolve) with actor, target, txHash.</td>
+      <td>Internal only — users cannot see audit trail. Binance keeps internal logs for compliance.</td>
+      <td>Same as Binance.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 class="section-title">5. Identity & <em>Trust</em></h2>
+<table>
+  <thead>
+    <tr><th>Aspect</th><th>Vault</th><th>Binance P2P</th><th>Bybit P2P</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>KYC required</td>
+      <td><span class="tag tag-part">TIERED</span> — <code style="font-size:11px">kyc_tier</code> (none/basic/full). Certain assets require verification.</td>
+      <td><span class="tag tag-yes">MANDATORY</span> — full KYC (ID, face verification) required to trade P2P.</td>
+      <td><span class="tag tag-yes">MANDATORY</span> — full KYC required. Lv1 (basic) for small amounts, Lv2 for larger.</td>
+    </tr>
+    <tr>
+      <td>Reputation system</td>
+      <td><code style="font-size:11px">reputation</code> (float) + <code style="font-size:11px">trades</code> (count) on users table. No public rating UI yet.</td>
+      <td>Completion rate %, total trades, 30-day trade volume, average release time, positive feedback %. <strong>Rich public profile.</strong></td>
+      <td>Same as Binance — completion rate, trade count, user ratings, badges for verified merchants.</td>
+    </tr>
+    <tr>
+      <td>Merchant tiers</td>
+      <td><span class="tag tag-no">NO</span></td>
+      <td><span class="tag tag-yes">YES</span> — Verified Merchant, Gold Merchant, Diamond Merchant with increasing limits and features.</td>
+      <td><span class="tag tag-yes">YES</span> — Verified Merchant program with tiers and benefits.</td>
+    </tr>
+    <tr>
+      <td>Wallet verification</td>
+      <td>SIWE (Sign-In with Ethereum) + Farcaster Quick Auth. Verifies wallet ownership via cryptographic signature.</td>
+      <td>Email + phone + KYC documents. No blockchain wallet verification (centralised exchange).</td>
+      <td>Same as Binance — traditional KYC.</td>
+    </tr>
+    <tr>
+      <td>Asset verification</td>
+      <td><strong>Automated</strong>: <code style="font-size:11px">verifications</code> system — x_tweet, farcaster_registry, token_ownership, nft_ownership, DNS checks. Each listing gets verification attempts.</td>
+      <td><span class="tag tag-no">NO</span> — no asset verification (assets are just crypto on Binance).</td>
+      <td><span class="tag tag-no">NO</span> — same, crypto is already on Bybit.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 class="section-title">6. Architecture <em>&amp;</em> Infrastructure</h2>
+<table>
+  <thead>
+    <tr><th>Aspect</th><th>Vault</th><th>Binance P2P</th><th>Bybit P2P</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Stack</td>
+      <td>Next.js 16 (React 19), Neon serverless Postgres, Drizzle ORM, viem + Base L2</td>
+      <td>Proprietary C++/Go microservices, custom matching engine, internal PostgreSQL clusters</td>
+      <td>Proprietary Go/Java microservices, custom order book, internal DB clusters</td>
+    </tr>
+    <tr>
+      <td>Real-time infra</td>
+      <td>REST polling (5s). No WebSocket/SSE. Same-origin only.</td>
+      <td>WebSocket + REST. Global edge infrastructure. 99.9% uptime SLA.</td>
+      <td>WebSocket + REST. Multi-region deployment.</td>
+    </tr>
+    <tr>
+      <td>Chat storage</td>
+      <td>Encrypted in <code style="font-size:11px">deal_messages</code>. Single Postgres instance (Neon).</td>
+      <td>Plaintext in internal databases. Sharded by region. Full compliance logging.</td>
+      <td>Same as Binance — plaintext, sharded, with compliance logging.</td>
+    </tr>
+    <tr>
+      <td>API auth</td>
+      <td>Session cookie (httpOnly, SameSite=lax, 7-day TTL). CSRF origin check on mutations. Rate limit 30/min per IP.</td>
+      <td>API key + secret (HMAC signature). IP whitelisting. Withdrawal address whitelist.</td>
+      <td>API key + secret + passphrase. HMAC SHA256 signing.</td>
+    </tr>
+    <tr>
+      <td>Scale</td>
+      <td>MVP — single-region deploy (Vercel + Neon). No horizontal scaling.</td>
+      <td>Millions of daily trades. Global CDN. Multi-region failover. Custom P2P matching engine.</td>
+      <td>Hundreds of thousands of daily trades. Multi-region deployment.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 class="section-title">7. What Vault <em>Has</em> That They Don't</h2>
+<table>
+  <thead>
+    <tr><th>Feature</th><th>Why it matters</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>On-chain verifiable escrow</strong></td>
+      <td>Binance/Bybit escrow is a black box. Vault's escrow can be verified on Base by anyone. No trust required in a centralised exchange.</td>
+    </tr>
+    <tr>
+      <td><strong>Encrypted messages at rest</strong></td>
+      <td>Binance/Bybit store chats in plaintext — support staff, internal tools, and potential breach victims can read everything. Vault's messages are encrypted blobs unreadable even with DB access.</td>
+    </tr>
+    <tr>
+      <td><strong>Illiquid asset support</strong></td>
+      <td>Binance/Bybit only do crypto↔fiat. Vault handles NFTs, X handles, Farcaster FIDs, mini-apps, Clanker tokens — assets that have <em>no</em> P2P marketplace elsewhere.</td>
+    </tr>
+    <tr>
+      <td><strong>Structured proof system</strong></td>
+      <td>Instead of "screenshot in chat", Vault has typed proofs (transfer/delivery/evidence) with content hashes and on-chain verification. Disputes can be resolved programmatically.</td>
+    </tr>
+    <tr>
+      <td><strong>Full audit trail</strong></td>
+      <td>Every escrow action is logged immutably. Binance/Bybit audit trails are internal-only and opaque to users.</td>
+    </tr>
+    <tr>
+      <td><strong>Per-asset deliverables checklist</strong></td>
+      <td>Bundle deals with multiple assets get individual verification steps. Binance P2P has no concept of multi-asset trades.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 class="section-title">8. What Vault <em>Is Missing</em></h2>
+<table>
+  <thead>
+    <tr><th>Gap</th><th>Impact</th><th>Effort to fix</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>WebSocket real-time chat</strong></td>
+      <td>5-second polling is slow. Counterparty messages feel delayed. Losing trust in fast-moving trades.</td>
+      <td>Medium — needs WS server (Pusher/Ably/self-hosted) or SSE endpoint</td>
+    </tr>
+    <tr>
+      <td><strong>Auto-release / timeouts</strong></td>
+      <td>Trades can stall indefinitely. No incentive for buyer to confirm. Binance's auto-release prevents seller hostage-taking.</td>
+      <td>Low — cron job or DB trigger checking deadlines</td>
+    </tr>
+    <tr>
+      <td><strong>Image attachments</strong></td>
+      <td>Users can't share screenshots of payment/transfer. Forced to use external links.</td>
+      <td>Medium — needs upload infra (S3/R2) + moderation</td>
+    </tr>
+    <tr>
+      <td><strong>Reputation UI</strong></td>
+      <td>No public display of trade history, completion rate, or user ratings. Counterparty selection is blind.</td>
+      <td>Low — data already in <code style="font-size:11px">users</code> table, just needs UI</td>
+    </tr>
+    <tr>
+      <td><strong>Quick replies</strong></td>
+      <td>Every message must be typed. "I've paid" / "Please release" typed manually every time.</td>
+      <td>Trivial — few lines of JSX</td>
+    </tr>
+    <tr>
+      <td><strong>Read receipts</strong></td>
+      <td>No way to know if counterparty saw your message. Anxiety in time-sensitive deals.</td>
+      <td>Medium — needs <code style="font-size:11px">read_at</code> column + client tracking</td>
+    </tr>
+    <tr>
+      <td><strong>Notifications</strong></td>
+      <td>No push/email notification when a new message arrives. User must have tab open.</td>
+      <td>High — needs push infra (FCM/APNs) or email service</td>
+    </tr>
+    <tr>
+      <td><strong>Message search</strong></td>
+      <td>Can't search chat history. 200-message cap means old messages silently vanish.</td>
+      <td>Medium — pagination + full-text search or client-side filter</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="verdict">
+  <h3>Bottom line</h3>
+  <p>
+    <strong>Vault is architecturally more ambitious than Binance/Bybit P2P.</strong> Those platforms solved a simpler problem (crypto↔fiat with centralised custody) 
+    and polished the UX over years. Vault tackles a harder problem (illiquid digital assets with verifiable on-chain escrow) 
+    but is at MVP level on UX polish.<br><br>
+    <strong>The encryption architecture is Vault's secret weapon.</strong> Binance/Bybit chats are plaintext — any support agent or database breach 
+    exposes every message ever sent. Vault's per-deal scrypt-derived AES-256-GCM means even with full DB access, 
+    messages are cryptographically unreadable without the <code style="font-size:11px">MESSAGE_ENCRYPTION_KEY</code>.<br><br>
+    <strong>The main UX gap is real-time delivery.</strong> Binance/Bybit users expect instant message delivery. 
+    5-second polling feels sluggish. This should be the #1 chat infrastructure priority.
+  </p>
+</div>
+
+<footer style="margin-top:48px;padding-top:24px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-4);text-align:center">
+  Baseshire Hethaway — P2P Messaging & Escrow Competitive Analysis — June 2026
+</footer>
+
+</div>
+</body>
+</html>

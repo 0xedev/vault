@@ -3262,6 +3262,18 @@ select:focus-visible {
   margin-bottom: 4px;
   font-family: var(--mono);
 }
+.bubble .read-receipt {
+  color: var(--accent);
+  font-size: 10px;
+}
+.bubble img {
+  max-width: 200px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.bubble img:hover {
+  opacity: 0.9;
+}
 
 /* checklist */
 .check {

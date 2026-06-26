@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
 import StatusPill from "@/components/StatusPill";
@@ -85,10 +85,13 @@ interface DealDetail {
 interface ChatMessage {
   id: string;
   sender: string;
-  senderAddress: string;
+  senderAddress?: string;
   body: string;
   createdAt: string;
   me: boolean;
+  readAt?: string | null;
+  messageType?: string;
+  imageUrl?: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -151,6 +154,11 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
   const [sending, setSending] = useState(false);
   const [actionNotice, setActionNotice] = useState("");
   const [actionBusy, setActionBusy] = useState("");
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const seenRef = useRef<Set<string>>(new Set());
+  const chatRef = useRef<HTMLDivElement>(null);
   const step = stageToStep(deal.stageRaw);
   const walletAddress = address?.toLowerCase();
   const buyerAddress = deal.buyerAddress.toLowerCase();
@@ -159,18 +167,79 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
   const isContractBacked = Boolean(deal.contractListingId);
   const isClankerDeal = Boolean(deal.clankerTransfer?.tokenAddress);
 
+  const markAsRead = async (ids: string[]) => {
+    const unread = ids.filter(id => !seenRef.current.has(id));
+    if (unread.length === 0) return;
+    unread.forEach(id => seenRef.current.add(id));
+    fetch(`/api/deals/${deal.id}/messages/read`, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageIds: unread }),
+    }).catch(() => {});
+  };
+
+  // Pusher real-time subscription
+  useEffect(() => {
+    let pusher: ReturnType<typeof import("pusher-js").default> | undefined;
+    (async () => {
+      const Pusher = (await import("pusher-js")).default;
+      pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+        cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+        authEndpoint: "/api/pusher/auth",
+      });
+
+      const channel = pusher.subscribe(`private-deal-${deal.id}`);
+
+      channel.bind("new-message", (msg: ChatMessage) => {
+        setMessages(prev => {
+          if (prev.some(m => m.id === msg.id)) return prev;
+          const message = { ...msg, me: msg.senderAddress?.toLowerCase() === walletAddress };
+          if (!message.me) markAsRead([msg.id]);
+          return [...prev, message];
+        });
+      });
+
+      channel.bind("messages-read", (data: { messageIds: string[] }) => {
+        setMessages(prev => prev.map(m =>
+          data.messageIds.includes(m.id) ? { ...m, readAt: new Date().toISOString() } : m
+        ));
+      });
+
+      channel.bind("stage-change", () => { onChanged(); });
+    })();
+
+    return () => {
+      if (pusher) {
+        pusher.unsubscribe(`private-deal-${deal.id}`);
+        pusher.disconnect();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deal.id, walletAddress]);
+
+  // Initial message load
   useEffect(() => {
     const query = address ? `?walletAddress=${encodeURIComponent(address)}` : "";
-    const load = () => {
-      fetch(`/api/deals/${deal.id}/messages${query}`)
-        .then(r => r.json())
-        .then(json => setMessages(json.data || []))
-        .catch(() => {});
-    };
-    load();
-    const interval = setInterval(load, 5000);
-    return () => clearInterval(interval);
+    fetch(`/api/deals/${deal.id}/messages${query}`)
+      .then(r => r.json())
+      .then(json => {
+        setMessages(json.data || []);
+        setHasMore(json.hasMore);
+      })
+      .catch(() => {});
   }, [address, deal.id]);
+
+  const loadMore = async () => {
+    if (loadingMore || messages.length === 0) return;
+    setLoadingMore(true);
+    const cursor = messages[0].createdAt;
+    const query = address ? `?walletAddress=${encodeURIComponent(address)}&cursor=${encodeURIComponent(cursor)}` : `?cursor=${encodeURIComponent(cursor)}`;
+    const res = await fetch(`/api/deals/${deal.id}/messages${query}`);
+    const json = await res.json();
+    setMessages(prev => [...(json.data || []).reverse(), ...prev]);
+    setHasMore(json.hasMore);
+    setLoadingMore(false);
+  };
 
   // Farcaster Mini App embed for this deal
   useEffect(() => {
@@ -360,21 +429,52 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
     await postEscrowAction("dispute", { reason }, "Dispute filed. An admin will review this escrow.");
   };
 
-  const sendMsg = async () => {
-    if (!draft.trim() || sending) return;
+  const sendMsg = async (text?: string) => {
+    const body = text || draft;
+    if (!body.trim() || sending) return;
     setSending(true);
     try {
       const res = await fetch(`/api/deals/${deal.id}/messages`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorAddress: address, body: draft }),
+        body: JSON.stringify({ actorAddress: address, body }),
       });
       const json = await res.json();
       if (json.data) setMessages(prev => [...prev, json.data]);
       setDraft("");
     } finally {
       setSending(false);
+    }
+  };
+
+  const uploadImage = async (file: File) => {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const uploadRes = await fetch(`/api/deals/${deal.id}/messages/image`, {
+        method: "POST", credentials: "include", body: form,
+      });
+      const uploadJson = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(uploadJson.error || "Upload failed");
+
+      const res = await fetch(`/api/deals/${deal.id}/messages`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actorAddress: address,
+          messageType: "image",
+          imageUrl: uploadJson.url,
+          body: file.name,
+        }),
+      });
+      const json = await res.json();
+      if (json.data) setMessages(prev => [...prev, json.data]);
+    } catch (err) {
+      setActionNotice(err instanceof Error ? err.message : "Image upload failed");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -537,20 +637,42 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
               <span className="eyebrow">Deal Room Chat</span>
               <span className="muted-2" style={{ fontSize: 11 }}>End-to-end encrypted · 2 participants</span>
             </div>
-            <div className="col" style={{ flex: 1, overflowY: "auto", gap: 8, padding: "4px 0" }}>
+            <div ref={chatRef} className="col" style={{ flex: 1, overflowY: "auto", gap: 4, padding: "4px 0" }}>
+              {hasMore && (
+                <button className="btn ghost sm" onClick={loadMore} disabled={loadingMore} style={{ marginBottom: 4, fontSize: 11 }}>
+                  {loadingMore ? "Loading..." : "Load earlier messages"}
+                </button>
+              )}
               {messages.map((m) => (
                 <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: m.me ? "flex-end" : "flex-start" }}>
                   <div className={"bubble" + (m.me ? " me" : "")}>
-                    <div className="who">{m.sender} · {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                    {m.body}
+                    <div className="who">
+                      {m.sender} · {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      {m.readAt && m.me && <span className="read-receipt"> ✓✓</span>}
+                    </div>
+                    {m.messageType === "image" && m.imageUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={m.imageUrl} alt="attachment" style={{ maxWidth: 200, borderRadius: 8, marginTop: 2 }} />
+                    ) : (
+                      m.body
+                    )}
                   </div>
                 </div>
               ))}
               {messages.length === 0 && <div className="muted" style={{ padding: 20, textAlign: "center", fontSize: 12 }}>No messages yet. Start the conversation.</div>}
             </div>
-            <div className="row" style={{ gap: 8, marginTop: 12, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+            <div className="row" style={{ gap: 4, flexWrap: "wrap", padding: "6px 0" }}>
+              {["I've paid", "Please release", "Received, thanks", "Checking now"].map(q => (
+                <button key={q} className="btn ghost sm" style={{ fontSize: 11 }} onClick={() => sendMsg(q)} disabled={sending}>{q}</button>
+              ))}
+            </div>
+            <div className="row" style={{ gap: 8, borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+              <label className="btn ghost sm" style={{ cursor: "pointer" }} title="Attach image">
+                {uploading ? "..." : "📎"}
+                <input type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); e.target.value = ""; }} />
+              </label>
               <input className="input" placeholder="Send a message…" aria-label="Send a message" value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMsg()} />
-              <button className="btn primary" onClick={sendMsg} disabled={sending}><Icon.send /></button>
+              <button className="btn primary" onClick={() => sendMsg()} disabled={sending}><Icon.send /></button>
             </div>
           </div>
 

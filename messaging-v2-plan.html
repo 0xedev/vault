@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault Messaging v2 — Implementation Plan</title>
+<style>
+  :root {
+    --bg: #ffffff; --bg-2: #f8fafc; --surface: #f1f5f9; --surface-2: #e2e8f0;
+    --line: rgba(0,82,255,0.08); --line-strong: rgba(0,82,255,0.16);
+    --ink: #0f172a; --ink-2: #1e293b; --ink-3: #475569; --ink-4: #64748b;
+    --accent: #0052ff; --accent-ink: #ffffff; --warn: #f59e0b; --risk: #ef4444; --go: #22c55e;
+    --mono: "JetBrains Mono","Berkeley Mono","IBM Plex Mono",ui-monospace,monospace;
+    --sans: "Geist","Inter Tight",-apple-system,system-ui,sans-serif;
+    --serif: "Instrument Serif","GT Super","Tiempos Headline",Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:var(--sans); background:var(--bg); color:var(--ink); padding:48px 24px; }
+  .container { max-width:1100px; margin:0 auto; }
+
+  header {
+    border-bottom:1px solid var(--line); padding-bottom:24px; margin-bottom:48px;
+    display:flex; align-items:center; gap:16px;
+  }
+  header .logo { width:36px; height:36px; border-radius:8px; background:var(--accent); color:var(--accent-ink); display:flex; align-items:center; justify-content:center; font-family:var(--serif); font-size:18px; font-weight:600; }
+  header h1 { font-family:var(--serif); font-size:26px; font-weight:400; }
+  header h1 em { font-style:italic; color:var(--accent); }
+
+  /* Progress bar */
+  .progress-bar { height:4px; background:var(--surface-2); border-radius:2px; margin-bottom:48px; }
+  .progress-bar .fill { height:100%; background:var(--accent); border-radius:2px; width:0%; }
+
+  .section { margin-bottom:44px; }
+  .section h2 { font-family:var(--serif); font-size:22px; font-weight:400; padding-bottom:8px; border-bottom:1px solid var(--line); margin-bottom:18px; }
+  .section h2 em { font-style:italic; color:var(--accent); }
+  .section h2 .tag { font-family:var(--mono); font-size:11px; font-weight:500; padding:2px 8px; border-radius:6px; margin-left:10px; vertical-align:middle; }
+  .tag-db { background:color-mix(in oklab, var(--warn) 15%, transparent); color:#92400e; }
+  .tag-api { background:color-mix(in oklab, var(--accent) 15%, transparent); color:var(--accent); }
+  .tag-fe { background:color-mix(in oklab, var(--go) 15%, transparent); color:#166534; }
+  .tag-infra { background:color-mix(in oklab, var(--risk) 12%, transparent); color:#991b1b; }
+
+  /* Code blocks */
+  pre { background:var(--bg-2); border:1px solid var(--line); border-radius:10px; padding:16px 18px; overflow-x:auto; font-family:var(--mono); font-size:12px; line-height:1.7; color:var(--ink-2); margin:12px 0; }
+  pre .k { color:var(--accent); font-weight:600; }
+  pre .s { color:#166534; }
+  pre .c { color:var(--ink-4); }
+  pre .w { color:var(--warn); }
+
+  /* Tables */
+  table { width:100%; border-collapse:separate; border-spacing:0; border:1px solid var(--line); border-radius:12px; overflow:hidden; font-size:13px; margin:12px 0; }
+  thead { background:var(--surface); }
+  thead th { padding:12px 14px; text-align:left; font-family:var(--mono); font-size:10px; color:var(--ink-4); text-transform:uppercase; letter-spacing:.06em; font-weight:600; border-bottom:1px solid var(--line); }
+  tbody td { padding:12px 14px; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.6; }
+  tbody tr:last-child td { border-bottom:0; }
+  tbody td:first-child { font-family:var(--mono); font-size:11px; font-weight:600; }
+
+  /* Steps */
+  .step-list { counter-reset:step; list-style:none; }
+  .step-list li { counter-increment:step; padding:16px 0 16px 52px; position:relative; border-bottom:1px solid var(--line); }
+  .step-list li::before {
+    content:counter(step);
+    position:absolute; left:0; top:16px;
+    width:32px; height:32px; border-radius:10px;
+    background:var(--surface); border:1px solid var(--line-strong);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:13px; font-weight:600; color:var(--accent);
+  }
+  .step-list li h4 { font-size:15px; margin-bottom:4px; }
+  .step-list li p { font-size:13px; color:var(--ink-3); line-height:1.6; }
+
+  /* File tree */
+  .file-tree { font-family:var(--mono); font-size:12px; line-height:2; color:var(--ink-3); margin:12px 0; }
+  .file-tree .dir { color:var(--accent); font-weight:600; }
+  .file-tree .file { color:var(--ink-2); }
+  .file-tree .new { color:var(--go); }
+  .file-tree .mod { color:var(--warn); }
+
+  .git-strategy { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 22px; margin:12px 0; }
+  .git-strategy h4 { font-family:var(--mono); font-size:12px; color:var(--accent); margin-bottom:8px; }
+  .git-strategy code { display:block; font-size:12px; color:var(--ink-2); margin:4px 0; }
+
+  .callout { background:color-mix(in oklab, var(--accent) 6%, transparent); border:1px solid color-mix(in oklab, var(--accent) 20%, transparent); border-radius:10px; padding:18px 22px; margin:12px 0; font-size:13px; color:var(--ink-2); line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="logo">V</div>
+  <div>
+    <span class="eyebrow" style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-4);font-weight:600">Implementation Plan</span>
+    <h1>Messaging v2 — <em>Real-time, 3-stage, Production-grade</em></h1>
+  </div>
+</header>
+
+<div class="progress-bar"><div class="fill" style="width:0%"></div></div>
+
+<!-- ==================== OVERVIEW ==================== -->
+<div class="section">
+  <h2>0. Scope <em>Overview</em></h2>
+  <table>
+    <thead><tr><th style="width:200px">Capability</th><th>v1 (current)</th><th>v2 (target)</th></tr></thead>
+    <tbody>
+      <tr><td>Real-time</td><td>5s polling</td><td>Pusher WebSocket, &lt;100ms delivery</td></tr>
+      <tr><td>Escrow stages</td><td>7 (awaiting_deposit → released)</td><td>3 (pending_payment → paid → released)</td></tr>
+      <tr><td>Message types</td><td>Text only</td><td>Text + images + system messages</td></tr>
+      <tr><td>Image upload</td><td>❌</td><td>Vercel Blob (scale to S3 later)</td></tr>
+      <tr><td>Quick replies</td><td>❌</td><td>"I've paid", "Please release", "Received"</td></tr>
+      <tr><td>Read receipts</td><td>❌</td><td>✓ Seen indicator per message</td></tr>
+      <tr><td>Pagination</td><td>CAP 200, no offset</td><td>Cursor-based, load-more button</td></tr>
+      <tr><td>Auth (API)</td><td>Session cookie only</td><td>Cookie + API key (HMAC SHA256)</td></tr>
+      <tr><td>Admin msg access</td><td>❌ (encrypted blobs only)</td><td>✓ Decrypt for dispute resolution</td></tr>
+      <tr><td>Notifications</td><td>❌</td><td>Farcaster push + Resend email</td></tr>
+      <tr><td>Encryption</td><td>AES-256-GCM at rest</td><td>Same + admin-auditable decryption</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== DEPENDENCIES ==================== -->
+<div class="section">
+  <h2>1. New <em>Dependencies</em> <span class="tag tag-infra">INFRA</span></h2>
+  <pre><span class="c"># Real-time messaging</span>
+npm install <span class="k">pusher</span> <span class="k">pusher-js</span>
+
+<span class="c"># Email notifications</span>
+npm install <span class="k">resend</span>
+
+<span class="c"># Already installed (no action needed)</span>
+<span class="c"># @vercel/blob  — image upload storage</span>
+<span class="c"># zod           — validation</span>
+<span class="c"># viem          — HMAC, hashing utilities</span></pre>
+
+  <div class="callout">
+    <strong>New env vars needed:</strong><br>
+    <code>PUSHER_APP_ID</code>, <code>PUSHER_KEY</code>, <code>PUSHER_SECRET</code>, <code>PUSHER_CLUSTER</code> (e.g. "eu")<br>
+    <code>NEXT_PUBLIC_PUSHER_KEY</code>, <code>NEXT_PUBLIC_PUSHER_CLUSTER</code><br>
+    <code>RESEND_API_KEY</code><br>
+    <code>BLOB_READ_WRITE_TOKEN</code> (already set if @vercel/blob is configured)
+  </div>
+</div>
+
+<!-- ==================== DATABASE ==================== -->
+<div class="section">
+  <h2>2. Database <em>Migrations</em> <span class="tag tag-db">DB</span></h2>
+
+  <h3>2.1 deal_messages — add columns</h3>
+  <pre><span class="c">-- Migration 0008_messaging_v2.sql</span>
+ALTER TABLE deal_messages
+  ADD COLUMN IF NOT EXISTS <span class="k">read_at</span>       TIMESTAMP,
+  ADD COLUMN IF NOT EXISTS <span class="k">image_url</span>     TEXT,
+  ADD COLUMN IF NOT EXISTS <span class="k">message_type</span>  TEXT DEFAULT 'text' NOT NULL;
+
+<span class="c">-- Index for cursor-based pagination</span>
+CREATE INDEX IF NOT EXISTS idx_deal_messages_escrow_created
+  ON deal_messages (escrow_id, created_at DESC);</pre>
+
+  <h3>2.2 notification_tokens — new table</h3>
+  <pre>CREATE TABLE IF NOT EXISTS notification_tokens (
+  id            TEXT PRIMARY KEY,
+  user_address  TEXT NOT NULL REFERENCES users(address),
+  platform      TEXT NOT NULL,        <span class="c">-- 'farcaster' | 'email'</span>
+  token         TEXT NOT NULL,        <span class="c">-- FID for farcaster, email addr for email</span>
+  verified      BOOLEAN DEFAULT false,
+  created_at    TIMESTAMP DEFAULT now() NOT NULL,
+  UNIQUE(user_address, platform)
+);</pre>
+
+  <h3>2.3 api_keys — new table</h3>
+  <pre>CREATE TABLE IF NOT EXISTS api_keys (
+  id              TEXT PRIMARY KEY,
+  user_address    TEXT NOT NULL REFERENCES users(address),
+  label           TEXT DEFAULT '',             <span class="c">-- user-defined name</span>
+  api_key         TEXT UNIQUE NOT NULL,        <span class="c">-- prefix "vault_sk_"</span>
+  secret_hash     TEXT NOT NULL,               <span class="c">-- SHA256(secret)</span>
+  passphrase_hash TEXT NOT NULL,               <span class="c">-- SHA256(passphrase)</span>
+  last_used_at    TIMESTAMP,
+  created_at      TIMESTAMP DEFAULT now() NOT NULL
+);</pre>
+
+  <h3>2.4 escrow stage — simplify enum</h3>
+  <pre><span class="c">-- Keep existing stages for backward compat, add new ones</span>
+ALTER TYPE escrow_stage ADD VALUE IF NOT EXISTS <span class="k">'pending_payment'</span>;
+ALTER TYPE escrow_stage ADD VALUE IF NOT EXISTS <span class="k">'paid'</span>;
+
+<span class="c">-- New escrows use 3-stage flow:
+--   pending_payment → paid → released
+--   (disputed/refunded still exist as exception paths)</span></pre>
+</div>
+
+<!-- ==================== API ROUTES ==================== -->
+<div class="section">
+  <h2>3. API <em>Routes</em> <span class="tag tag-api">API</span></h2>
+
+  <div class="file-tree">
+    <div class="dir">src/app/api/</div>
+    <div style="padding-left:16px">
+      <div class="dir">deals/[id]/messages/</div>
+      <div style="padding-left:16px">
+        <div class="file mod">route.ts</div>
+        <div class="file new">read/route.ts</div>
+        <div class="file new">image/route.ts</div>
+      </div>
+      <div class="dir new">pusher/</div>
+      <div style="padding-left:16px">
+        <div class="file new">auth/route.ts</div>
+      </div>
+      <div class="dir">me/</div>
+      <div style="padding-left:16px">
+        <div class="file new">api-keys/route.ts</div>
+        <div class="file new">notifications/route.ts</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>3.1 Pusher auth endpoint</h3>
+  <pre><span class="c">// POST /api/pusher/auth</span>
+<span class="c">// Called by pusher-js to authenticate private channel subscription</span>
+import { requireUser } from "@/lib/auth";
+import Pusher from "pusher";
+
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID!,
+  key: process.env.PUSHER_KEY!,
+  secret: process.env.PUSHER_SECRET!,
+  cluster: process.env.PUSHER_CLUSTER!,
+});
+
+export async function POST(req: NextRequest) {
+  const auth = await <span class="k">requireUser</span>(req);
+  if ("response" in auth) return auth.response;
+
+  const { socket_id, channel_name } = await req.json();
+  <span class="c">// channel_name = "private-deal-{escrowId}"</span>
+
+  const escrowId = channel_name.replace("private-deal-", "");
+  <span class="c">// Verify user is participant of this escrow</span>
+  const rows = await auth.db`
+    SELECT id FROM escrows WHERE id = <span class="s">${escrowId}</span>
+    AND (buyer_address = <span class="s">${auth.user.address}</span> OR seller_address = <span class="s">${auth.user.address}</span>)
+    LIMIT 1
+  `;
+  if (rows.length === 0) return NextResponse.json({}, { status: 403 });
+
+  const authResponse = pusher.authorizeChannel(socket_id, channel_name);
+  return NextResponse.json(authResponse);
+}</pre>
+
+  <h3>3.2 Messages — GET with cursor pagination</h3>
+  <pre><span class="c">// GET /api/deals/:id/messages?cursor=2026-06-26...&limit=50</span>
+export async function GET(req, { params }) {
+  const { id: escrowId } = await params;
+  const auth = await requireUser(req);
+  if ("response" in auth) return auth.response;
+
+  <span class="c">// Verify participant</span>
+  <span class="c">// ... (same escrow participant check)</span>
+
+  const url = new URL(req.url);
+  const limit  = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100);
+  const cursor = url.searchParams.get("cursor");
+
+  <span class="c">// Cursor-based: fetch messages older than cursor</span>
+  const rows = cursor
+    ? await auth.db`
+        SELECT * FROM deal_messages
+        WHERE escrow_id = <span class="s">${escrowId}</span>
+          AND created_at &lt; <span class="s">${cursor}</span>::timestamptz
+        ORDER BY created_at DESC
+        LIMIT <span class="s">${limit}</span>`
+    : await auth.db`
+        SELECT * FROM deal_messages
+        WHERE escrow_id = <span class="s">${escrowId}</span>
+        ORDER BY created_at DESC
+        LIMIT <span class="s">${limit}</span>`;
+
+  const messages = rows.reverse().map(r => ({
+    id: r.id,
+    sender: shortAddress(r.sender_address),
+    senderAddress: r.sender_address,
+    body: decryptMessage(escrowId, r.body),
+    messageType: r.message_type || "text",
+    imageUrl: r.image_url,
+    readAt: r.read_at,
+    createdAt: r.created_at,
+    me: r.sender_address.toLowerCase() === actorAddress,
+  }));
+
+  const nextCursor = rows.length > 0
+    ? rows[rows.length - 1].created_at  <span class="c">// oldest in this batch</span>
+    : null;
+
+  return NextResponse.json({
+    data: messages,
+    nextCursor,
+    hasMore: rows.length === limit,
+  });
+}</pre>
+
+  <h3>3.3 Messages — POST with image support</h3>
+  <pre><span class="c">// POST /api/deals/:id/messages</span>
+const sendSchema = z.object({
+  actorAddress: z.string().startsWith("0x").length(42).optional(),
+  body:         z.string().max(5000).default(""),
+  messageType:  z.enum(["text", "image"]).default("text"),
+  imageUrl:     z.string().url().optional(),
+});
+
+export async function POST(req, { params }) {
+  <span class="c">// ... auth + participant check (same as v1)</span>
+
+  const id = `M-${Date.now()}`;
+  const body = parsed.data.body || (parsed.data.messageType === "image" ? "[Image]" : "");
+
+  const ciphertext = encryptMessage(escrowId, body);
+
+  await auth.db`
+    INSERT INTO deal_messages (id, escrow_id, sender_address, body, message_type, image_url)
+    VALUES (<span class="s">${id}</span>, <span class="s">${escrowId}</span>, <span class="s">${actorAddress}</span>, <span class="s">${ciphertext}</span>, <span class="s">${parsed.data.messageType}</span>, <span class="s">${parsed.data.imageUrl || null}</span>)
+  `;
+
+  <span class="c">// Trigger Pusher event</span>
+  await pusher.trigger(`private-deal-<span class="s">${escrowId}</span>`, "new-message", {
+    id, sender: shortAddress(actorAddress), senderAddress: actorAddress,
+    body: parsed.data.body, messageType: parsed.data.messageType,
+    imageUrl: parsed.data.imageUrl, createdAt: new Date().toISOString(),
+    me: false,  <span class="c">// will be true for sender's client, they already have msg</span>
+  });
+
+  <span class="c">// Send notification to counterparty</span>
+  <span class="c">// ... (see section 5)</span>
+
+  return NextResponse.json({ data: { id, ... } }, { status: 201 });
+}</pre>
+
+  <h3>3.4 Read receipts</h3>
+  <pre><span class="c">// POST /api/deals/:id/messages/read</span>
+const readSchema = z.object({
+  messageIds: z.array(z.string()).min(1),
+});
+
+export async function POST(req, { params }) {
+  const auth = await requireUser(req);
+  if ("response" in auth) return auth.response;
+  const { messageIds } = readSchema.parse(await req.json());
+
+  await auth.db`
+    UPDATE deal_messages
+    SET read_at = NOW()
+    WHERE escrow_id = <span class="s">${escrowId}</span>
+      AND id = ANY(<span class="s">${messageIds}</span>)
+      AND sender_address &lt;&gt; <span class="s">${auth.user.address}</span>   <span class="c">// can't read your own msgs</span>
+      AND read_at IS NULL
+  `;
+
+  <span class="c">// Trigger Pusher event so counterparty sees read receipts update</span>
+  await pusher.trigger(`private-deal-<span class="s">${escrowId}</span>`, "messages-read", {
+    messageIds,
+    readBy: shortAddress(auth.user.address),
+  });
+
+  return NextResponse.json({ ok: true });
+}</pre>
+
+  <h3>3.5 Image upload endpoint</h3>
+  <pre><span class="c">// POST /api/deals/:id/messages/image</span>
+import { put } from "@vercel/blob";
+
+export async function POST(req, { params }) {
+  const auth = await requireUser(req);
+  if ("response" in auth) return auth.response;
+  <span class="c">// ... participant check</span>
+
+  const form = await req.formData();
+  const file = form.get("file") as File;
+  if (!file) return badRequest("No file uploaded");
+
+  <span class="c">// Validate: images only, max 10MB</span>
+  if (!file.type.startsWith("image/")) return badRequest("Only images allowed");
+  if (file.size > 10 * 1024 * 1024) return badRequest("Max 10MB");
+
+  const blob = await put(
+    `deals/<span class="s">${escrowId}</span>/<span class="s">${Date.now()}</span>-<span class="s">${file.name}</span>`,
+    file,
+    { access: "public", token: process.env.BLOB_READ_WRITE_TOKEN }
+  );
+
+  return NextResponse.json({ url: blob.url });
+}</pre>
+
+  <h3>3.6 HMAC API key auth</h3>
+  <pre><span class="c">// src/lib/api-auth.ts (new file)</span>
+import { createHmac, timingSafeEqual } from "crypto";
+
+export function verifyHmacSignature(
+  secret: string,
+  method: string,
+  path: string,
+  body: string,
+  timestamp: string,
+  signature: string
+): boolean {
+  const payload = `${timestamp}${method}${path}${body}`;
+  const expected = createHmac("sha256", secret).update(payload).digest("hex");
+  try {
+    return timingSafeEqual(
+      Buffer.from(expected),
+      Buffer.from(signature)
+    );
+  } catch {
+    return false;
+  }
+}
+
+export async function requireApiKey(req: NextRequest) {
+  const apiKey  = req.headers.get("x-vault-api-key");
+  const ts      = req.headers.get("x-vault-timestamp");
+  const sig     = req.headers.get("x-vault-signature");
+  const passphrase = req.headers.get("x-vault-passphrase");
+
+  if (!apiKey || !ts || !sig) return { error: "Missing auth headers" };
+
+  <span class="c">// Replay protection: timestamp must be within ±30s</span>
+  if (Math.abs(Date.now() - parseInt(ts)) > 30_000) {
+    return { error: "Timestamp expired" };
+  }
+
+  <span class="c">// Look up API key</span>
+  const db = getDatabase();
+  const rows = await db`SELECT * FROM api_keys WHERE api_key = <span class="s">${apiKey}</span> LIMIT 1`;
+  if (rows.length === 0) return { error: "Invalid API key" };
+
+  <span class="c">// HMAC verify</span>
+  const body = await req.clone().text(); <span class="c">// need raw body for HMAC</span>
+  const valid = verifyHmacSignature(
+    rows[0].secret_hash,
+    req.method, req.nextUrl.pathname, body, ts, sig!
+  );
+  if (!valid) return { error: "Invalid signature" };
+
+  <span class="c">// Verify passphrase hash</span>
+  const passHash = createHash("sha256").update(passphrase || "").digest("hex");
+  if (passHash !== rows[0].passphrase_hash) return { error: "Invalid passphrase" };
+
+  await db`UPDATE api_keys SET last_used_at = NOW() WHERE id = <span class="s">${rows[0].id}</span>`;
+
+  return { user: { address: rows[0].user_address, role: "user" } };
+}</pre>
+</div>
+
+<!-- ==================== FRONTEND ==================== -->
+<div class="section">
+  <h2>4. Frontend <em>Changes</em> <span class="tag tag-fe">UI</span></h2>
+
+  <h3>4.1 DealRoom — Pusher subscription replaces polling</h3>
+  <pre><span class="c">// src/app/(user)/deals/page.tsx — DealRoom component</span>
+import Pusher from "pusher-js";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+function DealRoom({ deal, onBack, onChanged }) {
+  <span class="c">// ... existing state</span>
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const chatRef = useRef&lt;HTMLDivElement&gt;(null);
+  const seenRef = useRef&lt;Set&lt;string&gt;&gt;(new Set());
+
+  <span class="c">// ---- Pusher real-time ----</span>
+  useEffect(() => {
+    const pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
+      cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
+      authEndpoint: "/api/pusher/auth",
+      auth: { headers: {} },  <span class="c">// session cookie auto-sent</span>
+    });
+
+    const channel = pusher.subscribe(`private-deal-<span class="s">${deal.id}</span>`);
+
+    channel.bind("<span class="k">new-message</span>", (msg: ChatMessage) => {
+      setMessages(prev => {
+        <span class="c">// Deduplicate — don't add if we already have it (our own sent msg)</span>
+        if (prev.some(m => m.id === msg.id)) return prev;
+        return [...prev, { ...msg, me: msg.senderAddress === address }];
+      });
+      <span class="c">// Auto-mark as read if chat is visible</span>
+      markAsRead([msg.id]);
+    });
+
+    channel.bind("<span class="k">messages-read</span>", (data: { messageIds: string[], readBy: string }) => {
+      setMessages(prev => prev.map(m =>
+        data.messageIds.includes(m.id) ? { ...m, readAt: new Date().toISOString() } : m
+      ));
+    });
+
+    channel.bind("<span class="k">stage-change</span>", (data: { stage: string }) => {
+      onChanged();  <span class="c">// refresh deal details from server</span>
+    });
+
+    return () => {
+      pusher.unsubscribe(`private-deal-<span class="s">${deal.id}</span>`);
+      pusher.disconnect();
+    };
+  }, [deal.id, address]);
+
+  <span class="c">// ---- Initial message load + pagination ----</span>
+  useEffect(() => {
+    loadMessages();
+  }, [deal.id, address]);
+
+  const loadMessages = async (cursor?: string) => {
+    const params = new URLSearchParams({ limit: "50" });
+    if (address) params.set("walletAddress", address);
+    if (cursor) params.set("cursor", cursor);
+
+    const res = await fetch(`/api/deals/<span class="s">${deal.id}</span>/messages?${params}`);
+    const json = await res.json();
+
+    if (cursor) {
+      setMessages(prev => [...json.data.reverse(), ...prev]);
+    } else {
+      setMessages(json.data || []);
+    }
+    setHasMore(json.hasMore);
+  };
+
+  <span class="c">// ---- Read receipts: mark messages as seen when visible ----</span>
+  const markAsRead = async (ids: string[]) => {
+    const unread = ids.filter(id => !seenRef.current.has(id));
+    if (unread.length === 0) return;
+    unread.forEach(id => seenRef.current.add(id));
+
+    await fetch(`/api/deals/<span class="s">${deal.id}</span>/messages/read`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageIds: unread }),
+    }).catch(() => {});
+  };
+
+  <span class="c">// ---- Image upload ----</span>
+  const uploadImage = async (file: File) => {
+    const form = new FormData();
+    form.set("file", file);
+    const res = await fetch(`/api/deals/<span class="s">${deal.id}</span>/messages/image`, {
+      method: "POST", credentials: "include", body: form,
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error);
+
+    <span class="c">// Send as message</span>
+    await fetch(`/api/deals/<span class="s">${deal.id}</span>/messages`, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messageType: "image",
+        imageUrl: json.url,
+        body: "",
+      }),
+    });
+  };
+}</pre>
+
+  <h3>4.2 Chat UI — quick replies, read receipts, image rendering</h3>
+  <pre>&lt;div className="card" style={{ height: 480 }}&gt;
+  &lt;div className="row between"&gt;
+    &lt;span className="eyebrow"&gt;Deal Room Chat&lt;/span&gt;
+    &lt;span className="muted-2"&gt;End-to-end encrypted · 2 participants&lt;/span&gt;
+  &lt;/div&gt;
+
+  <span class="c">&lt;!-- Messages with read receipts --&gt;</span>
+  &lt;div ref={chatRef} style={{ overflowY:"auto", flex:1 }}&gt;
+    {messages.map(m =&gt; (
+      &lt;div key={m.id} style={{ alignItems: m.me ? "flex-end" : "flex-start" }}&gt;
+        &lt;div className={"bubble" + (m.me ? " me" : "")}&gt;
+          &lt;div className="who"&gt;
+            {m.sender} · {formatTime(m.createdAt)}
+            {m.readAt &amp;&amp; m.me &amp;&amp; (
+              &lt;span style={{ color:"var(--ink-4)", fontSize:10 }}&gt; ✓✓ Seen&lt;/span&gt;
+            )}
+          &lt;/div&gt;
+          <span class="c">{/* Image message */}</span>
+          {m.messageType === "image" &amp;&amp; m.imageUrl ? (
+            &lt;img src={m.imageUrl} style={{ maxWidth:240, borderRadius:8 }} /&gt;
+          ) : (
+            m.body
+          )}
+        &lt;/div&gt;
+      &lt;/div&gt;
+    ))}
+
+    <span class="c">{/* Load more button */}</span>
+    {hasMore &amp;&amp; (
+      &lt;button className="btn ghost sm" onClick={() =&gt; loadMessages(messages[0]?.createdAt)}
+              disabled={loadingMore}&gt;
+        {loadingMore ? "Loading..." : "Load earlier messages"}
+      &lt;/button&gt;
+    )}
+  &lt;/div&gt;
+
+  <span class="c">&lt;!-- Quick replies --&gt;</span>
+  &lt;div className="row" style={{ gap:6, flexWrap:"wrap", padding:"8px 0" }}&gt;
+    {["I've paid", "Please release", "Received, thanks", "Checking now"].map(q =&gt; (
+      &lt;button key={q} className="btn ghost sm"
+              onClick={() =&gt; { setDraft(q); sendMsg(q); }}&gt;
+        {q}
+      &lt;/button&gt;
+    ))}
+  &lt;/div&gt;
+
+  <span class="c">&lt;!-- Input row with image upload --&gt;</span>
+  &lt;div className="row" style={{ gap:8, borderTop:"1px solid var(--line)", paddingTop:12 }}&gt;
+    &lt;label className="btn ghost sm" style={{ cursor:"pointer" }}&gt;
+      📎
+      &lt;input type="file" accept="image/*" hidden
+             onChange={e =&gt; e.target.files?.[0] &amp;&amp; uploadImage(e.target.files[0])} /&gt;
+    &lt;/label&gt;
+    &lt;input className="input" placeholder="Send a message…" value={draft}
+           onChange={e =&gt; setDraft(e.target.value)}
+           onKeyDown={e =&gt; e.key === "Enter" &amp;&amp; sendMsg()} /&gt;
+    &lt;button className="btn primary" onClick={() =&gt; sendMsg()} disabled={sending}&gt;Send&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+
+  <h3>4.3 3-stage escrow indicator</h3>
+  <pre><span class="c">// Replace the 7-stage timeline with 3-stage progress bar</span>
+const stageOrder = ["pending_payment", "paid", "released"];
+const currentIdx = stageOrder.indexOf(deal.stageRaw);
+const stageLabels = {
+  pending_payment: "Pending payment",
+  paid: "Paid — awaiting release",
+  released: "Released ✓",
+};
+
+&lt;div className="stage-indicator"&gt;
+  {stageOrder.map((s, i) =&gt; (
+    &lt;div key={s} className={`
+      stage-step
+      ${i &lt; currentIdx ? "done" : ""}
+      ${i === currentIdx ? "active" : ""}
+    `}&gt;
+      &lt;span className="dot"&gt;{i &lt; currentIdx ? "✓" : i + 1}&lt;/span&gt;
+      &lt;span className="label"&gt;{stageLabels[s]}&lt;/span&gt;
+    &lt;/div&gt;
+  ))}
+&lt;/div&gt;
+
+<span class="c">// CSS — add to globals.css</span>
+.stage-indicator {
+  display: flex; gap: 0; margin: 16px 0;
+}
+.stage-step {
+  flex: 1; text-align: center; position: relative;
+  padding-top: 22px; font-size: 12px;
+}
+.stage-step::before {
+  content: ""; position: absolute; top: 8px; left: 0; right: 0;
+  height: 2px; background: var(--line);
+}
+.stage-step.done::before { background: var(--accent); }
+.stage-step .dot {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--line); background: var(--bg);
+  font-size: 10px; display: flex; align-items: center; justify-content: center;
+}
+.stage-step.done .dot { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.stage-step.active .dot { border-color: var(--accent); background: var(--accent-ink); color: var(--accent); }
+.stage-step .label { display: block; margin-top: 12px; color: var(--ink-3); }
+.stage-step.active .label { color: var(--accent); font-weight: 600; }
+.stage-step.done .label { color: var(--ink-4); }</pre>
+</div>
+
+<!-- ==================== NOTIFICATIONS ==================== -->
+<div class="section">
+  <h2>5. Notifications <em>System</em> <span class="tag tag-api">API</span></h2>
+
+  <h3>5.1 Farcaster frame notifications (mini-app users)</h3>
+  <pre><span class="c">// src/lib/notifications.ts</span>
+import { sendNotification } from "@farcaster/hub-web";
+
+export async function notifyCounterparty(
+  db: DbClient,
+  escrow: { id: string; buyer_address: string; seller_address: string },
+  senderAddress: string,
+  message: string,
+) {
+  const counterparty = escrow.buyer_address === senderAddress
+    ? escrow.seller_address
+    : escrow.buyer_address;
+
+  <span class="c">// Check if counterparty has a Farcaster notification token</span>
+  const tokens = await db`
+    SELECT token FROM notification_tokens
+    WHERE user_address = <span class="s">${counterparty}</span>
+      AND platform = 'farcaster'
+      AND verified = true
+    LIMIT 1
+  `;
+
+  if (tokens.length &gt; 0) {
+    const fid = parseInt(tokens[0].token);
+    await sendNotification({
+      fid,
+      notification: {
+        title: "New message in Deal Room",
+        body: message.slice(0, 100),
+        targetUrl: `/deals?id=<span class="s">${escrow.id}</span>`,
+      },
+    }).catch(() =&gt; {}); <span class="c">// fire-and-forget</span>
+  }
+
+  <span class="c">// Email notification (separate check)</span>
+  await sendEmailNotification(db, counterparty, escrow, message);
+}</pre>
+
+  <h3>5.2 Email notifications via Resend</h3>
+  <pre><span class="c">// src/lib/notifications.ts (continued)</span>
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+export async function sendEmailNotification(
+  db: DbClient,
+  counterparty: string,
+  escrow: { id: string; name?: string },
+  message: string,
+) {
+  const tokens = await db`
+    SELECT token FROM notification_tokens
+    WHERE user_address = <span class="s">${counterparty}</span>
+      AND platform = 'email'
+      AND verified = true
+    LIMIT 1
+  `;
+  if (tokens.length === 0) return;
+
+  await resend.emails.send({
+    from: "Vault &lt;deals@baseshirehethaway.com&gt;",
+    to: tokens[0].token,
+    subject: `New message in Deal Room — <span class="s">${escrow.id}</span>`,
+    html: `
+      &lt;p&gt;You have a new message in your deal:&lt;/p&gt;
+      &lt;blockquote&gt;<span class="s">${message.slice(0, 300)}</span>&lt;/blockquote&gt;
+      &lt;a href="https://baseshirehethaway.com/deals?id=<span class="s">${escrow.id}</span>"&gt;Open Deal Room&lt;/a&gt;
+      &lt;p style="color:#999"&gt;Reply directly in the app.&lt;/p&gt;
+    `,
+  }).catch(() =&gt; {});
+}</pre>
+
+  <h3>5.3 Profile notification settings</h3>
+  <pre><span class="c">// POST /api/me/notifications</span>
+const notifySchema = z.object({
+  platform: z.enum(["email"]),
+  token: z.string().email(),
+});
+
+export async function POST(req: NextRequest) {
+  const auth = await requireUser(req);
+  if ("response" in auth) return auth.response;
+  const parsed = notifySchema.parse(await req.json());
+
+  <span class="c">// Upsert notification token</span>
+  await auth.db`
+    INSERT INTO notification_tokens (id, user_address, platform, token, verified)
+    VALUES (<span class="s">${`NT-${Date.now()}`}</span>, <span class="s">${auth.user.address}</span>, <span class="s">${parsed.data.platform}</span>, <span class="s">${parsed.data.token}</span>, true)
+    ON CONFLICT (user_address, platform)
+    DO UPDATE SET token = <span class="s">${parsed.data.token}</span>, verified = true
+  `;
+
+  return NextResponse.json({ ok: true });
+}
+
+<span class="c">// DELETE /api/me/notifications</span>
+export async function DELETE(req: NextRequest) {
+  const auth = await requireUser(req);
+  if ("response" in auth) return auth.response;
+  const { platform } = await req.json();
+  await auth.db`
+    DELETE FROM notification_tokens
+    WHERE user_address = <span class="s">${auth.user.address}</span> AND platform = <span class="s">${platform}</span>
+  `;
+  return NextResponse.json({ ok: true });
+}</pre>
+</div>
+
+<!-- ==================== ADMIN ==================== -->
+<div class="section">
+  <h2>6. Admin Dispute <em>Message Access</em> <span class="tag tag-api">API</span></h2>
+  <pre><span class="c">// src/lib/crypto.ts — add admin decrypt</span>
+export function decryptMessageAdmin(escrowId: string, ciphertext: string): string {
+  <span class="c">// Same decryption — admins use the same MESSAGE_ENCRYPTION_KEY</span>
+  <span class="c">// The access control is at the API layer (requireAdmin)</span>
+  return decryptMessage(escrowId, ciphertext);
+}
+
+<span class="c">// GET /api/admin/deals/:id/messages</span>
+export async function GET(req, { params }) {
+  const auth = await <span class="k">requireAdmin</span>(req);     <span class="c">// admin-only</span>
+  if ("response" in auth) return auth.response;
+
+  <span class="c">// Verify there's an active dispute for this escrow</span>
+  const dispute = await auth.db`
+    SELECT id FROM disputes
+    WHERE escrow_id = <span class="s">${escrowId}</span> AND status = 'open'
+    LIMIT 1
+  `;
+  if (dispute.length === 0) {
+    return NextResponse.json(
+      { error: "No active dispute for this escrow" },
+      { status: 403 }
+    );
+  }
+
+  <span class="c">// Fetch + decrypt all messages</span>
+  const rows = await auth.db`
+    SELECT * FROM deal_messages WHERE escrow_id = <span class="s">${escrowId}</span> ORDER BY created_at ASC
+  `;
+
+  await writeAudit(
+    "ADMIN_VIEWED_MESSAGES", escrowId,
+    `Admin viewed all messages for disputed escrow`,
+    "admin", auth.user.address
+  );
+
+  return NextResponse.json({
+    data: rows.map(r => ({
+      ...r,
+      body: decryptMessage(escrowId, r.body),  <span class="c">// decrypted for admin</span>
+    })),
+  });
+}</pre>
+</div>
+
+<!-- ==================== IMPLEMENTATION ORDER ==================== -->
+<div class="section">
+  <h2>7. Implementation <em>Order</em></h2>
+  <p style="font-size:13px;color:var(--ink-3);margin-bottom:16px">Each phase is a mergable PR. Order matters for dependencies.</p>
+
+  <ol class="step-list">
+    <li>
+      <h4>Phase 1: Database + Infrastructure <span class="tag tag-db" style="margin-left:8px">DB</span> <span class="tag tag-infra" style="margin-left:4px">INFRA</span></h4>
+      <p>Create migration 0008 (new columns, new tables, new enum values). Install pusher, pusher-js, resend. Set up Pusher app on dashboard. Add all env vars to Vercel. Deploy migration to production.</p>
+      <div class="git-strategy">
+        <h4>Branch: <code>msg-v2-phase-1-db</code></h4>
+        <code>git checkout -b msg-v2-phase-1-db</code>
+        <code># Add drizzle/0008_messaging_v2.sql + journal + schema.ts updates</code>
+        <code># npm install pusher pusher-js resend</code>
+        <code># Update .env.example with new vars</code>
+        <code>git push &amp;&amp; gh pr create</code>
+      </div>
+    </li>
+    <li>
+      <h4>Phase 2: Pusher auth + API key system <span class="tag tag-api" style="margin-left:8px">API</span></h4>
+      <p>Create <code>/api/pusher/auth</code>. Create <code>/api/me/api-keys</code> (CRUD). Create <code>src/lib/api-auth.ts</code> with HMAC verification. Wire Pusher trigger calls into existing POST /messages handler (behind feature flag or just add).</p>
+      <div class="git-strategy">
+        <h4>Branch: <code>msg-v2-phase-2-api</code></h4>
+        <code>git checkout -b msg-v2-phase-2-api</code>
+        <code># New files: pusher/auth/route.ts, me/api-keys/route.ts, lib/api-auth.ts</code>
+        <code># Modify: deals/[id]/messages/route.ts (add pusher.trigger after insert)</code>
+        <code># Add: /api/deals/[id]/messages/image/route.ts</code>
+      </div>
+    </li>
+    <li>
+      <h4>Phase 3: Frontend — real-time + quick replies + read receipts <span class="tag tag-fe" style="margin-left:8px">UI</span></h4>
+      <p>Replace polling with Pusher subscription in DealRoom. Add quick reply buttons. Add read receipt display (✓✓ Seen). Add image upload button + preview. Add load-more pagination.</p>
+      <div class="git-strategy">
+        <h4>Branch: <code>msg-v2-phase-3-ui</code></h4>
+        <code>git checkout -b msg-v2-phase-3-ui</code>
+        <code># Modify: src/app/(user)/deals/page.tsx</code>
+        <code># Add: globals.css (bubble read receipt styles, image styles)</code>
+      </div>
+    </li>
+    <li>
+      <h4>Phase 4: 3-stage escrow <span class="tag tag-fe" style="margin-left:8px">UI</span> <span class="tag tag-api" style="margin-left:4px">API</span></h4>
+      <p>Update escrow creation to use <code>pending_payment</code> as initial stage. Add 3-stage progress bar UI. Update release/confirm actions. Trigger Pusher <code>stage-change</code> events. Backward-compatible: existing escrows keep their current stage.</p>
+      <div class="git-strategy">
+        <h4>Branch: <code>msg-v2-phase-4-stages</code></h4>
+        <code>git checkout -b msg-v2-phase-4-stages</code>
+        <code># Modify: escrows/route.ts, escrow-actions.ts, escrows/[id]/route.ts</code>
+        <code># Modify: deals/page.tsx (stage indicator UI)</code>
+      </div>
+    </li>
+    <li>
+      <h4>Phase 5: Notifications <span class="tag tag-api" style="margin-left:8px">API</span> <span class="tag tag-fe" style="margin-left:4px">UI</span></h4>
+      <p>Create <code>src/lib/notifications.ts</code>. Wire into POST /messages handler. Add profile notification settings UI (email input). For Farcaster mini-app users, auto-register notification token from session FID.</p>
+      <div class="git-strategy">
+        <h4>Branch: <code>msg-v2-phase-5-notify</code></h4>
+        <code>git checkout -b msg-v2-phase-5-notify</code>
+        <code># New: lib/notifications.ts, me/notifications/route.ts</code>
+        <code># Modify: deals/[id]/messages/route.ts (call notifyCounterparty)</code>
+        <code># Modify: deals/page.tsx (profile notification settings)</code>
+      </div>
+    </li>
+    <li>
+      <h4>Phase 6: Admin dispute access <span class="tag tag-api" style="margin-left:8px">API</span></h4>
+      <p>Create admin message viewer endpoint. Add audit logging. Add UI in admin dispute panel to view decrypted messages.</p>
+      <div class="git-strategy">
+        <h4>Branch: <code>msg-v2-phase-6-admin</code></h4>
+        <code>git checkout -b msg-v2-phase-6-admin</code>
+        <code># New: admin/deals/[id]/messages/route.ts</code>
+        <code># Modify: admin/disputes page (add "View messages" button)</code>
+      </div>
+    </li>
+  </ol>
+</div>
+
+<!-- ==================== FILE MANIFEST ==================== -->
+<div class="section">
+  <h2>8. Complete <em>File Manifest</em></h2>
+  <table>
+    <thead><tr><th>File</th><th>Action</th><th>Phase</th></tr></thead>
+    <tbody>
+      <tr><td><code>drizzle/0008_messaging_v2.sql</code></td><td>NEW</td><td>1</td></tr>
+      <tr><td><code>drizzle/meta/_journal.json</code></td><td>MODIFY</td><td>1</td></tr>
+      <tr><td><code>src/db/schema.ts</code></td><td>MODIFY</td><td>1</td></tr>
+      <tr><td><code>package.json</code></td><td>MODIFY</td><td>1</td></tr>
+      <tr><td><code>.env.example</code></td><td>MODIFY</td><td>1</td></tr>
+      <tr><td><code>src/lib/api-auth.ts</code></td><td>NEW</td><td>2</td></tr>
+      <tr><td><code>src/app/api/pusher/auth/route.ts</code></td><td>NEW</td><td>2</td></tr>
+      <tr><td><code>src/app/api/me/api-keys/route.ts</code></td><td>NEW</td><td>2</td></tr>
+      <tr><td><code>src/app/api/deals/[id]/messages/image/route.ts</code></td><td>NEW</td><td>2</td></tr>
+      <tr><td><code>src/app/api/deals/[id]/messages/route.ts</code></td><td>MODIFY</td><td>2</td></tr>
+      <tr><td><code>src/app/(user)/deals/page.tsx</code></td><td>MODIFY</td><td>3</td></tr>
+      <tr><td><code>src/app/globals.css</code></td><td>MODIFY</td><td>3</td></tr>
+      <tr><td><code>src/app/api/escrows/route.ts</code></td><td>MODIFY</td><td>4</td></tr>
+      <tr><td><code>src/lib/escrow-actions.ts</code></td><td>MODIFY</td><td>4</td></tr>
+      <tr><td><code>src/app/api/escrows/[id]/route.ts</code></td><td>MODIFY</td><td>4</td></tr>
+      <tr><td><code>src/lib/notifications.ts</code></td><td>NEW</td><td>5</td></tr>
+      <tr><td><code>src/app/api/me/notifications/route.ts</code></td><td>NEW</td><td>5</td></tr>
+      <tr><td><code>src/app/api/admin/deals/[id]/messages/route.ts</code></td><td>NEW</td><td>6</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<footer style="margin-top:64px;padding-top:24px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-4);text-align:center">
+  Baseshire Hethaway — Messaging v2 Implementation Plan — June 2026
+</footer>
+
+</div>
+</body>
+</html>

@@ -207,6 +207,9 @@ export const dealMessages = pgTable("deal_messages", {
   escrowId: text("escrow_id").references(() => escrows.id).notNull(),
   senderAddress: text("sender_address").references(() => users.address).notNull(),
   body: text("body").notNull(),
+  readAt: timestamp("read_at"),
+  imageUrl: text("image_url"),
+  messageType: text("message_type").default("text").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -227,4 +230,24 @@ export const rateLimits = pgTable("rate_limits", {
   count: integer("count").default(0).notNull(),
   resetAt: timestamp("reset_at").notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const notificationTokens = pgTable("notification_tokens", {
+  id: text("id").primaryKey(),
+  userAddress: text("user_address").references(() => users.address).notNull(),
+  platform: text("platform").notNull(),
+  token: text("token").notNull(),
+  verified: text("verified").default("false").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const apiKeys = pgTable("api_keys", {
+  id: text("id").primaryKey(),
+  userAddress: text("user_address").references(() => users.address).notNull(),
+  label: text("label").default(""),
+  apiKey: text("api_key").unique().notNull(),
+  secretHash: text("secret_hash").notNull(),
+  passphraseHash: text("passphrase_hash").notNull(),
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });

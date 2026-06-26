@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
   const deliverablesJson = deliverables.length > 0 ? JSON.stringify(deliverables) : null;
 
   await db`INSERT INTO escrows (id, listing_id, buyer_address, seller_address, amount, currency, stage, chain_id, contract_address, contract_listing_id, tx_hash, tx_status, deliverables)
-    VALUES (${id}, ${data.listingId || null}, ${buyerAddress}, ${data.sellerAddress}, ${data.amount}, ${data.currency}, 'funds_locked', ${data.chainId || null}, ${data.contractAddress || null}, ${data.contractListingId || null}, ${data.txHash || null}, ${data.txHash ? "pending" : "offchain"}, ${deliverablesJson})`;
+    VALUES (${id}, ${data.listingId || null}, ${buyerAddress}, ${data.sellerAddress}, ${data.amount}, ${data.currency}, 'pending_payment', ${data.chainId || null}, ${data.contractAddress || null}, ${data.contractListingId || null}, ${data.txHash || null}, ${data.txHash ? "pending" : "offchain"}, ${deliverablesJson})`;
   await db`INSERT INTO transactions (id, escrow_id, listing_id, from_address, to_address, amount, currency, tx_type, tx_hash, chain_id, status)
     VALUES (${`T-${Date.now()}`}, ${id}, ${data.listingId || null}, ${buyerAddress}, ${data.sellerAddress}, ${data.amount}, ${data.currency}, 'escrow_funded', ${data.txHash || null}, ${data.chainId || null}, ${data.txHash ? "pending" : "offchain"})`;
 

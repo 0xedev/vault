@@ -6,6 +6,19 @@ import { actorAddressForRequest, requireAdmin, requireUser, rotateSession } from
 import { writeAudit } from "@/lib/admin";
 import { getEscrowAddress, getPublicClient } from "@/lib/contract";
 import { verifyClankerRightsTransferred } from "@/lib/clanker";
+import Pusher from "pusher";
+
+const pusher = new Pusher({
+  appId: process.env.PUSHER_APP_ID!,
+  key: process.env.PUSHER_KEY!,
+  secret: process.env.PUSHER_SECRET!,
+  cluster: process.env.PUSHER_CLUSTER!,
+  useTLS: true,
+});
+
+function triggerStageChange(escrowId: string, stage: string) {
+  pusher.trigger(`private-deal-${escrowId}`, "stage-change", { stage }).catch(() => {});
+}
 
 export const proofSchema = z.object({
   proofType: z.enum(["transfer", "delivery", "evidence", "other"]).default("evidence"),
@@ -141,7 +154,8 @@ export async function addEscrowProof(req: NextRequest, escrowId: string) {
   const id = `P-${Date.now()}`;
   await auth.db`INSERT INTO escrow_proofs (id, escrow_id, actor_address, proof_type, url, content_hash, note)
     VALUES (${id}, ${escrowId}, ${actorAddress}, ${parsed.data.proofType}, ${parsed.data.url}, ${parsed.data.contentHash}, ${parsed.data.note || null})`;
-  await auth.db`UPDATE escrows SET stage = 'asset_transferred', tx_hash = COALESCE(${parsed.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${parsed.data.txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END, updated_at = NOW() WHERE id = ${escrowId} AND stage IN ('funds_locked', 'asset_transferred')`;
+  await auth.db`UPDATE escrows SET stage = 'asset_transferred', tx_hash = COALESCE(${parsed.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${parsed.data.txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END, updated_at = NOW() WHERE id = ${escrowId} AND stage IN ('pending_payment', 'paid', 'funds_locked', 'asset_transferred')`;
+  triggerStageChange(escrowId, "asset_transferred");
   return NextResponse.json({ data: { id, escrowId, ...parsed.data } }, { status: 201 });
 }
 
@@ -155,6 +169,7 @@ export async function confirmEscrow(req: NextRequest, escrowId: string) {
   const rows = await auth.db`SELECT * FROM escrows WHERE id = ${escrowId} AND buyer_address = ${actorAddress} LIMIT 1` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Only the buyer can confirm this escrow" }, { status: 403 });
   await auth.db`UPDATE escrows SET stage = 'awaiting_confirmation', tx_hash = COALESCE(${body.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${body.data.txHash || null} IS NULL THEN tx_status ELSE 'pending' END, updated_at = NOW() WHERE id = ${escrowId}`;
+  triggerStageChange(escrowId, "awaiting_confirmation");
   return NextResponse.json({ data: { id: escrowId, stage: "awaiting_confirmation" } });
 }
 
@@ -180,6 +195,7 @@ export async function releaseEscrow(req: NextRequest, escrowId: string) {
   const invalidFarcaster = await verifyFarcasterCustody(rows[0]);
   if (invalidFarcaster) return invalidFarcaster;
   await auth.db`UPDATE escrows SET stage = 'released', tx_hash = COALESCE(${body.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${body.data.txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END, updated_at = NOW() WHERE id = ${escrowId}`;
+  triggerStageChange(escrowId, "released");
   await auth.db`INSERT INTO transactions (id, escrow_id, from_address, to_address, amount, currency, tx_type, tx_hash, status)
     SELECT ${`T-${Date.now()}`}, id, buyer_address, seller_address, amount, currency, 'escrow_released', ${body.data.txHash || null}, ${body.data.txHash ? "confirmed" : "offchain"} FROM escrows WHERE id = ${escrowId}`;
   const res = NextResponse.json({ data: { id: escrowId, stage: "released" } });
@@ -203,6 +219,7 @@ export async function refundEscrow(req: NextRequest, escrowId: string) {
   const invalidTx = await requireConfirmedEscrowTx(rows[0], body.data.txHash);
   if (invalidTx) return invalidTx;
   await auth.db`UPDATE escrows SET stage = 'refunded', tx_hash = COALESCE(${body.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${body.data.txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END, updated_at = NOW() WHERE id = ${escrowId}`;
+  triggerStageChange(escrowId, "refunded");
   return NextResponse.json({ data: { id: escrowId, stage: "refunded" } });
 }
 
