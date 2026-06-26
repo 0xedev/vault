@@ -325,7 +325,7 @@ export default function LandingPage() {
           <div>
             <div className="eyebrow">Lending · Escrow · BSH</div>
             <h1 className="h1" style={{ marginTop: 24 }}>
-              The Berkshire Hethaway of <em>on-chain</em> assets.
+              The Baseshire Hethaway of <em>on-chain</em> assets.
             </h1>
             <p className="lede" style={{ margin: "28px 0 32px" }}>
               Securely buy, sell, and collateralize NFTs, Mini-Apps, and social
@@ -521,7 +521,7 @@ export default function LandingPage() {
           </div>
 
           <h1>
-            The Berkshire Hethaway of <em>on-chain</em> assets.
+            The Baseshire Hethaway of <em>on-chain</em> assets.
           </h1>
           <p>
             Securely buy, sell, and collateralize NFTs, Mini-Apps, and social

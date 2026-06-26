@@ -29,7 +29,7 @@ These layers can be built immediately with mock data. They live in the current N
 
 ### 2.1 Portfolio Dashboard — /portfolio
 **Currently:** basic escrow table  
-**Needed:** Berkshire-style allocation breakdown
+**Needed:** Baseshire-style allocation breakdown
 - Pie chart: "Anchors (BTC/ETH) / Infrastructure / Emerging / Stablecoins"
 - Yield tracker: validator rewards, staking APY, LST returns
 - "Real Yield" vs "TVL" toggle — filter out fake yield
