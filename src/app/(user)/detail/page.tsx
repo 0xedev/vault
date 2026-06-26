@@ -182,7 +182,7 @@ function LoanDetailContent() {
         title: "View NFT listing",
         action: {
           type: "launch_frame",
-          name: "Baseshire Hathaway",
+          name: "Baseshire Hethaway",
           url: `${window.location.origin}/detail?id=${loanId}`,
           splashImageUrl: "https://baseshirehethaway.com/logo.png",
           splashBackgroundColor: "#0052ff",

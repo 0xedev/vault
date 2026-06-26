@@ -1,4 +1,4 @@
-# Baseshire Hathaway — Crypto Conglomerate
+# Baseshire Hethaway — Crypto Conglomerate
 Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.
 
 ## Pages

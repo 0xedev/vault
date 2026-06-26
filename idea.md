@@ -1,4 +1,4 @@
-# Baseshire Hathaway — Crypto Conglomerate
+# Baseshire Hethaway — Crypto Conglomerate
 
 Build a machine that captures value from every transaction in the ecosystem. Start with the product, then acquire the infrastructure — acquisition by acquisition.
 

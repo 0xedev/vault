@@ -16,18 +16,18 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Baseshire Hathaway — Crypto Conglomerate",
+  title: "Baseshire Hethaway — Crypto Conglomerate",
   description: "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
   metadataBase: new URL("https://baseshirehethaway.com"),
   openGraph: {
-    title: "Baseshire Hathaway — Crypto Conglomerate",
+    title: "Baseshire Hethaway — Crypto Conglomerate",
     description: "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
-    siteName: "Baseshire Hathaway",
+    siteName: "Baseshire Hethaway",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Baseshire Hathaway — Crypto Conglomerate",
+    title: "Baseshire Hethaway — Crypto Conglomerate",
     description: "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
   },
   robots: { index: true, follow: true },
@@ -48,7 +48,7 @@ export default function RootLayout({
             title: "Browse marketplace",
             action: {
               type: "launch_frame",
-              name: "Baseshire Hathaway",
+              name: "Baseshire Hethaway",
               url: "https://baseshirehethaway.com",
               splashImageUrl: "https://baseshirehethaway.com/logo.png",
               splashBackgroundColor: "#0052ff",
@@ -61,7 +61,7 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebApplication",
-              "name": "Baseshire Hathaway",
+              "name": "Baseshire Hethaway",
               "description": "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
               "applicationCategory": "FinanceApplication",
               "operatingSystem": "Web",

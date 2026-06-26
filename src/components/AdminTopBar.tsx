@@ -13,7 +13,7 @@ export default function AdminTopBar({ onMenu }: { onMenu: () => void }) {
         </button>
         <div className="brand" style={{ background: "transparent", border: 0, color: "inherit", padding: 0, display: "flex", gap: 10, alignItems: "center" }}>
           <VaultMark size={26}/>
-          <span className="name hide-mobile">Baseshire Hathaway<em></em></span>
+          <span className="name hide-mobile">Baseshire Hethaway<em></em></span>
           <span className="admin-badge"><span className="admin-badge-full">ADMIN</span><span className="admin-badge-short">A</span></span>
         </div>
         <span className="muted-2 hide-mobile" style={{ fontSize: 12 }}>Internal · admin</span>

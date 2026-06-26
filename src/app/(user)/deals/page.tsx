@@ -184,7 +184,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
         title: `View ${assetLabel}`,
         action: {
           type: "launch_frame",
-          name: "Baseshire Hathaway",
+          name: "Baseshire Hethaway",
           url: `${window.location.origin}/deals?id=${deal.id}`,
           splashImageUrl: "https://baseshirehethaway.com/logo.png",
           splashBackgroundColor: "#0052ff",

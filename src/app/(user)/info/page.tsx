@@ -11,7 +11,7 @@ export default function InfoPage() {
       <div className="col" style={{ maxWidth: 720, margin: "0 auto", gap: 32, padding: "40px 16px" }}>
         <div>
           <div className="eyebrow">About</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>Baseshire Hathaway — Crypto Conglomerate.</h1>
+          <h1 className="h2" style={{ marginTop: 8 }}>Baseshire Hethaway — Crypto Conglomerate.</h1>
           <p className="muted" style={{ marginTop: 10, fontSize: 14, lineHeight: 1.7 }}>
             Liquidity for illiquid digital assets. We operate NFT-backed lending, mini-app escrow sales,
             X handle transfers, Farcaster FID escrow, and Clanker token rights trading — all on Base.

@@ -42,7 +42,7 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
         </button>
         <Link href="/" className="brand" style={{ background: "transparent", border: 0, color: "inherit", padding: 0 }}>
           <VaultMark size={26} className="mark-glow" priority/>
-          <span className="name hide-mobile">Baseshire Hathaway<em></em></span>
+          <span className="name hide-mobile">Baseshire Hethaway<em></em></span>
         </Link>
         <nav className="topnav">
           {topNavItems.map(([href, label]) => (

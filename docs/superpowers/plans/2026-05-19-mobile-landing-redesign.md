@@ -120,7 +120,7 @@
       </div>
     </div>
 
-    <h1>Berkshire Hathaway<br />of <em>on-chain</em> assets.</h1>
+    <h1>Berkshire Hethaway<br />of <em>on-chain</em> assets.</h1>
 
     <div className="mobile-role-switch" aria-label="Homepage role">
       <button className={role === "buyer" ? "active" : ""} onClick={() => setRole("buyer")}>Buy / lend</button>
@@ -530,7 +530,7 @@
 
   - Hero shows kicker pill top-left + "Connect →" pill top-right (when wallet disconnected)
   - Three large mono numbers below the kicker: Listings / NFT principal / Active loans
-  - Headline is `Berkshire Hathaway / of on-chain assets.` at ~38px serif, with italic accent on "on-chain"
+  - Headline is `Berkshire Hethaway / of on-chain assets.` at ~38px serif, with italic accent on "on-chain"
   - Role switcher and full-width CTA button below headline
   - Four full-width stacked cards below hero, each with a distinct color cover band:
     - Indigo/blue — NFT Loans

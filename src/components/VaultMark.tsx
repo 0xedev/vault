@@ -4,7 +4,7 @@ export default function VaultMark({ size = 36, className = "", priority = false 
   return (
     <Image
       src="/logo.jpeg"
-      alt="Baseshire Hathaway"
+      alt="Baseshire Hethaway"
       width={size}
       height={size}
       className={className}

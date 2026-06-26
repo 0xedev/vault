@@ -31,7 +31,7 @@ Replace the flat, muted mobile landing page with a "premium app store" experienc
 
 3. **Headline** — display serif, `font-size: 38px`, `line-height: 0.96`:
    ```
-   Berkshire Hathaway
+   Berkshire Hethaway
    of on-chain assets.
    ```
    No body paragraph below.

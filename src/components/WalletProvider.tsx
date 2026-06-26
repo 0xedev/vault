@@ -110,7 +110,7 @@ async function siweSignIn(
     const message = new SiweMessage({
       domain: window.location.host,
       address: siweAddr,
-      statement: "Sign in to Baseshire Hathaway.",
+      statement: "Sign in to Baseshire Hethaway.",
       uri: window.location.origin,
       version: "1",
       chainId,
