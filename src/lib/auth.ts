@@ -41,6 +41,7 @@ export function isEvmAddress(address: unknown): address is `0x${string}` {
 }
 
 export function actorAddressForRequest(user: AuthUser, walletAddress: unknown) {
+  if (user.role !== "admin") return user.address;
   return isEvmAddress(walletAddress) ? walletAddress.toLowerCase() : user.address;
 }
 

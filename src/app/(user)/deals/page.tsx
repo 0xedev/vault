@@ -161,10 +161,15 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
 
   useEffect(() => {
     const query = address ? `?walletAddress=${encodeURIComponent(address)}` : "";
-    fetch(`/api/deals/${deal.id}/messages${query}`)
-      .then(r => r.json())
-      .then(json => setMessages(json.data || []))
-      .catch(() => {});
+    const load = () => {
+      fetch(`/api/deals/${deal.id}/messages${query}`)
+        .then(r => r.json())
+        .then(json => setMessages(json.data || []))
+        .catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
   }, [address, deal.id]);
 
   // Farcaster Mini App embed for this deal
@@ -530,7 +535,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
           <div className="card" style={{ padding: 18, display: "flex", flexDirection: "column", height: 480 }}>
             <div className="row between" style={{ marginBottom: 12 }}>
               <span className="eyebrow">Deal Room Chat</span>
-              <span className="muted-2" style={{ fontSize: 11 }}>End-to-end encrypted · 3 participants</span>
+              <span className="muted-2" style={{ fontSize: 11 }}>End-to-end encrypted · 2 participants</span>
             </div>
             <div className="col" style={{ flex: 1, overflowY: "auto", gap: 8, padding: "4px 0" }}>
               {messages.map((m) => (
