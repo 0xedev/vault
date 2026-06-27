@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 type AdminListing = {
   id: string;
@@ -13,11 +13,11 @@ type AdminListing = {
   flagged: number;
   risk: number;
   filed: string;
-  status: string;
+  listingStatus: string;
+  onChain: boolean;
 };
 
 export default function AdminListingsPage() {
-  const [tab, setTab] = useState("pending");
   const [listings, setListings] = useState<AdminListing[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -35,16 +35,15 @@ export default function AdminListingsPage() {
 
   useEffect(load, []);
 
-  const list = useMemo(() => listings.filter((l) => tab === "all" || l.status === tab), [listings, tab]);
-  const updateListing = async (id: string, moderationStatus: "approved" | "rejected") => {
+  const cancelListing = async (id: string) => {
     setBusy(id);
     try {
       const res = await fetch("/api/admin/listings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, moderationStatus }),
+        body: JSON.stringify({ id, moderationStatus: "rejected" }),
       });
-      if (!res.ok) throw new Error("Moderation update failed");
+      if (!res.ok) throw new Error("Failed to cancel listing");
       load();
     } finally {
       setBusy("");
@@ -55,35 +54,23 @@ export default function AdminListingsPage() {
     <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div className="eyebrow">Listing Moderation</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>Approve or reject listings before they go live.</h1>
+          <div className="eyebrow">Live Listings</div>
+          <h1 className="h2" style={{ marginTop: 8 }}>All active listings. Cancel malicious ones here.</h1>
         </div>
-      </div>
-
-      <div className="grid grid-4" style={{ marginBottom: 22 }}>
-        <div className="metric"><span className="lab">Pending</span><span className="val">{listings.filter(l => l.status === "pending").length}</span></div>
-        <div className="metric"><span className="lab">Approved</span><span className="val">{listings.filter(l => l.status === "approved").length}</span></div>
-        <div className="metric"><span className="lab">Rejected</span><span className="val">{listings.filter(l => l.status === "rejected").length}</span></div>
       </div>
 
       <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-        <div className="row between" style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)", flexWrap: "wrap", gap: 12 }}>
-          <div className="chips">
-            {[["pending", "Pending"], ["approved", "Approved"], ["rejected", "Rejected"], ["all", "All"]].map(([k, t]) => (
-              <button key={k} className={"chip" + (tab === k ? " active" : "")} onClick={() => setTab(k)}>
-                {t} <span className="count">{listings.filter(l => k === "all" || l.status === k).length}</span>
-              </button>
-            ))}
-          </div>
+        <div className="row between" style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+          <span className="smallcaps">{listings.length} listings</span>
         </div>
         <table className="tbl">
-          <thead><tr><th>Listing</th><th>Market</th><th>Seller</th><th className="right">Price</th><th>Risk</th><th>Flags</th><th>Filed</th><th></th></tr></thead>
+          <thead><tr><th>Listing</th><th>Market</th><th>Seller</th><th className="right">Price</th><th>Risk</th><th>Flags</th><th>Source</th><th>Filed</th><th></th></tr></thead>
           <tbody>
             {error ? (
-              <tr><td colSpan={8} className="muted" style={{ textAlign: "center", padding: 24 }}>{error}</td></tr>
-            ) : list.length === 0 ? (
-              <tr><td colSpan={8} className="muted" style={{ textAlign: "center", padding: 24 }}>No live listings match this filter.</td></tr>
-            ) : list.map(l => (
+              <tr><td colSpan={9} className="muted" style={{ textAlign: "center", padding: 24 }}>{error}</td></tr>
+            ) : listings.length === 0 ? (
+              <tr><td colSpan={9} className="muted" style={{ textAlign: "center", padding: 24 }}>No live listings.</td></tr>
+            ) : listings.map(l => (
               <tr key={l.id}>
                 <td><div style={{ fontSize: 13 }}>{l.title}</div><div className="muted-2 mono" style={{ fontSize: 11 }}>{l.id}</div></td>
                 <td>{l.market}</td>
@@ -98,16 +85,10 @@ export default function AdminListingsPage() {
                   </div>
                 </td>
                 <td>{l.flagged > 0 ? <span className="pill warn"><span className="pdot"/>{l.flagged}</span> : <span className="muted-2">-</span>}</td>
+                <td>{l.onChain ? <span className="pill" style={{ fontSize: 10 }}>on-chain</span> : <span className="muted-2" style={{ fontSize: 10 }}>db</span>}</td>
                 <td className="muted">{new Date(l.filed).toLocaleString()}</td>
                 <td className="right">
-                  {l.status === "pending" ? (
-                    <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
-                      <button className="btn sm danger" disabled={busy === l.id} onClick={() => updateListing(l.id, "rejected")}>Reject</button>
-                      <button className="btn sm primary" disabled={busy === l.id} onClick={() => updateListing(l.id, "approved")}>Approve</button>
-                    </div>
-                  ) : (
-                    <span className="muted-2" style={{ fontSize: 12, textTransform: "capitalize" }}>{l.status}</span>
-                  )}
+                  <button className="btn sm danger" disabled={busy === l.id} onClick={() => cancelListing(l.id)}>Cancel</button>
                 </td>
               </tr>
             ))}

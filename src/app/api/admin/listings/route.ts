@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/auth";
 
 const patchSchema = z.object({
   id: z.string().min(1),
-  moderationStatus: z.enum(["pending", "approved", "rejected"]),
+  moderationStatus: z.enum(["rejected"]),
 });
 
 export async function GET(req: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const db = auth.db;
 
-  const rows = await db`SELECT * FROM listings ORDER BY created_at DESC LIMIT 500` as Record<string, unknown>[];
+  const rows = await db`SELECT * FROM listings WHERE status <> 'cancelled' ORDER BY created_at DESC LIMIT 500` as Record<string, unknown>[];
   const data = rows.map((row) => ({
     id: row.id,
     market: mapMarket(row.marketplace),
@@ -25,8 +25,8 @@ export async function GET(req: NextRequest) {
     flagged: Number(row.flagged_count || 0),
     risk: Number(row.risk_score || 0),
     filed: row.created_at,
-    status: row.moderation_status || "approved",
     listingStatus: row.status,
+    onChain: Boolean(row.contract_listing_id),
   }));
 
   return NextResponse.json({ data, total: data.length });
@@ -40,10 +40,9 @@ export async function PATCH(req: NextRequest) {
   const parsed = patchSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid listing moderation update", parsed.error.flatten());
 
-  const { id, moderationStatus } = parsed.data;
-  const listingStatus = moderationStatus === "rejected" ? "cancelled" : "active";
-  await db`UPDATE listings SET moderation_status = ${moderationStatus}, status = ${listingStatus}, updated_at = NOW() WHERE id = ${id}`;
-  await writeAudit(`LISTING_${moderationStatus.toUpperCase()}`, id, `Moderation status changed to ${moderationStatus}`, "admin", auth.user.address);
+  const { id } = parsed.data;
+  await db`UPDATE listings SET moderation_status = 'rejected', status = 'cancelled', updated_at = NOW() WHERE id = ${id}`;
+  await writeAudit("LISTING_REJECTED", id, "Listing cancelled by admin", "admin", auth.user.address);
 
-  return NextResponse.json({ data: { id, moderationStatus } });
+  return NextResponse.json({ data: { id, moderationStatus: "rejected" } });
 }

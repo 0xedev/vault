@@ -20,7 +20,7 @@ export default function AdminSideBar({ open, onClose }: { open: boolean; onClose
     { k: "/admin/dash",          t: "Dashboard",      icon: <Icon.home/> },
     { k: "/admin/disputes",      t: "Disputes",       icon: <Icon.warn/> },
     { k: "/admin/tickets",       t: "Support",        icon: <Icon.bell/> },
-    { sec: "Moderation" },
+    { sec: "Oversight" },
     { k: "/admin/listings",      t: "Listings",       icon: <Icon.market/> },
     { k: "/admin/users",         t: "Users",          icon: <Icon.shield/> },
     { k: "/admin/verifications", t: "Verifications",  icon: <Icon.check/> },

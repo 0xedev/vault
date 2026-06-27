@@ -14,7 +14,6 @@ type Summary = {
   totalLocked: number;
   estimatedFees: number;
   activeDisputes: number;
-  pendingListings: number;
   openTickets: number;
   pendingVerifications: number;
 };
@@ -27,7 +26,6 @@ const emptySummary: Summary = {
   totalLocked: 0,
   estimatedFees: 0,
   activeDisputes: 0,
-  pendingListings: 0,
   openTickets: 0,
   pendingVerifications: 0,
 };
@@ -113,7 +111,6 @@ export default function AdminDashboardPage() {
         <div className="card" style={{ padding: 22 }}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>Operational queues</div>
           <div className="col" style={{ gap: 14 }}>
-            <HealthBar label="Listing approval queue" count={summary.pendingListings} href="/admin/listings" />
             <HealthBar label="Open support tickets" count={summary.openTickets} href="/admin/tickets" />
             <HealthBar label="Pending verifications" count={summary.pendingVerifications} href="/admin/verifications" />
             <HealthBar label="Active disputes" count={summary.activeDisputes} href="/admin/disputes" />

@@ -6,10 +6,9 @@ export async function GET(req: NextRequest) {
   if ("response" in auth) return auth.response;
   const db = auth.db;
 
-  const [escrowRows, disputeRows, listingRows, ticketRows, verificationRows] = await Promise.all([
+  const [escrowRows, disputeRows, ticketRows, verificationRows] = await Promise.all([
     db`SELECT COUNT(*) AS count, COALESCE(SUM(amount), 0) AS locked FROM escrows WHERE stage NOT IN ('released', 'refunded')` as Promise<Record<string, unknown>[]>,
     db`SELECT COUNT(*) AS count FROM disputes WHERE status <> 'resolved'` as Promise<Record<string, unknown>[]>,
-    db`SELECT COUNT(*) AS count FROM listings WHERE moderation_status = 'pending'` as Promise<Record<string, unknown>[]>,
     db`SELECT COUNT(*) AS count FROM support_tickets WHERE status <> 'resolved'` as Promise<Record<string, unknown>[]>,
     db`SELECT COUNT(*) AS count FROM verifications WHERE status = 'pending'` as Promise<Record<string, unknown>[]>,
   ]);
@@ -21,7 +20,6 @@ export async function GET(req: NextRequest) {
       totalLocked: locked,
       estimatedFees: locked * 0.015,
       activeDisputes: Number(disputeRows[0]?.count || 0),
-      pendingListings: Number(listingRows[0]?.count || 0),
       openTickets: Number(ticketRows[0]?.count || 0),
       pendingVerifications: Number(verificationRows[0]?.count || 0),
     },
