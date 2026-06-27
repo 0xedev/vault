@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   const offset = parseInt(url.searchParams.get("offset") || "0");
   const chain = url.searchParams.get("chain") === "true";
 
-  // On-chain only mode (explicitly requested)
+  // On-chain mode — read from contract, reconcile to DB
   if (chain) {
     try {
       const onChain = await readAllListings();
@@ -47,6 +47,34 @@ export async function GET(req: NextRequest) {
         ` as Record<string, unknown>[];
         for (const r of matchRows) {
           dbEnrich[String(r.contract_listing_id)] = r;
+        }
+      }
+
+      // Reconcile: create DB records for on-chain listings that have none
+      if (db) {
+        for (const { id, data } of onChain) {
+          const contractListingId = id.toString();
+          if (dbEnrich[contractListingId]) continue;
+
+          const dbId = `C-${id}`;
+          const title = `${data.nftContract.slice(0, 10)}... #${data.nftTokenId}`;
+          const collateralData = JSON.stringify({
+            token: data.nftTokenId.toString(),
+            apr: Number(data.apr) / 100,
+            term: Number(data.term),
+            ltv: 0,
+            status: "open",
+            value: 0,
+            imageUrl: "",
+          });
+
+          await db`INSERT INTO users (address) VALUES (${data.borrower}) ON CONFLICT (address) DO NOTHING`;
+          const inserted = await db`
+            INSERT INTO listings (id, seller_address, marketplace, title, price, collateral_data, status, moderation_status, chain_id, contract_address, contract_listing_id, tx_hash, tx_status)
+            VALUES (${dbId}, ${data.borrower}, 'nft_loan', ${title}, ${Number(data.principal) / 1e18}, ${collateralData}, 'active', 'approved', 8453, ${data.nftContract}, ${contractListingId}, NULL, 'offchain')
+            RETURNING *
+          ` as Record<string, unknown>[];
+          if (inserted.length > 0) dbEnrich[contractListingId] = inserted[0];
         }
       }
 
