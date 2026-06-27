@@ -673,6 +673,8 @@ export default function MarketplacePage() {
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [showListModal, setShowListModal] = useState(false);
   const [showBundleModal, setShowBundleModal] = useState(false);
+  const [chainLoading, setChainLoading] = useState(false);
+  const [showOnChain, setShowOnChain] = useState(false);
   const { isConnected, connect, isConnecting, address } = useWallet();
 
   useEffect(() => {
@@ -727,6 +729,29 @@ export default function MarketplacePage() {
       setLoading(false);
     });
   }, []);
+
+  const fetchOnChain = async () => {
+    setChainLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/listings?chain=true&limit=50");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to read from chain");
+      setLoans(json.data || []);
+      setShowOnChain(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "On-chain read failed");
+    } finally {
+      setChainLoading(false);
+    }
+  };
+
+  const fetchDbListings = () => {
+    setShowOnChain(false);
+    fetch("/api/listings")
+      .then(async (r) => { const json = await r.json(); if (!r.ok) throw new Error(json.error); setLoans(json.data || []); })
+      .catch(err => setError(err instanceof Error ? err.message : "Failed to load"));
+  };
 
   const filtered = useMemo(() => {
     let r = loans.filter((l) => {
@@ -1155,6 +1180,14 @@ export default function MarketplacePage() {
               </div>
               <div style={{ flex: 1 }} />
               <div className="row" style={{ gap: 6 }}>
+                <button
+                  className={"btn sm " + (showOnChain ? "primary" : "ghost")}
+                  onClick={showOnChain ? fetchDbListings : fetchOnChain}
+                  disabled={chainLoading}
+                  style={{ fontSize: 11 }}
+                >
+                  {chainLoading ? "Reading chain…" : showOnChain ? "On-chain ✓" : "On-chain"}
+                </button>
                 <span className="smallcaps">Sort</span>
                 <div className="seg">
                   {[

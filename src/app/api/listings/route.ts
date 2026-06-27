@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
+import { badRequest, getDatabase, jsonRecord } from "@/lib/api";
 import { mapLoanListing } from "@/lib/marketplace";
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { readAllListings, mapListingStage } from "@/lib/contract";
+import type { Loan } from "@/lib/data";
 
 const listingSchema = z.object({
   id: z.string().min(1).optional(),
@@ -32,24 +33,57 @@ export async function GET(req: NextRequest) {
   const offset = parseInt(url.searchParams.get("offset") || "0");
   const chain = url.searchParams.get("chain") === "true";
 
+  // On-chain only mode (explicitly requested)
   if (chain) {
     try {
       const onChain = await readAllListings();
-      const data = onChain.map(({ id, data }) => ({
-        id: `C-${id}`,
-        coll: 0,
-        amt: Number(data.principal) / 1e18,
-        apr: Number(data.apr) / 100,
-        ltv: 0,
-        status: mapListingStage(data.stage),
-        collection: data.nftContract.slice(0, 10) + "...",
-        tokenId: data.nftTokenId.toString(),
-        contractListingId: id.toString(),
-        borrower: data.borrower,
-        acceptedLender: data.acceptedLender,
-        principal: data.principal.toString(),
-        onChain: true,
-      }));
+      const onChainIds = onChain.map(({ id }) => id.toString());
+      const dbEnrich: Record<string, Record<string, unknown>> = {};
+      if (db && onChainIds.length > 0) {
+        const matchRows = await db`
+          SELECT * FROM listings
+          WHERE contract_listing_id = ANY(${onChainIds})
+            AND marketplace = 'nft_loan'
+        ` as Record<string, unknown>[];
+        for (const r of matchRows) {
+          dbEnrich[String(r.contract_listing_id)] = r;
+        }
+      }
+
+      const data = onChain.map(({ id, data }) => {
+        const contractListingId = id.toString();
+        const dbRow = dbEnrich[contractListingId];
+        const dbCollateral = dbRow ? jsonRecord(dbRow.collateral_data) : null;
+
+        const onChainStatus = mapListingStage(data.stage);
+        const mappedStatus: Loan["status"] =
+          onChainStatus === "listed" ? "open" :
+          onChainStatus === "funded" ? "funded" :
+          onChainStatus === "repaid" ? "repaid" :
+          onChainStatus === "defaulted" ? "default" :
+          onChainStatus === "disputed" ? "disputed" : "open";
+
+        return {
+          id: dbRow ? String(dbRow.id) : `C-${id}`,
+          coll: dbCollateral?.coll ? Number(dbCollateral.coll) : 0,
+          token: String(dbCollateral?.token || data.nftTokenId.toString()),
+          amt: Number(data.principal) / 1e18,
+          apr: Number(data.apr) / 100,
+          term: Number(data.term),
+          ltv: dbCollateral?.ltv ? Number(dbCollateral.ltv) : 0,
+          status: mappedStatus,
+          bid: dbCollateral?.bid ? Number(dbCollateral.bid) : 0,
+          value: dbCollateral?.value ? Number(dbCollateral.value) : 0,
+          borrower: data.borrower,
+          collection: dbRow ? String(dbRow.title || "").split(" #")[0] || data.nftContract.slice(0, 10) + "..." : data.nftContract.slice(0, 10) + "...",
+          imageUrl: String(dbCollateral?.imageUrl || ""),
+          sellerAddress: dbRow ? String(dbRow.seller_address) : data.borrower,
+          chainId: 8453,
+          contractAddress: data.nftContract,
+          contractListingId,
+          onChain: true,
+        };
+      });
 
       return NextResponse.json({ data, total: data.length });
     } catch (err) {
@@ -60,11 +94,12 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  if (!db) return databaseRequired();
+  // Default: DB listings only (fast path)
+  if (!db) return NextResponse.json({ data: [], total: 0 });
 
   const rows = (status === "all"
-    ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' LIMIT ${limit} OFFSET ${offset}`
-    : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND moderation_status = 'approved' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} LIMIT ${limit} OFFSET ${offset}`
+    ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+    : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
   ) as Record<string, unknown>[];
 
   const total = parseInt(rows[0]?.total_count as string || "0");
