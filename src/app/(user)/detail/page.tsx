@@ -13,7 +13,7 @@ import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
 import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError } from "@/lib/contract";
+import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline } from "@/lib/contract";
 import { parseEther, type Address, type Hash } from "viem";
 import type { Loan } from "@/lib/data";
 import { shareAsCast } from "@/lib/farcaster-sdk";
@@ -166,6 +166,8 @@ function LoanDetailContent() {
   const [claiming, setClaiming] = useState(false);
   const [repayingPartial, setRepayingPartial] = useState(false);
   const [partialAmt, setPartialAmt] = useState("");
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [now, setNow] = useState(0);
   const { address } = useWallet();
 
   // Farcaster Mini App embed
@@ -192,6 +194,13 @@ function LoanDetailContent() {
     document.head.appendChild(meta);
     return () => { meta.remove(); };
   }, [loanId]);
+
+  // Live countdown tick
+  useEffect(() => {
+    setNow(Date.now());
+    const interval = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const submitMatch = async (o: OfferRecord) => {
     if (!address || !loan) return;
@@ -263,6 +272,14 @@ function LoanDetailContent() {
       .catch(() => setOffers([]));
   }, [loan?.id]);
 
+  // Fetch on-chain deadline when loan has contractListingId
+  useEffect(() => {
+    if (!loan?.contractListingId || loan.status === "repaid" || loan.status === "default") return;
+    readDeadline(BigInt(loan.contractListingId))
+      .then(d => setDeadline(Number(d) * 1000))
+      .catch(() => {});
+  }, [loan?.contractListingId, loan?.status]);
+
   if (loading) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
   if (error) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="warn-banner" style={{ margin: 80 }}>{error}</div></main>;
   if (!loan) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Listing not found.</div></main>;
@@ -319,7 +336,7 @@ function LoanDetailContent() {
       `DTSTAMP:${stamp(start)}`,
       `DTSTART:${stamp(due)}`,
       `SUMMARY:Vault repayment due for ${l.id}`,
-      `DESCRIPTION:Repay ${(l.amt * (1 + l.apr / 100 * l.term / 365)).toFixed(3)} ETH to avoid collateral transfer.`,
+      `DESCRIPTION:Repay ${repaymentDue.toFixed(3)} ETH to avoid collateral transfer.`,
       "END:VEVENT",
       "END:VCALENDAR",
     ].join("\r\n");
@@ -335,7 +352,6 @@ function LoanDetailContent() {
     if (!address || !loan) return;
     setRepaying(true);
     try {
-      const repaymentDue = l.amt * (1 + l.apr / 100 * l.term / 365);
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       await waitForTx(await writeRepay(
         address as Address,
@@ -419,9 +435,23 @@ function LoanDetailContent() {
     }
   };
 
-  const isBorrower = isSeller; // same logic: wallet matches listing seller
+  const isBorrower = isSeller;
   const isLender = offers.some((o) => o.status === "accepted" && o.offererAddress?.toLowerCase() === address?.toLowerCase());
   const isFunded = l.status === "funded";
+  const isRepaid = l.status === "repaid";
+  const isDefaulted = l.status === "default";
+
+  const deadlinePassed = deadline !== null && now > 0 && now >= deadline;
+  const msLeft = deadline !== null && now > 0 ? Math.max(0, deadline - now) : 0;
+  const daysLeft = Math.floor(msLeft / 86400000);
+  const hoursLeft = Math.floor((msLeft % 86400000) / 3600000);
+  const minsLeft = Math.floor((msLeft % 3600000) / 60000);
+  const secsLeft = Math.floor((msLeft % 60000) / 1000);
+  const formatDate = (ts: number) => new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  const elapsedDays = deadline !== null && now > 0 ? Math.max(0, (now - (deadline - l.term * 86400000)) / 86400000) : 0;
+  const proRatedInterest = l.amt * (l.apr / 100) * Math.min(elapsedDays, l.term) / 365;
+  const fullInterest = l.amt * (l.apr / 100) * l.term / 365;
+  const repaymentDue = deadlinePassed ? l.amt + fullInterest : l.amt + proRatedInterest;
 
   return (
     <main id="main-content" role="main" aria-label="Main content" className="main">
@@ -538,8 +568,8 @@ function LoanDetailContent() {
           <div className="card" style={{ padding: 22 }}>
             <div className="eyebrow">Loan terms</div>
             <div className="kv"><span className="k">Principal</span><span className="v big">{fmtETH(l.amt)} Ξ</span></div>
-            <div className="kv"><span className="k">Interest ({l.apr}% APR)</span><span className="v">+ {(l.amt * l.apr / 100 * l.term / 365).toFixed(3)} Ξ</span></div>
-            <div className="kv"><span className="k">Repayment due</span><span className="v">{(l.amt * (1 + l.apr / 100 * l.term / 365)).toFixed(3)} Ξ</span></div>
+            <div className="kv"><span className="k">Interest ({l.apr}% APR)</span><span className="v">+ {proRatedInterest.toFixed(3)} Ξ</span></div>
+            <div className="kv"><span className="k">Repayment due</span><span className="v">{repaymentDue.toFixed(3)} Ξ {deadlinePassed ? <span style={{ color: "var(--risk)", fontSize: 11 }}>(overdue)</span> : ""}</span></div>
             <div className="kv"><span className="k">Term</span><span className="v">{l.term} days</span></div>
             <div className="kv"><span className="k">Loan-to-value</span><span className="v">{l.ltv}%</span></div>
             <div className="kv"><span className="k">Platform fee</span><span className="v">1.5% · {(l.amt * 0.015).toFixed(3)} Ξ</span></div>
@@ -554,10 +584,10 @@ function LoanDetailContent() {
                   {repaying ? "Cancelling…" : "Cancel listing"}
                 </button>
               )}
-              {isFunded && isBorrower && (
+              {isFunded && isBorrower && !deadlinePassed && (
                 <div className="col" style={{ gap: 8, flex: 1 }}>
                   <button className="btn primary lg" style={{ width: "100%" }} onClick={repayLoan} disabled={repaying}>
-                    {repaying ? "Repaying…" : `Repay ${(l.amt * (1 + l.apr / 100 * l.term / 365)).toFixed(3)} Ξ`}
+                    {repaying ? "Repaying…" : `Repay ${repaymentDue.toFixed(3)} Ξ`}
                   </button>
                   <div className="row" style={{ gap: 6 }}>
                     <input className="input mono" style={{ flex: 1, height: 36, fontSize: 13 }} type="number" step="0.001" placeholder="Partial amount (Ξ)" value={partialAmt} onChange={e => setPartialAmt(e.target.value)} />
@@ -567,33 +597,74 @@ function LoanDetailContent() {
                   </div>
                 </div>
               )}
+              {isFunded && isBorrower && deadlinePassed && (
+                <div className="col" style={{ gap: 8, flex: 1 }}>
+                  <button className="btn danger lg" style={{ width: "100%" }} onClick={repayLoan} disabled={repaying}>
+                    {repaying ? "Repaying…" : `Repay ${repaymentDue.toFixed(3)} Ξ (overdue)`}
+                  </button>
+                  <div className="muted-2" style={{ fontSize: 11, textAlign: "center" }}>Deadline passed. Lender can claim your NFT at any time.</div>
+                </div>
+              )}
               {isFunded && isLender && (
-                <button className="btn danger lg" style={{ flex: 1 }} onClick={claimDefaultedNft} disabled={claiming}>
-                  {claiming ? "Claiming…" : "Claim collateral"}
+                <button className={"btn lg" + (deadlinePassed ? " danger" : "")} style={{ flex: 1 }} onClick={claimDefaultedNft} disabled={claiming}>
+                  {claiming ? "Claiming…" : deadlinePassed ? "Claim collateral now" : `Claimable in ${daysLeft}d ${hoursLeft}h`}
                 </button>
               )}
             </div>
             <div className="muted-2" style={{ fontSize: 11.5, marginTop: 10, textAlign: "center" }}>
               {!isFunded
                 ? `NFT is locked in escrow. Borrower receives ${fmtETH(l.amt)} Ξ only when they accept an offer.`
-                : isBorrower
-                  ? "Repay the loan to reclaim your NFT."
-                  : "If the borrower defaults, claim the NFT collateral."}
+                : isRepaid ? "Loan repaid. NFT returned to borrower."
+                : isDefaulted ? "Loan defaulted. NFT claimed by lender."
+                : deadlinePassed && isBorrower
+                  ? "Deadline passed. Repay immediately or lender can claim your NFT."
+                  : isBorrower
+                    ? "Repay the loan to reclaim your NFT."
+                    : deadlinePassed
+                      ? "Deadline passed. You can now claim the NFT collateral."
+                      : `Claimable in ${daysLeft}d ${hoursLeft}h. Lender can claim collateral if borrower defaults.`}
             </div>
           </div>
 
           <div className="card" style={{ padding: 22 }}>
             <div className="row between" style={{ marginBottom: 12 }}>
-              <span className="eyebrow">Default countdown</span>
-              <span className="pill warn"><span className="pdot" />{l.term} days</span>
+              <span className="eyebrow">{deadlinePassed ? "Default countdown — OVERDUE" : isRepaid ? "Loan closed" : isDefaulted ? "Loan closed" : "Default countdown"}</span>
+              {deadlinePassed ? (
+                <span className="pill danger"><span className="pdot" />Overdue</span>
+              ) : isRepaid ? (
+                <span className="pill success"><span className="pdot" />Repaid</span>
+              ) : isDefaulted ? (
+                <span className="pill danger"><span className="pdot" />Defaulted</span>
+              ) : deadline !== null ? (
+                <span className="pill warn"><span className="pdot" />{daysLeft}d {hoursLeft}h left</span>
+              ) : (
+                <span className="pill warn"><span className="pdot" />{l.term} days</span>
+              )}
             </div>
-            <div className="display-num" style={{ fontSize: 38, color: "var(--ink)" }}>{l.term - 1}<span className="muted-2" style={{ fontSize: 18 }}>d</span> 14<span className="muted-2" style={{ fontSize: 18 }}>h</span> 02<span className="muted-2" style={{ fontSize: 18 }}>m</span></div>
+            {isRepaid ? (
+              <div className="display-num" style={{ fontSize: 38, color: "var(--go)" }}>Repaid ✓</div>
+            ) : isDefaulted ? (
+              <div className="display-num" style={{ fontSize: 38, color: "var(--risk)" }}>Defaulted</div>
+            ) : deadline !== null ? (
+              <div className="display-num" style={{ fontSize: 38, color: deadlinePassed ? "var(--risk)" : "var(--ink)" }}>
+                {deadlinePassed ? "-" : ""}{daysLeft}<span className="muted-2" style={{ fontSize: 18 }}>d</span>{" "}
+                {hoursLeft}<span className="muted-2" style={{ fontSize: 18 }}>h</span>{" "}
+                {minsLeft}<span className="muted-2" style={{ fontSize: 18 }}>m</span>{" "}
+                <span className="muted-2" style={{ fontSize: 14 }}>{secsLeft}s</span>
+              </div>
+            ) : (
+              <div className="display-num" style={{ fontSize: 38, color: "var(--ink)" }}>{l.term}<span className="muted-2" style={{ fontSize: 18 }}>d</span></div>
+            )}
             <hr className="hr" style={{ margin: "16px 0" }} />
             <div className="tline">
-              <div className="ev done"><div className="ttl">NFT locked in escrow</div><div className="sub">Apr 1, 14:22</div></div>
-              <div className="ev done"><div className="ttl">Loan funded · {fmtETH(l.amt)} Ξ to borrower</div><div className="sub">Apr 1, 14:24</div></div>
-              <div className="ev now"><div className="ttl">Active — accruing interest</div><div className="sub">{l.apr}% APR</div></div>
-              <div className="ev"><div className="ttl">Repayment due</div><div className="sub">Apr 30, 22:00</div></div>
+              <div className="ev done"><div className="ttl">NFT locked in escrow</div><div className="sub">{l.contractListingId ? "On-chain verified" : "Pending sync"}</div></div>
+              <div className="ev done"><div className="ttl">Loan funded · {fmtETH(l.amt)} Ξ to borrower</div><div className="sub">{isFunded || isRepaid || isDefaulted ? "Funded" : "Awaiting lender"}</div></div>
+              {deadlinePassed ? (
+                <div className="ev now" style={{ color: "var(--risk)" }}><div className="ttl">Deadline passed</div><div className="sub">{deadline ? formatDate(deadline) : ""}</div></div>
+              ) : (
+                <div className="ev now"><div className="ttl">Active — accruing interest</div><div className="sub">{proRatedInterest.toFixed(3)} Ξ accrued · {l.apr}% APR</div></div>
+              )}
+              <div className="ev"><div className="ttl">Repayment due</div><div className="sub">{deadline !== null ? formatDate(deadline) : `${l.term} days`}</div></div>
             </div>
           </div>
         </div>
