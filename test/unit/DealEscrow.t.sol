@@ -3,10 +3,10 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 import "../mocks/MockERC20.sol";
-import "../../contracts/VaultEscrow.sol";
+import "../../contracts/VaultDeals.sol";
 
 contract DealEscrowTest is Test {
-    VaultEscrow public escrow;
+    VaultDeals public escrow;
     MockERC20 public usdc;
     address admin = makeAddr("admin");
     address seller = makeAddr("seller");
@@ -17,7 +17,7 @@ contract DealEscrowTest is Test {
     function setUp() public {
         usdc = new MockERC20();
         vm.prank(admin);
-        escrow = new VaultEscrow(address(usdc), 150);
+        escrow = new VaultDeals(address(usdc), 150);
         usdc.mint(buyer, 1_000_000_000 ether);
         usdc.mint(seller, 1_000_000_000 ether);
     }
@@ -125,6 +125,10 @@ contract DealEscrowTest is Test {
         usdc.approve(address(escrow), 5 ether);
         vm.prank(buyer);
         escrow.buyMiniApp(miniId, 5 ether);
-        assertGt(usdc.balanceOf(seller), balS);
+        // Funds stay in escrow — not released until delivery confirmed
+        assertEq(usdc.balanceOf(seller), balS);
+        assertEq(escrow.dealEscrowBalance(1), 5 ether);
+        (, address dBuyer,,,,,,,) = escrow.deals(1);
+        assertEq(dBuyer, buyer);
     }
 }

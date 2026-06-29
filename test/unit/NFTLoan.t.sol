@@ -4,10 +4,10 @@ pragma solidity ^0.8.28;
 import "forge-std/Test.sol";
 import "../mocks/MockERC721.sol";
 import "../mocks/MockERC20.sol";
-import "../../contracts/VaultEscrow.sol";
+import "../../contracts/VaultNFT.sol";
 
 contract NFTLoanTest is Test {
-    VaultEscrow public escrow;
+    VaultNFT public escrowNft;
     MockERC721 public nft;
     MockERC20 public usdc;
 
@@ -21,7 +21,7 @@ contract NFTLoanTest is Test {
     function setUp() public {
         usdc = new MockERC20();
         vm.prank(admin);
-        escrow = new VaultEscrow(address(usdc), FEE);
+        escrowNft = new VaultNFT(address(usdc), FEE);
         nft = new MockERC721();
         usdc.mint(lender, 1_000_000_000 ether);
         usdc.mint(lender2, 1_000_000_000 ether);
@@ -31,23 +31,23 @@ contract NFTLoanTest is Test {
     function _listNFT(uint256 amount, uint256 apr, uint256 term) internal returns (uint256) {
         uint256 tokenId = nft.mint(borrower);
         vm.prank(borrower);
-        nft.approve(address(escrow), tokenId);
+        nft.approve(address(escrowNft), tokenId);
         vm.prank(borrower);
-        return escrow.listNFT(address(nft), tokenId, amount, apr, term);
+        return escrowNft.listNFT(address(nft), tokenId, amount, apr, term);
     }
 
     function _submitOffer(uint256 id, address from, uint256 amount, uint256 apr, uint256 term) internal {
         vm.prank(from);
-        usdc.approve(address(escrow), amount);
+        usdc.approve(address(escrowNft), amount);
         vm.prank(from);
-        escrow.submitOffer(id, amount, apr, term);
+        escrowNft.submitOffer(id, amount, apr, term);
     }
 
     function _activateLoan(uint256 amount, uint256 apr, uint256 term) internal returns (uint256) {
         uint256 listingId = _listNFT(amount, apr, term);
         _submitOffer(listingId, lender, amount, apr, term);
         vm.prank(borrower);
-        escrow.acceptOffer(listingId, lender, amount, apr, term);
+        escrowNft.acceptOffer(listingId, lender, amount, apr, term);
         return listingId;
     }
 
@@ -55,42 +55,42 @@ contract NFTLoanTest is Test {
     function test_listNFT_OK() public {
         uint256 tokenId = nft.mint(borrower);
         vm.prank(borrower);
-        nft.approve(address(escrow), tokenId);
+        nft.approve(address(escrowNft), tokenId);
         vm.prank(borrower);
-        escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
-        assertEq(nft.ownerOf(tokenId), address(escrow));
+        escrowNft.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
+        assertEq(nft.ownerOf(tokenId), address(escrowNft));
     }
 
     function test_listNFT_Event() public {
         uint256 tokenId = nft.mint(borrower);
         vm.prank(borrower);
-        nft.approve(address(escrow), tokenId);
+        nft.approve(address(escrowNft), tokenId);
         vm.expectEmit(true, true, true, true);
-        emit VaultEscrow.Listed(1, borrower, address(nft), tokenId, 10 ether, 1420, 30);
+        emit VaultNFT.Listed(1, borrower, address(nft), tokenId, 10 ether, 1420, 30);
         vm.prank(borrower);
-        escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
+        escrowNft.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
     }
 
     function test_listNFT_Revert_ZeroAmount() public {
         uint256 tokenId = nft.mint(borrower);
         vm.prank(borrower);
-        nft.approve(address(escrow), tokenId);
+        nft.approve(address(escrowNft), tokenId);
         vm.prank(borrower);
         vm.expectRevert("Amount must be > 0");
-        escrow.listNFT(address(nft), tokenId, 0, 1420, 30);
+        escrowNft.listNFT(address(nft), tokenId, 0, 1420, 30);
     }
 
     function test_listNFT_Revert_NotOwner() public {
         uint256 tokenId = nft.mint(borrower);
         vm.prank(lender);
-        vm.expectRevert(VaultEscrow.NotNFTOwner.selector);
-        escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
+        vm.expectRevert(VaultNFT.NotNFTOwner.selector);
+        escrowNft.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
     }
 
     function test_cancel_OK() public {
         uint256 listingId = _listNFT(10 ether, 1420, 30);
         vm.prank(borrower);
-        escrow.cancelListing(listingId);
+        escrowNft.cancelListing(listingId);
         assertEq(nft.ownerOf(0), borrower);
     }
 
@@ -98,13 +98,13 @@ contract NFTLoanTest is Test {
     function test_submitOffer_OK() public {
         uint256 listingId = _listNFT(10 ether, 1420, 30);
         _submitOffer(listingId, lender, 10 ether, 1420, 30);
-        assertEq(escrow.listingEscrowBalance(listingId), 10 ether);
+        assertEq(escrowNft.listingEscrowBalance(listingId), 10 ether);
     }
 
     function test_submitOffer_StoresTerms() public {
         uint256 listingId = _listNFT(10 ether, 1420, 30);
         _submitOffer(listingId, lender, 10 ether, 1420, 30);
-        (uint256 oApr, uint256 oTerm) = escrow.offers(listingId, lender);
+        (uint256 oApr, uint256 oTerm) = escrowNft.offers(listingId, lender);
         assertEq(oApr, 1420);
         assertEq(oTerm, 30);
     }
@@ -113,8 +113,8 @@ contract NFTLoanTest is Test {
         uint256 listingId = _listNFT(10 ether, 1420, 30);
         _submitOffer(listingId, lender, 10 ether, 1420, 30);
         vm.prank(borrower);
-        vm.expectRevert(VaultEscrow.OfferMismatch.selector);
-        escrow.acceptOffer(listingId, lender, 10 ether, 2000, 30);
+        vm.expectRevert(VaultNFT.OfferMismatch.selector);
+        escrowNft.acceptOffer(listingId, lender, 10 ether, 2000, 30);
     }
 
     // ── ACCEPT + REPAY
@@ -123,9 +123,9 @@ contract NFTLoanTest is Test {
         uint256 interest = uint256(10 ether * 1420 * 30) / 3650000;
         uint256 totalDue = 10 ether + interest;
         vm.prank(borrower);
-        usdc.approve(address(escrow), totalDue);
+        usdc.approve(address(escrowNft), totalDue);
         vm.prank(borrower);
-        escrow.repay(listingId, totalDue);
+        escrowNft.repay(listingId, totalDue);
         assertEq(nft.ownerOf(0), borrower);
     }
 
@@ -135,10 +135,10 @@ contract NFTLoanTest is Test {
         uint256 totalDue = 10 ether + interest;
         uint256 half = totalDue / 2;
         vm.prank(borrower);
-        usdc.approve(address(escrow), half);
+        usdc.approve(address(escrowNft), half);
         vm.prank(borrower);
-        escrow.repayPartial(listingId, half);
-        (, uint256 paid, uint256 remaining) = escrow.getRepaymentDue(listingId);
+        escrowNft.repayPartial(listingId, half);
+        (, uint256 paid, uint256 remaining) = escrowNft.getRepaymentDue(listingId);
         assertEq(paid, half);
         assertEq(remaining, totalDue - half);
     }
@@ -148,7 +148,7 @@ contract NFTLoanTest is Test {
         uint256 listingId = _activateLoan(10 ether, 1420, 30);
         vm.warp(block.timestamp + 31 days + 24 hours);
         vm.prank(lender);
-        escrow.claimCollateral(listingId);
+        escrowNft.claimCollateral(listingId);
         assertEq(nft.ownerOf(0), lender);
     }
 
@@ -156,32 +156,32 @@ contract NFTLoanTest is Test {
         uint256 listingId = _activateLoan(10 ether, 1420, 30);
         vm.warp(block.timestamp + 30 days + 23 hours);
         vm.prank(lender);
-        vm.expectRevert(VaultEscrow.GracePeriodNotPassed.selector);
-        escrow.claimCollateral(listingId);
+        vm.expectRevert(VaultNFT.GracePeriodNotPassed.selector);
+        escrowNft.claimCollateral(listingId);
     }
 
     // ── DISPUTE / RESOLVE
     function test_dispute_OK() public {
         uint256 listingId = _activateLoan(10 ether, 1420, 30);
         vm.prank(borrower);
-        escrow.dispute(listingId);
+        escrowNft.dispute(listingId);
     }
 
     function test_resolve_NFTToLender() public {
         uint256 listingId = _activateLoan(10 ether, 1420, 30);
         vm.prank(borrower);
-        escrow.dispute(listingId);
+        escrowNft.dispute(listingId);
         vm.prank(admin);
-        escrow.resolve(listingId, true);
+        escrowNft.resolve(listingId, true);
         assertEq(nft.ownerOf(0), lender);
     }
 
     function test_resolve_NFTToBorrower() public {
         uint256 listingId = _activateLoan(10 ether, 1420, 30);
         vm.prank(borrower);
-        escrow.dispute(listingId);
+        escrowNft.dispute(listingId);
         vm.prank(admin);
-        escrow.resolve(listingId, false);
+        escrowNft.resolve(listingId, false);
         assertEq(nft.ownerOf(0), borrower);
     }
 }

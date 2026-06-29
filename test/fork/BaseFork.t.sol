@@ -3,8 +3,8 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 import "../../contracts/VaultEscrow.sol";
+import "../../contracts/VaultNFT.sol";
 
-/// @notice Fork tests against Base mainnet
 contract BaseForkTest is Test {
     VaultEscrow public escrow;
     address admin = makeAddr("admin");
@@ -18,15 +18,15 @@ contract BaseForkTest is Test {
     }
 
     function test_DeployOnFork() public {
-        assertEq(escrow.admin(), admin);
-        assertEq(escrow.platformFeeBps(), 150);
-        assertEq(escrow.paused(), false);
-        assertEq(escrow.dealCount(), 0);
-        assertEq(escrow.listingCount(), 0);
+        assertEq(escrow.nft().admins(admin), true);
+        assertEq(escrow.nft().platformFeeBps(), 150);
+        assertEq(escrow.nft().paused(), false);
+        assertEq(escrow.deals().dealCount(), 0);
+        assertEq(escrow.nft().listingCount(), 0);
     }
 
     function test_onERC721Received() public {
-        bytes4 selector = escrow.onERC721Received(address(this), address(this), 0, "");
-        assertEq(selector, escrow.onERC721Received.selector);
+        bytes4 selector = escrow.nft().onERC721Received(address(this), address(this), 0, "");
+        assertEq(selector, escrow.nft().onERC721Received.selector);
     }
 }
