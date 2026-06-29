@@ -13,7 +13,7 @@ import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
 import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline, writeApproveUsdc, getNftAddress } from "@/lib/contract";
+import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline, writeApproveUsdc, getNftAddress, readPlatformFeeBps } from "@/lib/contract";
 import { parseUnits, type Address, type Hash } from "viem";
 import type { Loan } from "@/lib/data";
 import { shareAsCast } from "@/lib/farcaster-sdk";
@@ -170,6 +170,7 @@ function LoanDetailContent() {
   const [repayingPartial, setRepayingPartial] = useState(false);
   const [partialAmt, setPartialAmt] = useState("");
   const [deadline, setDeadline] = useState<number | null>(null);
+  const [platformFeeBps, setPlatformFeeBps] = useState(500);
   const [now, setNow] = useState(0);
   const { address } = useWallet();
 
@@ -285,6 +286,12 @@ function LoanDetailContent() {
       .catch(() => {});
   }, [loan?.contractListingId, loan?.status]);
 
+  // Fetch on-chain platform fee when loan has contractListingId
+  useEffect(() => {
+    if (!loan?.contractListingId) return;
+    readPlatformFeeBps("nft").then(setPlatformFeeBps).catch(() => {});
+  }, [loan?.contractListingId]);
+
   if (loading) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
   if (error) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="warn-banner" style={{ margin: 80 }}>{error}</div></main>;
   if (!loan) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Listing not found.</div></main>;
@@ -360,11 +367,18 @@ function LoanDetailContent() {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       const totalDueWei = parseUnits(repaymentDue.toFixed(4), 6);
       await waitForTx(await writeApproveUsdc(address as Address, await getNftAddress(), totalDueWei));
-      await waitForTx(await writeRepay(
+      const repayHash = await writeRepay(
         address as Address,
         BigInt(l.contractListingId),
         totalDueWei,
-      ));
+      );
+      await waitForTx(repayHash);
+      fetch(`/api/listings/${loan.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "repaid", txHash: repayHash, actorAddress: address, action: "repay" }),
+      }).catch(() => {});
       setLoan((prev) => prev ? { ...prev, status: "repaid" as Loan["status"] } : prev);
     } catch (err) {
       setError(parseContractError(err));
@@ -380,11 +394,18 @@ function LoanDetailContent() {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync.");
       const partialWei = parseUnits(partialAmt, 6);
       await waitForTx(await writeApproveUsdc(address as Address, await getNftAddress(), partialWei));
-      await waitForTx(await writeRepayPartial(
+      const partialHash = await writeRepayPartial(
         address as Address,
         BigInt(l.contractListingId),
         partialWei,
-      ));
+      );
+      await waitForTx(partialHash);
+      fetch(`/api/listings/${loan.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "funded", txHash: partialHash, actorAddress: address, action: "repay_partial" }),
+      }).catch(() => {});
       setPartialAmt("");
     } catch (err) {
       setError(parseContractError(err));
@@ -398,7 +419,14 @@ function LoanDetailContent() {
     setRepaying(true);
     try {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync.");
-      await waitForTx(await writeCancelListing(address as Address, BigInt(l.contractListingId)));
+      const cancelHash = await writeCancelListing(address as Address, BigInt(l.contractListingId));
+      await waitForTx(cancelHash);
+      fetch(`/api/listings/${loan.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled", txHash: cancelHash, actorAddress: address, action: "cancel_listing" }),
+      }).catch(() => {});
       setLoan((prev) => prev ? { ...prev, status: "cancelled" as Loan["status"] } : prev);
     } catch (err) {
       setError(parseContractError(err));
@@ -432,10 +460,17 @@ function LoanDetailContent() {
     setClaiming(true);
     try {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-      await waitForTx(await writeClaimCollateral(
+      const claimHash = await writeClaimCollateral(
         address as Address,
         BigInt(l.contractListingId),
-      ));
+      );
+      await waitForTx(claimHash);
+      fetch(`/api/listings/${loan.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "default", txHash: claimHash, actorAddress: address, action: "claim_collateral" }),
+      }).catch(() => {});
       setLoan((prev) => prev ? { ...prev, status: "default" as Loan["status"] } : prev);
     } catch (err) {
       alert(parseContractError(err));
@@ -466,7 +501,7 @@ function LoanDetailContent() {
     <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row" style={{ marginBottom: 14, gap: 8, fontSize: 12, color: "var(--ink-4)" }}>
         <Link href="/market" className="btn ghost sm">← Back</Link>
-        <span>Lend & Borrow</span><span>/</span><span className="mono" style={{ color: "var(--ink-2)" }}>{l.id}</span>
+        <span>NFT Loans</span><span>/</span><span className="mono" style={{ color: "var(--ink-2)" }}>{l.id}</span>
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: "1.2fr 1fr", gap: 28 }}>
@@ -550,7 +585,7 @@ function LoanDetailContent() {
             {tab === "terms" && (
               <div style={{ padding: 18 }}>
                 <p className="muted" style={{ marginTop: 0, fontSize: 13, lineHeight: 1.6 }}>
-                  Standard NFT-loan terms. If the borrower defaults, the NFT is transferred to the lender. Platform fee is 1.5% of the loan principal at origination.
+                  Standard NFT-loan terms. If the borrower defaults, the NFT is transferred to the lender. Platform fee is {platformFeeBps / 100}% of the loan principal at origination.
                 </p>
                 <div className="col" style={{ gap: 10, marginTop: 16 }}>
                   <div className="row" style={{ gap: 8 }}>
@@ -581,7 +616,7 @@ function LoanDetailContent() {
             <div className="kv"><span className="k">Repayment due</span><span className="v">{repaymentDue.toFixed(3)} USDC {deadlinePassed ? <span style={{ color: "var(--risk)", fontSize: 11 }}>(overdue)</span> : ""}</span></div>
             <div className="kv"><span className="k">Term</span><span className="v">{l.term} days</span></div>
             <div className="kv"><span className="k">Loan-to-value</span><span className="v">{l.ltv}%</span></div>
-            <div className="kv"><span className="k">Platform fee</span><span className="v">1.5% · {(l.amt * 0.015).toFixed(3)} USDC</span></div>
+            <div className="kv"><span className="k">Platform fee</span><span className="v">{platformFeeBps / 100}% · {(l.amt * platformFeeBps / 10000).toFixed(3)} USDC</span></div>
             <div className="kv"><span className="k">Escrow</span><span className="v" style={{ color: "var(--accent)" }}>baseshire.eth · EOA</span></div>
 
             <div className="row" style={{ gap: 8, marginTop: 18 }}>

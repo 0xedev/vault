@@ -615,6 +615,102 @@ export async function writeSetPlatformFee(
   });
 }
 
+// ── Admin writes (called on VaultDeals contract) ───────────────
+
+export async function writePauseDeals(
+  account: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "pause",
+    args: [],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeUnpauseDeals(
+  account: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "unpause",
+    args: [],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeAddAdminDeals(
+  account: Address,
+  newAdmin: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "addAdmin",
+    args: [newAdmin],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeRemoveAdminDeals(
+  account: Address,
+  target: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "removeAdmin",
+    args: [target],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeSetTreasuryDeals(
+  account: Address,
+  newTreasury: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "setTreasury",
+    args: [newTreasury],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeSetPlatformFeeDeals(
+  account: Address,
+  newFeeBps: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "setPlatformFee",
+    args: [newFeeBps],
+    account,
+    chain: base,
+  });
+}
+
 // ── ERC-721 helpers ───────────────────────────────────────────
 
 export async function approveNft(

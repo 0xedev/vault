@@ -55,6 +55,12 @@ export {
   writeRemoveAdmin,
   writeSetTreasury,
   writeSetPlatformFee,
+  writePauseDeals,
+  writeUnpauseDeals,
+  writeAddAdminDeals,
+  writeRemoveAdminDeals,
+  writeSetTreasuryDeals,
+  writeSetPlatformFeeDeals,
 } from "./contract-writes";
 export {
   readListingCount,
@@ -71,6 +77,8 @@ export {
   readAllDeals,
   readDealEscrowBalance,
   readPaused,
+  readPausedDeals,
+  readPlatformFeeBps,
   mapListingStage,
   mapDealStage,
   readDealOfferCount,

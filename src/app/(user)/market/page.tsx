@@ -16,6 +16,7 @@ import {
   writeListNFT,
   waitForListingId,
   parseContractError,
+  readPlatformFeeBps,
 } from "@/lib/contract";
 import { getActiveWalletProvider } from "@/lib/contract-helpers";
 import { parseUnits } from "viem";
@@ -77,6 +78,11 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
   const [selectedNftImageUrl, setSelectedNftImageUrl] = useState("");
   const [scanning, setScanning] = useState(true);
   const [collSeed] = useState(() => Math.floor(Math.random() * 100));
+  const [nftPlatformFeeBps, setNftPlatformFeeBps] = useState(500);
+
+  useEffect(() => {
+    readPlatformFeeBps("nft").then(setNftPlatformFeeBps).catch(() => {});
+  }, []);
 
   const [tooltip, setTooltip] = useState("");
 
@@ -157,7 +163,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     Number(apr) > 0 &&
     Number(term) > 0;
   const impliedLtv = canReview ? Math.round((Number(amount) / 15) * 100) : 0;
-  const platformFee = Number(amount || 0) * 0.015;
+  const platformFee = Number(amount || 0) * nftPlatformFeeBps / 10000;
 
   const verifyOwnership = async () => {
     if (!address) return false;
@@ -598,7 +604,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                   </span>
                 </div>
                 <div className="kv">
-                  <span className="k">Platform fee (1.5%)</span>
+                  <span className="k">Platform fee ({nftPlatformFeeBps / 100}%)</span>
                   <span className="v mono">{platformFee.toFixed(3)} USDC</span>
                 </div>
                 <div className="kv">
@@ -979,7 +985,7 @@ export default function MarketplacePage() {
           <div className="market-listing-grid">
             {miniApps.slice(0, 4).map((app) => (
               <Link
-                href="/miniapps"
+                href={`/miniapps?id=${encodeURIComponent(app.id)}`}
                 key={app.id}
                 className="market-listing-card"
               >
@@ -1012,7 +1018,7 @@ export default function MarketplacePage() {
           </div>
           <div className="market-listing-grid">
             {xAccounts.slice(0, 4).map((account) => (
-              <Link href="/x" key={account.id} className="market-listing-card">
+              <Link href={`/x?id=${encodeURIComponent(account.id)}`} key={account.id} className="market-listing-card">
                 <span className="market-listing-icon">
                   <Icon.xlogo />
                 </span>
@@ -1044,7 +1050,7 @@ export default function MarketplacePage() {
           <div className="market-listing-grid">
             {farcaster.slice(0, 4).map((account) => (
               <Link
-                href="/farcaster"
+                href={`/farcaster?id=${encodeURIComponent(account.id)}`}
                 key={account.id}
                 className="market-listing-card"
               >
@@ -1079,7 +1085,7 @@ export default function MarketplacePage() {
           <div className="market-listing-grid">
             {clankerTokens.slice(0, 4).map((token) => (
               <Link
-                href="/clanker"
+                href={`/clanker?id=${encodeURIComponent(token.id)}`}
                 key={token.id}
                 className="market-listing-card"
               >
@@ -1239,7 +1245,7 @@ export default function MarketplacePage() {
           ) : (
             miniApps.map((app) => (
               <Link
-                href="/miniapps"
+                href={`/miniapps?id=${encodeURIComponent(app.id)}`}
                 key={app.id}
                 className="market-listing-card"
               >
@@ -1268,7 +1274,7 @@ export default function MarketplacePage() {
             </div>
           ) : (
             xAccounts.map((account) => (
-              <Link href="/x" key={account.id} className="market-listing-card">
+              <Link href={`/x?id=${encodeURIComponent(account.id)}`} key={account.id} className="market-listing-card">
                 <span className="market-listing-icon">
                   <Icon.xlogo />
                 </span>
@@ -1296,7 +1302,7 @@ export default function MarketplacePage() {
           ) : (
             farcaster.map((account) => (
               <Link
-                href="/farcaster"
+                href={`/farcaster?id=${encodeURIComponent(account.id)}`}
                 key={account.id}
                 className="market-listing-card"
               >
@@ -1327,7 +1333,7 @@ export default function MarketplacePage() {
           ) : (
             clankerTokens.map((token) => (
               <Link
-                href="/clanker"
+                href={`/clanker?id=${encodeURIComponent(token.id)}`}
                 key={token.id}
                 className="market-listing-card"
               >

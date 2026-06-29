@@ -255,10 +255,27 @@ export async function readDealOfferDeposit(dealId: bigint, buyer: Address): Prom
 
 // ── Shared (read from VaultNFT) ───────────────────────────────
 
+export async function readPlatformFeeBps(kind: "nft" | "deals" = "nft"): Promise<number> {
+  const fee = await client().readContract({
+    address: kind === "nft" ? await nftAddress() : await dealsAddress(),
+    abi: kind === "nft" ? VaultNFT_ABI : VaultDeals_ABI,
+    functionName: "platformFeeBps",
+  }) as bigint;
+  return Number(fee);
+}
+
 export async function readPaused(): Promise<boolean> {
   return client().readContract({
     address: await nftAddress(),
     abi: VaultNFT_ABI,
+    functionName: "paused",
+  }) as Promise<boolean>;
+}
+
+export async function readPausedDeals(): Promise<boolean> {
+  return client().readContract({
+    address: await dealsAddress(),
+    abi: VaultDeals_ABI,
     functionName: "paused",
   }) as Promise<boolean>;
 }

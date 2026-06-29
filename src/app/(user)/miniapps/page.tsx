@@ -4,7 +4,7 @@
 export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import { appColor, fmtCompact } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
@@ -270,6 +270,8 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
 
 export default function MiniAppsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedId = searchParams.get("id");
   const { isConnected, connect, address } = useWallet();
   const [showListModal, setShowListModal] = useState(false);
   const [apps, setApps] = useState<MiniApp[]>([]);
@@ -292,12 +294,19 @@ export default function MiniAppsPage() {
   const kinds = ["all", ...new Set(apps.map(a => a.kind))];
   const filt = useMemo(() => {
     let r = apps;
-    if (filter !== "all") r = r.filter(a => a.kind === filter);
+    const effectiveFilter = selectedId ? "all" : filter;
+    if (effectiveFilter !== "all") r = r.filter(a => a.kind === effectiveFilter);
     if (sort === "dau") r = [...r].sort((a, b) => b.dau - a.dau);
     if (sort === "mrr") r = [...r].sort((a, b) => b.mrr - a.mrr);
     if (sort === "price") r = [...r].sort((a, b) => a.price - b.price);
     return r;
-  }, [apps, filter, sort]);
+  }, [apps, filter, selectedId, sort]);
+  const displayedApps = useMemo(() => {
+    if (!selectedId) return filt;
+    const selected = apps.find((app) => app.id === selectedId);
+    if (!selected) return filt;
+    return [selected, ...filt.filter((app) => app.id !== selectedId)];
+  }, [apps, filt, selectedId]);
 
   const fundEscrow = async (app: MiniApp) => {
     if (!isConnected || !address) {
@@ -382,8 +391,8 @@ export default function MiniAppsPage() {
 
       {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : (
         <div className="grid grid-3">
-          {filt.map(a => (
-            <article key={a.id} className="loan-card">
+          {displayedApps.map(a => (
+            <article key={a.id} className="loan-card" style={a.id === selectedId ? { borderColor: "var(--accent)" } : undefined}>
               <div style={{ position: "relative", aspectRatio: "16/10", background: `linear-gradient(135deg, ${appColor(a.id, 0)}, ${appColor(a.id, 1)})`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                 {a.imageUrl ? (
                   <img src={a.imageUrl} alt={a.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />

@@ -4,7 +4,7 @@
 export const dynamic = "force-dynamic";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
@@ -34,6 +34,8 @@ function Bar({ label, pct, sub }: { label: string; pct: number; sub: string }) {
 
 export default function XAccountsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedId = searchParams.get("id");
   const { address, isConnected, connect } = useWallet();
   const [accounts, setAccounts] = useState<XAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,14 +126,21 @@ export default function XAccountsPage() {
 
   const filt = useMemo(() => {
     let r = accounts;
-    if (filter === "small")    r = r.filter(a => a.followers < 25000);
-    if (filter === "mid")      r = r.filter(a => a.followers >= 25000 && a.followers < 100000);
-    if (filter === "large")    r = r.filter(a => a.followers >= 100000);
+    const effectiveFilter = selectedId ? "all" : filter;
+    if (effectiveFilter === "small")    r = r.filter(a => a.followers < 25000);
+    if (effectiveFilter === "mid")      r = r.filter(a => a.followers >= 25000 && a.followers < 100000);
+    if (effectiveFilter === "large")    r = r.filter(a => a.followers >= 100000);
     if (sort === "followers") r = [...r].sort((a, b) => b.followers - a.followers);
     if (sort === "engage")    r = [...r].sort((a, b) => b.engagement - a.engagement);
     if (sort === "price")     r = [...r].sort((a, b) => a.price - b.price);
     return r;
-  }, [filter, sort, accounts]);
+  }, [filter, selectedId, sort, accounts]);
+  const displayedAccounts = useMemo(() => {
+    if (!selectedId) return filt;
+    const selected = accounts.find((account) => account.id === selectedId);
+    if (!selected) return filt;
+    return [selected, ...filt.filter((account) => account.id !== selectedId)];
+  }, [accounts, filt, selectedId]);
 
   const fundEscrow = async (account: XAccount) => {
     if (!isConnected || !address) {
@@ -245,8 +254,8 @@ export default function XAccountsPage() {
 
       {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : (
       <div className="grid grid-3">
-        {filt.map(a => (
-          <article key={a.id} className="x-card">
+        {displayedAccounts.map(a => (
+          <article key={a.id} className="x-card" style={a.id === selectedId ? { borderColor: "var(--accent)" } : undefined}>
             <div className="x-head">
               <div className="x-avatar">
                 {a.imageUrl ? (

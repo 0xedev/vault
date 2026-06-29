@@ -4,7 +4,7 @@
 export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
@@ -23,6 +23,8 @@ function Stat({ lab, v }: { lab: string; v: string }) {
 
 export default function ClankerPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedId = searchParams.get("id");
   const { address, isConnected, isConnecting, role, connect } = useWallet();
   const isSignedIn = Boolean(address && role);
   const [tokens, setTokens] = useState<ClankerToken[]>([]);
@@ -60,6 +62,12 @@ export default function ClankerPage() {
       .then(json => { setTokens(json.data || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!selectedId || tokens.length === 0) return;
+    const token = tokens.find((item) => item.id === selectedId);
+    if (token) queueMicrotask(() => setSelectedToken(token));
+  }, [selectedId, tokens]);
 
   const resetListingForm = () => {
     setName(""); setSymbol(""); setContractAddress(""); setChain("Base");
@@ -335,7 +343,7 @@ export default function ClankerPage() {
       ) : (
         <div className="grid grid-3" style={{ gap: 16 }}>
           {tokens.map((t) => (
-            <div key={t.id} className="card" style={{ padding: 16, cursor: "pointer" }} onClick={() => setSelectedToken(t)}>
+            <div key={t.id} className="card" style={{ padding: 16, cursor: "pointer", ...(t.id === selectedId ? { borderColor: "var(--accent)" } : {}) }} onClick={() => setSelectedToken(t)}>
               <div className="row" style={{ gap: 10, marginBottom: 10 }}>
                 {t.imageUrl ? (
                   <img src={t.imageUrl} alt={t.name} style={{ width: 40, height: 40, borderRadius: 20, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />

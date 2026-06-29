@@ -15,8 +15,8 @@ export async function GET(
   const actorAddress = actorAddressForRequest(auth.user, url.searchParams.get("walletAddress"));
 
   const rows = auth.user.role === "admin"
-    ? await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.is_bundle, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id}` as Record<string, unknown>[]
-    : await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.is_bundle, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id} AND (e.buyer_address = ${actorAddress} OR e.seller_address = ${actorAddress})` as Record<string, unknown>[];
+    ? await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.is_bundle, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE e.id = ${id} OR e.listing_id = ${id} ORDER BY e.created_at DESC LIMIT 1` as Record<string, unknown>[]
+    : await db`SELECT e.*, l.marketplace, l.title, l.description, l.price, l.collateral_data, l.is_bundle, l.status AS listing_status FROM escrows e LEFT JOIN listings l ON l.id = e.listing_id WHERE (e.id = ${id} OR e.listing_id = ${id}) AND (e.buyer_address = ${actorAddress} OR e.seller_address = ${actorAddress}) ORDER BY e.created_at DESC LIMIT 1` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Escrow not found" }, { status: 404 });
 
   const r = rows[0];

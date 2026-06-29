@@ -138,7 +138,11 @@ export async function PATCH(req: NextRequest) {
 
   await db`UPDATE offers SET status = ${parsed.data.status}, tx_hash = COALESCE(${parsed.data.txHash || null}, tx_hash), tx_status = CASE WHEN ${parsed.data.txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END WHERE id = ${parsed.data.id}`;
   if (parsed.data.status === "accepted") {
-    await db`UPDATE listings SET status = 'funded', updated_at = NOW() WHERE id = ${rows[0].listing_id}`;
+    await db`UPDATE listings SET
+      status = 'funded',
+      collateral_data = jsonb_set(COALESCE(collateral_data::jsonb, '{}'::jsonb), '{status}', '"funded"'::jsonb, true),
+      updated_at = NOW()
+    WHERE id = ${rows[0].listing_id}`;
   }
   return NextResponse.json({ data: parsed.data });
 }

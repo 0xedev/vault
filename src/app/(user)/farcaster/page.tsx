@@ -4,7 +4,7 @@
 export const dynamic = "force-dynamic";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import type { FarcasterAccount } from "@/lib/data";
 import { fmtCompact } from "@/lib/utils";
@@ -180,6 +180,8 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
 
 export default function FarcasterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedId = searchParams.get("id");
   const { isConnected, connect, address } = useWallet();
   const [accounts, setAccounts] = useState<FarcasterAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,12 +203,19 @@ export default function FarcasterPage() {
 
   const filt = useMemo(() => {
     let r = accounts;
-    if (filter === "power") r = r.filter(a => a.power_badge);
+    const effectiveFilter = selectedId ? "all" : filter;
+    if (effectiveFilter === "power") r = r.filter(a => a.power_badge);
     if (sort === "followers") r = [...r].sort((a, b) => b.followers - a.followers);
     if (sort === "rev")       r = [...r].sort((a, b) => b.rev_30d - a.rev_30d);
     if (sort === "price")     r = [...r].sort((a, b) => a.price - b.price);
     return r;
-  }, [filter, sort, accounts]);
+  }, [filter, selectedId, sort, accounts]);
+  const displayedAccounts = useMemo(() => {
+    if (!selectedId) return filt;
+    const selected = accounts.find((account) => account.id === selectedId);
+    if (!selected) return filt;
+    return [selected, ...filt.filter((account) => account.id !== selectedId)];
+  }, [accounts, filt, selectedId]);
 
   const chips: [string, string, number][] = [
     ["all",      "All FIDs",     accounts.length],
@@ -315,8 +324,8 @@ export default function FarcasterPage() {
             </tr>
           </thead>
           <tbody>
-            {filt.map(a => (
-              <tr key={a.id} style={{ cursor: "pointer" }}>
+            {displayedAccounts.map(a => (
+              <tr key={a.id} style={{ cursor: "pointer", ...(a.id === selectedId ? { outline: "1px solid var(--accent)", outlineOffset: -1 } : {}) }}>
                 <td className="mono" style={{ color: "var(--ink)" }}>
                   #{a.fid}
                 </td>

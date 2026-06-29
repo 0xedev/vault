@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
-import { readPaused, writePause, writeUnpause, parseContractError, getPublicClient } from "@/lib/contract";
+import { readPaused, readPausedDeals, writePause, writeUnpause, writePauseDeals, writeUnpauseDeals, writeAddAdmin, writeRemoveAdmin, writeSetTreasury, writeSetPlatformFee, writeAddAdminDeals, writeRemoveAdminDeals, writeSetTreasuryDeals, writeSetPlatformFeeDeals, sendContractCalls, VaultNFT_ABI, VaultDeals_ABI, getNftAddress, getDealsAddress, parseContractError, getPublicClient, type ContractCall } from "@/lib/contract";
 import { type Address } from "viem";
 
 type Summary = {
@@ -34,7 +34,12 @@ export default function AdminDashboardPage() {
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [error, setError] = useState("");
   const [paused, setPaused] = useState<boolean | null>(null);
-  const [pauseLoading, setPauseLoading] = useState(false);
+  const [pausedDeals, setPausedDeals] = useState<boolean | null>(null);
+  const [pauseLoading, setPauseLoading] = useState<"nft" | "deals" | "">("");
+  const [contractLoading, setContractLoading] = useState("");
+  const [adminAddr, setAdminAddr] = useState("");
+  const [treasuryAddr, setTreasuryAddr] = useState("");
+  const [feeBps, setFeeBps] = useState("");
   const { address } = useWallet();
 
   useEffect(() => {
@@ -63,19 +68,58 @@ export default function AdminDashboardPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load admin dashboard"));
 
     readPaused().then(setPaused).catch(() => setPaused(null));
+    readPausedDeals().then(setPausedDeals).catch(() => setPausedDeals(null));
   }, []);
 
-  const togglePause = async () => {
+  const togglePause = async (kind: "nft" | "deals") => {
     if (!address) return;
-    setPauseLoading(true);
+    setPauseLoading(kind);
     try {
-      const hash = paused ? await writeUnpause(address as Address) : await writePause(address as Address);
+      const isNft = kind === "nft";
+      const isPaused = isNft ? paused : pausedDeals;
+      const writeFn = isNft
+        ? (isPaused ? writeUnpause : writePause)
+        : (isPaused ? writeUnpauseDeals : writePauseDeals);
+      const hash = await writeFn(address as Address);
       await getPublicClient().waitForTransactionReceipt({ hash });
-      setPaused(!paused);
+      if (isNft) setPaused(!paused); else setPausedDeals(!pausedDeals);
     } catch (err) {
       setError(parseContractError(err));
     } finally {
-      setPauseLoading(false);
+      setPauseLoading("");
+    }
+  };
+
+  const adminAction = async (fn: () => Promise<`0x${string}`>, label: string) => {
+    if (!address) return;
+    setContractLoading(label);
+    try {
+      const hash = await fn();
+      await getPublicClient().waitForTransactionReceipt({ hash });
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setContractLoading("");
+    }
+  };
+
+  const batchAdminAction = async (buildCalls: () => Promise<ContractCall[]>, label: string) => {
+    if (!address) return;
+    setContractLoading(label);
+    try {
+      const calls = await buildCalls();
+      const result = await sendContractCalls(address as Address, calls, { forceAtomic: true });
+      if (result.status === "failure") {
+        setError("Batch call failed. Check wallet for details.");
+        return;
+      }
+      await Promise.allSettled(
+        result.receipts.map((r) => getPublicClient().waitForTransactionReceipt({ hash: r.hash })),
+      );
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setContractLoading("");
     }
   };
 
@@ -88,8 +132,11 @@ export default function AdminDashboardPage() {
         </div>
         <div className="row" style={{ gap: 8 }}>
           <button className="btn" onClick={() => window.print()}>Export report</button>
-          <button className={"btn" + (paused ? " primary" : " danger")} onClick={togglePause} disabled={pauseLoading || paused === null}>
-            {pauseLoading ? "…" : paused ? "Unpause contract" : "Pause contract"}
+          <button className={"btn" + (paused ? " primary" : " danger")} onClick={() => togglePause("nft")} disabled={pauseLoading === "nft" || paused === null}>
+            {pauseLoading === "nft" ? "…" : paused ? "Unpause NFT" : "Pause NFT"}
+          </button>
+          <button className={"btn" + (pausedDeals ? " primary" : " danger")} onClick={() => togglePause("deals")} disabled={pauseLoading === "deals" || pausedDeals === null}>
+            {pauseLoading === "deals" ? "…" : pausedDeals ? "Unpause Deals" : "Pause Deals"}
           </button>
         </div>
       </div>
@@ -117,10 +164,17 @@ export default function AdminDashboardPage() {
           <div className="eyebrow" style={{ marginBottom: 14 }}>Settlement Health</div>
           <div className="metric"><span className="lab">Escrow utilization</span><span className="val">{summary.totalLocked.toFixed(3)} Ξ</span><span className="delta">live locked funds</span></div>
           <div className="row" style={{ marginTop: 16, gap: 8 }}>
-            <span className="smallcaps">Contract status</span>
+            <span className="smallcaps">NFT</span>
             <span className={"pill" + (paused ? " danger" : " success")} style={{ fontSize: 12 }}>
               <span className="pdot" style={{ background: paused ? "var(--risk)" : "var(--accent)" }} />
               {paused === null ? "Unknown" : paused ? "Paused" : "Active"}
+            </span>
+          </div>
+          <div className="row" style={{ marginTop: 8, gap: 8 }}>
+            <span className="smallcaps">Deals</span>
+            <span className={"pill" + (pausedDeals ? " danger" : " success")} style={{ fontSize: 12 }}>
+              <span className="pdot" style={{ background: pausedDeals ? "var(--risk)" : "var(--accent)" }} />
+              {pausedDeals === null ? "Unknown" : pausedDeals ? "Paused" : "Active"}
             </span>
           </div>
         </div>
@@ -169,6 +223,127 @@ export default function AdminDashboardPage() {
             ))}
           </div>
         </div>
+      </div>
+      <div className="card" style={{ padding: 22, marginTop: 22 }}>
+        <div className="eyebrow" style={{ marginBottom: 14, color: "var(--risk)" }}>Contract Administration</div>
+        <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: 22 }}>
+          {/* VaultNFT */}
+          <div className="col" style={{ gap: 14 }}>
+            <span className="smallcaps" style={{ color: "var(--accent)" }}>VaultNFT</span>
+            <div className="col" style={{ gap: 8 }}>
+              <span className="muted-2" style={{ fontSize: 10.5 }}>Admins</span>
+              <div className="row" style={{ gap: 6 }}>
+                <input className="input mono" placeholder="0x..." value={adminAddr} onChange={(e) => setAdminAddr(e.target.value)} style={{ flex: 1, fontSize: 11 }} />
+                <button className="btn sm primary" disabled={contractLoading !== "" || !adminAddr.startsWith("0x")} onClick={() => adminAction(() => writeAddAdmin(address as Address, adminAddr as Address), "addAdmin")}>{contractLoading === "addAdmin" ? "…" : "Add"}</button>
+                <button className="btn sm danger" disabled={contractLoading !== "" || !adminAddr.startsWith("0x")} onClick={() => adminAction(() => writeRemoveAdmin(address as Address, adminAddr as Address), "removeAdmin")}>{contractLoading === "removeAdmin" ? "…" : "Remove"}</button>
+              </div>
+            </div>
+            <div className="col" style={{ gap: 8 }}>
+              <span className="muted-2" style={{ fontSize: 10.5 }}>Treasury</span>
+              <div className="row" style={{ gap: 6 }}>
+                <input className="input mono" placeholder="0x..." value={treasuryAddr} onChange={(e) => setTreasuryAddr(e.target.value)} style={{ flex: 1, fontSize: 11 }} />
+                <button className="btn sm" disabled={contractLoading !== "" || !treasuryAddr.startsWith("0x")} onClick={() => adminAction(() => writeSetTreasury(address as Address, treasuryAddr as Address), "setTreasury")}>{contractLoading === "setTreasury" ? "…" : "Set"}</button>
+              </div>
+            </div>
+            <div className="col" style={{ gap: 8 }}>
+              <span className="muted-2" style={{ fontSize: 10.5 }}>Platform Fee (bps)</span>
+              <div className="row" style={{ gap: 6 }}>
+                <input className="input mono" placeholder="e.g. 250" value={feeBps} onChange={(e) => setFeeBps(e.target.value.replace(/\D/g, ""))} style={{ flex: 1, fontSize: 11 }} />
+                <button className="btn sm" disabled={contractLoading !== "" || !feeBps || Number(feeBps) > 500} onClick={() => adminAction(() => writeSetPlatformFee(address as Address, BigInt(feeBps)), "setPlatformFee")}>{contractLoading === "setPlatformFee" ? "…" : "Update"}</button>
+              </div>
+            </div>
+          </div>
+
+          {/* VaultDeals */}
+          <div className="col" style={{ gap: 14 }}>
+            <span className="smallcaps" style={{ color: "var(--info)" }}>VaultDeals</span>
+            <div className="col" style={{ gap: 8 }}>
+              <span className="muted-2" style={{ fontSize: 10.5 }}>Admins</span>
+              <div className="row" style={{ gap: 6 }}>
+                <input className="input mono" placeholder="0x..." value={adminAddr} onChange={(e) => setAdminAddr(e.target.value)} style={{ flex: 1, fontSize: 11 }} />
+                <button className="btn sm primary" disabled={contractLoading !== "" || !adminAddr.startsWith("0x")} onClick={() => adminAction(() => writeAddAdminDeals(address as Address, adminAddr as Address), "addAdminDeals")}>{contractLoading === "addAdminDeals" ? "…" : "Add"}</button>
+                <button className="btn sm danger" disabled={contractLoading !== "" || !adminAddr.startsWith("0x")} onClick={() => adminAction(() => writeRemoveAdminDeals(address as Address, adminAddr as Address), "removeAdminDeals")}>{contractLoading === "removeAdminDeals" ? "…" : "Remove"}</button>
+              </div>
+            </div>
+            <div className="col" style={{ gap: 8 }}>
+              <span className="muted-2" style={{ fontSize: 10.5 }}>Treasury</span>
+              <div className="row" style={{ gap: 6 }}>
+                <input className="input mono" placeholder="0x..." value={treasuryAddr} onChange={(e) => setTreasuryAddr(e.target.value)} style={{ flex: 1, fontSize: 11 }} />
+                <button className="btn sm" disabled={contractLoading !== "" || !treasuryAddr.startsWith("0x")} onClick={() => adminAction(() => writeSetTreasuryDeals(address as Address, treasuryAddr as Address), "setTreasuryDeals")}>{contractLoading === "setTreasuryDeals" ? "…" : "Set"}</button>
+              </div>
+            </div>
+            <div className="col" style={{ gap: 8 }}>
+              <span className="muted-2" style={{ fontSize: 10.5 }}>Platform Fee (bps)</span>
+              <div className="row" style={{ gap: 6 }}>
+                <input className="input mono" placeholder="e.g. 250" value={feeBps} onChange={(e) => setFeeBps(e.target.value.replace(/\D/g, ""))} style={{ flex: 1, fontSize: 11 }} />
+                <button className="btn sm" disabled={contractLoading !== "" || !feeBps || Number(feeBps) > 500} onClick={() => adminAction(() => writeSetPlatformFeeDeals(address as Address, BigInt(feeBps)), "setPlatformFeeDeals")}>{contractLoading === "setPlatformFeeDeals" ? "…" : "Update"}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Both contracts — batched via sendContractCalls */}
+        <div style={{ borderTop: "1px dashed var(--line)", marginTop: 18, paddingTop: 14 }}>
+          <div className="row between" style={{ marginBottom: 10 }}>
+            <span className="smallcaps" style={{ color: "var(--warn)" }}>Both (batch via sendCalls)</span>
+            <span className="muted-2" style={{ fontSize: 10 }}>atomic — both succeed or both revert</span>
+          </div>
+          <div className="grid" style={{ gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div className="col" style={{ gap: 6 }}>
+              <span className="muted-2" style={{ fontSize: 10 }}>Admins</span>
+              <div className="row" style={{ gap: 6 }}>
+                <button className="btn sm primary" style={{ flex: 1 }} disabled={contractLoading !== "" || !adminAddr.startsWith("0x")}
+                  onClick={() => batchAdminAction(async () => {
+                    const [nft, deals] = await Promise.all([getNftAddress(), getDealsAddress()]);
+                    return [
+                      { address: nft, abi: VaultNFT_ABI, functionName: "addAdmin", args: [adminAddr as Address] },
+                      { address: deals, abi: VaultDeals_ABI, functionName: "addAdmin", args: [adminAddr as Address] },
+                    ];
+                  }, "batchAddAdmin")}>
+                  {contractLoading === "batchAddAdmin" ? "…" : "Add both"}
+                </button>
+                <button className="btn sm danger" style={{ flex: 1 }} disabled={contractLoading !== "" || !adminAddr.startsWith("0x")}
+                  onClick={() => batchAdminAction(async () => {
+                    const [nft, deals] = await Promise.all([getNftAddress(), getDealsAddress()]);
+                    return [
+                      { address: nft, abi: VaultNFT_ABI, functionName: "removeAdmin", args: [adminAddr as Address] },
+                      { address: deals, abi: VaultDeals_ABI, functionName: "removeAdmin", args: [adminAddr as Address] },
+                    ];
+                  }, "batchRemoveAdmin")}>
+                  {contractLoading === "batchRemoveAdmin" ? "…" : "Remove both"}
+                </button>
+              </div>
+            </div>
+            <div className="col" style={{ gap: 6 }}>
+              <span className="muted-2" style={{ fontSize: 10 }}>Treasury</span>
+              <button className="btn sm" disabled={contractLoading !== "" || !treasuryAddr.startsWith("0x")}
+                onClick={() => batchAdminAction(async () => {
+                  const [nft, deals] = await Promise.all([getNftAddress(), getDealsAddress()]);
+                  return [
+                    { address: nft, abi: VaultNFT_ABI, functionName: "setTreasury", args: [treasuryAddr as Address] },
+                    { address: deals, abi: VaultDeals_ABI, functionName: "setTreasury", args: [treasuryAddr as Address] },
+                  ];
+                }, "batchSetTreasury")}>
+                {contractLoading === "batchSetTreasury" ? "…" : "Set both treasuries"}
+              </button>
+            </div>
+            <div className="col" style={{ gap: 6 }}>
+              <span className="muted-2" style={{ fontSize: 10 }}>Platform Fee (bps)</span>
+              <button className="btn sm" disabled={contractLoading !== "" || !feeBps || Number(feeBps) > 500}
+                onClick={() => batchAdminAction(async () => {
+                  const [nft, deals] = await Promise.all([getNftAddress(), getDealsAddress()]);
+                  return [
+                    { address: nft, abi: VaultNFT_ABI, functionName: "setPlatformFee", args: [BigInt(feeBps)] },
+                    { address: deals, abi: VaultDeals_ABI, functionName: "setPlatformFee", args: [BigInt(feeBps)] },
+                  ];
+                }, "batchSetPlatformFee")}>
+                {contractLoading === "batchSetPlatformFee" ? "…" : "Set both fees"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <span className="muted-2" style={{ fontSize: 10.5, marginTop: 12 }}>Max 500 bps (5%). Each contract has independent state — use &quot;Both&quot; to keep them in sync. Pause is not batched (use header buttons).</span>
       </div>
     </main>
   );

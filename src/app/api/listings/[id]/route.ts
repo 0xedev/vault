@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { databaseRequired, getDatabase } from "@/lib/api";
+import { z } from "zod";
+import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
 import { mapLoanListing } from "@/lib/marketplace";
+import { actorAddressForRequest, forbidden, requireUser } from "@/lib/auth";
 import { readListing, readRepaymentDue, readDeadline, readOfferCount, mapListingStage } from "@/lib/contract";
 
 export async function GET(
@@ -84,4 +86,75 @@ export async function GET(
   }
 
   return NextResponse.json({ data });
+}
+
+const patchSchema = z.object({
+  status: z.enum(["active", "open", "funded", "completed", "repaid", "default", "disputed", "cancelled"]),
+  txHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
+  actorAddress: z.string().optional(),
+  action: z.enum(["accept_offer", "repay", "repay_partial", "cancel_listing", "claim_collateral", "sync"]).optional(),
+});
+
+function dbStatusForLoanStatus(status: z.infer<typeof patchSchema>["status"]) {
+  if (status === "open") return "active";
+  if (status === "repaid") return "completed";
+  if (status === "default") return "funded";
+  return status;
+}
+
+function collateralStatusForLoanStatus(status: z.infer<typeof patchSchema>["status"]) {
+  if (status === "active") return "open";
+  if (status === "completed") return "repaid";
+  return status;
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const auth = await requireUser(req);
+  if ("response" in auth) return auth.response;
+  const db = auth.db;
+
+  const parsed = patchSchema.safeParse(await req.json().catch(() => ({})));
+  if (!parsed.success) return badRequest("Invalid status update", parsed.error.flatten());
+
+  const { status, txHash, action } = parsed.data;
+  const actorAddress = actorAddressForRequest(auth.user, parsed.data.actorAddress);
+
+  const rows = await db`SELECT id, seller_address FROM listings WHERE id = ${id} LIMIT 1` as Record<string, unknown>[];
+  if (rows.length === 0) return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+
+  const sellerAddress = String(rows[0].seller_address || "").toLowerCase();
+  const isOwner = sellerAddress === actorAddress.toLowerCase();
+  let isAcceptedLender = false;
+
+  if (!isOwner && action === "claim_collateral") {
+    const offerRows = await db`
+      SELECT id FROM offers
+      WHERE listing_id = ${id}
+        AND offerer_address = ${actorAddress}
+        AND status = 'accepted'
+      LIMIT 1
+    ` as Record<string, unknown>[];
+    isAcceptedLender = offerRows.length > 0;
+  }
+
+  if (auth.user.role !== "admin" && !isOwner && !isAcceptedLender) {
+    return forbidden("Only the listing owner or accepted lender can update this listing.");
+  }
+
+  const dbStatus = dbStatusForLoanStatus(status);
+  const collateralStatus = collateralStatusForLoanStatus(status);
+
+  await db`UPDATE listings SET
+    status = ${dbStatus},
+    collateral_data = jsonb_set(COALESCE(collateral_data::jsonb, '{}'::jsonb), '{status}', to_jsonb(${collateralStatus}::text), true),
+    tx_hash = COALESCE(${txHash || null}, tx_hash),
+    tx_status = CASE WHEN ${txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END,
+    updated_at = NOW()
+  WHERE id = ${id}`;
+
+  return NextResponse.json({ data: { id, status } });
 }

@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import StatusPill from "@/components/StatusPill";
 import { useRole } from "@/components/RoleProvider";
@@ -15,6 +16,7 @@ import {
   writeDisputeDeal,
   writeMarkDelivered,
   writeRefundDeal,
+  readPlatformFeeBps,
 } from "@/lib/contract";
 import {
   claimClankerVaultedTokens,
@@ -153,6 +155,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
   const [sending, setSending] = useState(false);
   const [actionNotice, setActionNotice] = useState("");
   const [actionBusy, setActionBusy] = useState("");
+  const [platformFeeBps, setPlatformFeeBps] = useState(500);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -165,6 +168,12 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
   const actorRole = walletAddress === sellerAddress ? "seller" : walletAddress === buyerAddress ? "buyer" : role;
   const isContractBacked = Boolean(deal.contractListingId);
   const isClankerDeal = Boolean(deal.clankerTransfer?.tokenAddress);
+
+  useEffect(() => {
+    if (isContractBacked) {
+      readPlatformFeeBps("deals").then(setPlatformFeeBps).catch(() => {});
+    }
+  }, [isContractBacked]);
 
   const markAsRead = async (ids: string[]) => {
     const unread = ids.filter(id => !seenRef.current.has(id));
@@ -678,8 +687,8 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
           <div className="card" style={{ padding: 18 }}>
             <div className="eyebrow" style={{ marginBottom: 10 }}>Funds in escrow</div>
             <div className="kv"><span className="k">Buyer deposit</span><span className="v">{deal.price} {deal.currency}</span></div>
-            <div className="kv"><span className="k">Platform fee (2.5%)</span><span className="v">{(deal.price * 0.025).toFixed(2)} {deal.currency}</span></div>
-            <div className="kv"><span className="k">Net to seller</span><span className="v" style={{ color: "var(--accent)" }}>{(deal.price * 0.975).toFixed(2)} {deal.currency}</span></div>
+            <div className="kv"><span className="k">Platform fee ({platformFeeBps / 100}%)</span><span className="v">{(deal.price * platformFeeBps / 10000).toFixed(2)} {deal.currency}</span></div>
+            <div className="kv"><span className="k">Net to seller</span><span className="v" style={{ color: "var(--accent)" }}>{(deal.price * (1 - platformFeeBps / 10000)).toFixed(2)} {deal.currency}</span></div>
             {actionNotice && <div className="warn-banner" style={{ marginTop: 12, fontSize: 12 }}>{actionNotice}</div>}
             <div className="row" style={{ gap: 8, marginTop: 16 }}>
               {actorRole === "buyer" ? (
@@ -719,6 +728,9 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
 /* ------------------------------------------------------------------ */
 
 export default function DealsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const linkedDealId = searchParams.get("id");
   const [escrows, setEscrows] = useState<EscrowItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -747,6 +759,10 @@ export default function DealsPage() {
     loadEscrows()
       .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load deals"); setLoading(false); });
   }, [isConnected, role, loadEscrows]);
+
+  useEffect(() => {
+    if (linkedDealId) queueMicrotask(() => setSelectedDealId(linkedDealId));
+  }, [linkedDealId]);
 
   useEffect(() => {
     if (!selectedDealId) { queueMicrotask(() => setDealDetail(null)); return; }
@@ -874,7 +890,10 @@ export default function DealsPage() {
         detailLoading
           ? <div className="muted" style={{ padding: 40, textAlign: "center" }}>Loading deal…</div>
           : dealDetail
-            ? <DealRoom deal={dealDetail} onBack={() => setSelectedDealId(null)} onChanged={() => {
+            ? <DealRoom deal={dealDetail} onBack={() => {
+                setSelectedDealId(null);
+                router.replace("/deals");
+              }} onChanged={() => {
                 setDetailLoading(true);
                 Promise.all([
                   fetch(`/api/escrows/${dealDetail.id}`)
