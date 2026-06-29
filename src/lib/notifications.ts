@@ -21,19 +21,25 @@ export async function notifyCounterparty(
   senderAddress: string,
   messagePreview: string,
 ) {
-  const counterparty = escrow.buyer_address.toLowerCase() === senderAddress.toLowerCase()
-    ? escrow.seller_address
-    : escrow.buyer_address;
+  const counterparty =
+    escrow.buyer_address.toLowerCase() === senderAddress.toLowerCase()
+      ? escrow.seller_address
+      : escrow.buyer_address;
 
-  const tokens = await db`
+  const tokens = (await db`
     SELECT platform, token FROM notification_tokens
     WHERE user_address = ${counterparty} AND verified = true
-  ` as Record<string, unknown>[];
+  `) as Record<string, unknown>[];
 
   for (const row of tokens) {
     const platform = String(row.platform);
     if (platform === "email") {
-      await sendEmail(counterparty, String(row.token), escrow.id, messagePreview);
+      await sendEmail(
+        counterparty,
+        String(row.token),
+        escrow.id,
+        messagePreview,
+      );
     }
     // Farcaster notifications are handled client-side via the mini-app SDK
   }
@@ -48,15 +54,16 @@ async function sendEmail(
   const client = resend();
   if (!client) return;
 
-  await client.emails.send({
-    from: "Vault <deals@baseshirehethaway.com>",
-    to,
-    subject: `New message in Deal Room — ${escrowId}`,
-    html: `
+  await client.emails
+    .send({
+      from: "Vault <deals@baseshirehethaway.com>",
+      to,
+      subject: `New message in Deal Room — ${escrowId}`,
+      html: `
       <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:24px">
         <h2 style="color:#0052ff;font-weight:600">Baseshire Hethaway</h2>
         <p>You have a new message in your deal room:</p>
-        <blockquote style="background:#f1f5f9;border-left:3px solid #0052ff;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0">
+        <blockquote style="background:#0035A8;border-left:3px solid #0052ff;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0">
           ${message.slice(0, 300)}${message.length > 300 ? "…" : ""}
         </blockquote>
         <a href="https://baseshirehethaway.com/deals?id=${escrowId}"
@@ -68,5 +75,6 @@ async function sendEmail(
         </p>
       </div>
     `,
-  }).catch(() => {});
+    })
+    .catch(() => {});
 }
