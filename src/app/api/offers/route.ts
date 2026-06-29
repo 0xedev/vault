@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase, shortAddress } from "@/lib/api";
 import { actorAddressForRequest, forbidden, requireUser } from "@/lib/auth";
-import { getEscrowAddress, getPublicClient, readOffer, readOfferCount } from "@/lib/contract";
+import { getNftAddress, getPublicClient, readOffer, readOfferCount } from "@/lib/contract";
 import { getAddress } from "viem";
 
 const offerSchema = z.object({
@@ -131,7 +131,7 @@ export async function PATCH(req: NextRequest) {
     const receipt = await getPublicClient().getTransactionReceipt({ hash: parsed.data.txHash as `0x${string}` }).catch(() => null);
     if (!receipt) return NextResponse.json({ error: "Accept-offer transaction is not confirmed yet." }, { status: 400 });
     if (receipt.status !== "success") return NextResponse.json({ error: "Accept-offer transaction failed." }, { status: 400 });
-    if (receipt.to?.toLowerCase() !== getEscrowAddress().toLowerCase()) {
+    if (receipt.to?.toLowerCase() !== (await getNftAddress()).toLowerCase()) {
       return NextResponse.json({ error: "Transaction was not sent to the configured escrow contract." }, { status: 400 });
     }
   }

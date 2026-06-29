@@ -3,7 +3,7 @@ import { z } from "zod";
 import { badRequest } from "@/lib/api";
 import { actorAddressForRequest, requireAdmin, requireUser, rotateSession } from "@/lib/auth";
 import { writeAudit } from "@/lib/admin";
-import { getEscrowAddress, getPublicClient } from "@/lib/contract";
+import { getNftAddress, getDealsAddress, getPublicClient } from "@/lib/contract";
 import Pusher from "pusher";
 
 const pusher = new Pusher({
@@ -49,9 +49,11 @@ async function requireConfirmedEscrowTx(row: Record<string, unknown>, txHash: st
     return NextResponse.json({ error: "Escrow contract transaction failed." }, { status: 400 });
   }
 
-  const expected = getEscrowAddress().toLowerCase();
-  if (receipt.to?.toLowerCase() !== expected) {
-    return NextResponse.json({ error: "Transaction was not sent to the configured escrow contract." }, { status: 400 });
+  const nftAddr = (await getNftAddress()).toLowerCase();
+  const dealsAddr = (await getDealsAddress()).toLowerCase();
+  const receiptTo = receipt.to?.toLowerCase();
+  if (receiptTo !== nftAddr && receiptTo !== dealsAddr) {
+    return NextResponse.json({ error: "Transaction was not sent to a configured escrow contract." }, { status: 400 });
   }
 
   return null;

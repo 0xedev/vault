@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
           await db`INSERT INTO users (address) VALUES (${data.borrower}) ON CONFLICT (address) DO NOTHING`;
           const inserted = await db`
             INSERT INTO listings (id, seller_address, marketplace, title, price, collateral_data, status, moderation_status, chain_id, contract_address, contract_listing_id, tx_hash, tx_status)
-            VALUES (${dbId}, ${data.borrower}, 'nft_loan', ${title}, ${Number(data.principal) / 1e18}, ${collateralData}, 'active', 'approved', 8453, ${data.nftContract}, ${contractListingId}, NULL, 'offchain')
+            VALUES (${dbId}, ${data.borrower}, 'nft_loan', ${title}, ${Number(data.principal) / 1e6}, ${collateralData}, 'active', 'approved', 8453, ${data.nftContract}, ${contractListingId}, NULL, 'offchain')
             RETURNING *
           ` as Record<string, unknown>[];
           if (inserted.length > 0) dbEnrich[contractListingId] = inserted[0];
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
           id: dbRow ? String(dbRow.id) : `C-${id}`,
           coll: dbCollateral?.coll ? Number(dbCollateral.coll) : 0,
           token: String(dbCollateral?.token || data.nftTokenId.toString()),
-          amt: Number(data.principal) / 1e18,
+          amt: Number(data.principal) / 1e6,
           apr: Number(data.apr) / 100,
           term: Number(data.term),
           ltv: dbCollateral?.ltv ? Number(dbCollateral.ltv) : 0,

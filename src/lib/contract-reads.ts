@@ -1,6 +1,10 @@
 import { type Address } from "viem";
-import { getPublicClient, getEscrowAddress } from "./contract-helpers";
-import { ESCROW_ABI } from "./contract-abi";
+import {
+  getPublicClient,
+  getNftAddress,
+  getDealsAddress,
+} from "./contract-helpers";
+import { VaultNFT_ABI, VaultDeals_ABI } from "./contract-abi";
 
 export interface OnChainListing {
   borrower: Address;
@@ -34,22 +38,28 @@ function client() {
   return getPublicClient();
 }
 
-function address() {
-  return getEscrowAddress();
+async function nftAddress() {
+  return getNftAddress();
 }
+
+async function dealsAddress() {
+  return getDealsAddress();
+}
+
+// ── NFT loan reads (VaultNFT) ─────────────────────────────────
 
 export async function readListingCount(): Promise<bigint> {
   return client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await nftAddress(),
+    abi: VaultNFT_ABI,
     functionName: "listingCount",
   }) as Promise<bigint>;
 }
 
 export async function readListing(listingId: bigint): Promise<OnChainListing> {
   const result = await client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await nftAddress(),
+    abi: VaultNFT_ABI,
     functionName: "listings",
     args: [listingId],
   });
@@ -93,8 +103,8 @@ export async function readAllListings(): Promise<{ id: bigint; data: OnChainList
 
 export async function readRepaymentDue(listingId: bigint): Promise<{ totalDue: bigint; paid: bigint; remaining: bigint }> {
   const result = await client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await nftAddress(),
+    abi: VaultNFT_ABI,
     functionName: "getRepaymentDue",
     args: [listingId],
   });
@@ -108,8 +118,8 @@ export async function readRepaymentDue(listingId: bigint): Promise<{ totalDue: b
 
 export async function readDeadline(listingId: bigint): Promise<bigint> {
   return client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await nftAddress(),
+    abi: VaultNFT_ABI,
     functionName: "getDeadline",
     args: [listingId],
   }) as Promise<bigint>;
@@ -117,17 +127,26 @@ export async function readDeadline(listingId: bigint): Promise<bigint> {
 
 export async function readOfferCount(listingId: bigint): Promise<bigint> {
   return client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await nftAddress(),
+    abi: VaultNFT_ABI,
     functionName: "getOfferCount",
     args: [listingId],
   }) as Promise<bigint>;
 }
 
+export async function readOfferLenders(listingId: bigint): Promise<Address[]> {
+  return client().readContract({
+    address: await nftAddress(),
+    abi: VaultNFT_ABI,
+    functionName: "getOfferLenders",
+    args: [listingId],
+  }) as Promise<Address[]>;
+}
+
 export async function readOffer(listingId: bigint, lender: Address): Promise<{ apr: bigint; term: bigint }> {
   const result = await client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await nftAddress(),
+    abi: VaultNFT_ABI,
     functionName: "offers",
     args: [listingId, lender],
   });
@@ -140,25 +159,27 @@ export async function readOffer(listingId: bigint, lender: Address): Promise<{ a
 
 export async function readLenderDeposit(listingId: bigint, lender: Address): Promise<bigint> {
   return client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await nftAddress(),
+    abi: VaultNFT_ABI,
     functionName: "lenderDeposits",
     args: [listingId, lender],
   }) as Promise<bigint>;
 }
 
+// ── Deal reads (VaultDeals) ───────────────────────────────────
+
 export async function readDealCount(): Promise<bigint> {
   return client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await dealsAddress(),
+    abi: VaultDeals_ABI,
     functionName: "dealCount",
   }) as Promise<bigint>;
 }
 
 export async function readDeal(dealId: bigint): Promise<OnChainDeal> {
   const result = await client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await dealsAddress(),
+    abi: VaultDeals_ABI,
     functionName: "deals",
     args: [dealId],
   });
@@ -198,27 +219,17 @@ export async function readAllDeals(): Promise<{ id: bigint; data: OnChainDeal }[
 
 export async function readDealEscrowBalance(dealId: bigint): Promise<bigint> {
   return client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await dealsAddress(),
+    abi: VaultDeals_ABI,
     functionName: "dealEscrowBalance",
     args: [dealId],
   }) as Promise<bigint>;
 }
 
-export async function readPaused(): Promise<boolean> {
-  return client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
-    functionName: "paused",
-  }) as Promise<boolean>;
-}
-
-// ── Deal offer readers ───────────────────────────────────────
-
 export async function readDealOfferCount(dealId: bigint): Promise<bigint> {
   return client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await dealsAddress(),
+    abi: VaultDeals_ABI,
     functionName: "getDealOfferCount",
     args: [dealId],
   }) as Promise<bigint>;
@@ -226,8 +237,8 @@ export async function readDealOfferCount(dealId: bigint): Promise<bigint> {
 
 export async function readDealOfferBuyers(dealId: bigint): Promise<Address[]> {
   return client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await dealsAddress(),
+    abi: VaultDeals_ABI,
     functionName: "getDealOfferBuyers",
     args: [dealId],
   }) as Promise<Address[]>;
@@ -235,11 +246,21 @@ export async function readDealOfferBuyers(dealId: bigint): Promise<Address[]> {
 
 export async function readDealOfferDeposit(dealId: bigint, buyer: Address): Promise<bigint> {
   return client().readContract({
-    address: address(),
-    abi: ESCROW_ABI,
+    address: await dealsAddress(),
+    abi: VaultDeals_ABI,
     functionName: "dealOfferDeposits",
     args: [dealId, buyer],
   }) as Promise<bigint>;
+}
+
+// ── Shared (read from VaultNFT) ───────────────────────────────
+
+export async function readPaused(): Promise<boolean> {
+  return client().readContract({
+    address: await nftAddress(),
+    abi: VaultNFT_ABI,
+    functionName: "paused",
+  }) as Promise<boolean>;
 }
 
 // ── Stage mapping ────────────────────────────────────────────
@@ -255,14 +276,10 @@ export type EscrowStage =
   | "disputed";
 
 export function mapListingStage(stage: number): EscrowStage {
-  // Contract Stage enum: LISTED=0, FUNDED=1, ACTIVE=2, REPAID=3, DEFAULTED=4, CANCELLED=5, DISPUTED=6
   const stages: EscrowStage[] = ["listed", "funded", "active", "repaid", "defaulted", "cancelled", "disputed"];
   return stages[stage] ?? "not_listed";
 }
 
-// DealStage enum order (no VERIFIED):
-//   0 = LISTED, 1 = FUNDED, 2 = DELIVERED, 3 = CONFIRMED,
-//   4 = DISPUTED, 5 = RESOLVED, 6 = REFUNDED, 7 = CANCELLED
 export type DealStage =
   | "not_listed"
   | "listed"

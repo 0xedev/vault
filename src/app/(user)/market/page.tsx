@@ -12,7 +12,7 @@ import { COLLECTIONS } from "@/lib/data";
 import { useWallet } from "@/components/WalletProvider";
 import {
   approveNft,
-  getEscrowAddress,
+  getNftAddress,
   writeListNFT,
   waitForListingId,
   parseContractError,
@@ -204,7 +204,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
 
       if (!selectedContract)
         throw new Error("Select a detected NFT before listing on-chain.");
-      const escrowAddr = getEscrowAddress();
+      const escrowAddr = await getNftAddress();
       await approveNft(
         address as `0x${string}`,
         selectedContract as `0x${string}`,
@@ -237,7 +237,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           ltv: impliedLtv,
           imageUrl: selectedNftImageUrl,
           chainId: 8453,
-          contractAddress: getEscrowAddress(),
+          contractAddress: escrowAddr,
           contractListingId,
           txHash: listTxHash,
         }),

@@ -7,7 +7,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
-import { getEscrowAddress, getPublicClient, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
+import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
 import { parseUnits, type Address } from "viem";
 import type { XAccount } from "@/lib/data";
 import { fmtCompact } from "@/lib/utils";
@@ -145,7 +145,7 @@ export default function XAccountsPage() {
       if (account.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
       if (!account.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       const amtWei = parseUnits(String(account.price), 6);
-      const approveHash = await writeApproveUsdc(address as Address, getEscrowAddress(), amtWei);
+      const approveHash = await writeApproveUsdc(address as Address, await getDealsAddress(), amtWei);
       await getPublicClient().waitForTransactionReceipt({ hash: approveHash });
       const txHash = await writeFundDeal(address as Address, BigInt(account.contractListingId), amtWei);
       const res = await fetch("/api/escrows", {

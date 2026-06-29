@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/icons";
 import { appColor, fmtCompact } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
-import { getEscrowAddress, getPublicClient, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
+import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
 import { parseUnits, type Address } from "viem";
 import type { MiniApp } from "@/lib/data";
 
@@ -311,7 +311,7 @@ export default function MiniAppsPage() {
       if (app.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
       if (!app.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       const amtWei = parseUnits(String(app.price), 6);
-      const approveHash = await writeApproveUsdc(address as Address, getEscrowAddress(), amtWei);
+      const approveHash = await writeApproveUsdc(address as Address, await getDealsAddress(), amtWei);
       await getPublicClient().waitForTransactionReceipt({ hash: approveHash });
       const txHash = await writeFundDeal(address as Address, BigInt(app.contractListingId), amtWei);
       const res = await fetch("/api/escrows", {

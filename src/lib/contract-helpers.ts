@@ -14,6 +14,7 @@ import {
 } from "viem";
 import { getCallsStatus, sendCalls } from "viem/actions";
 import { base } from "viem/chains";
+import { ESCROW_ABI } from "./contract-abi";
 
 type WalletProviderLike = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
@@ -98,6 +99,31 @@ export function getEscrowAddress(): Address {
 
 export function getUSDCAddress(): Address {
   return "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as Address;
+}
+
+let _nftAddress: Address | null = null;
+let _dealsAddress: Address | null = null;
+
+export async function getNftAddress(): Promise<Address> {
+  if (_nftAddress) return _nftAddress;
+  const client = getPublicClient();
+  _nftAddress = await client.readContract({
+    address: getEscrowAddress(),
+    abi: ESCROW_ABI,
+    functionName: "nft",
+  }) as Address;
+  return _nftAddress;
+}
+
+export async function getDealsAddress(): Promise<Address> {
+  if (_dealsAddress) return _dealsAddress;
+  const client = getPublicClient();
+  _dealsAddress = await client.readContract({
+    address: getEscrowAddress(),
+    abi: ESCROW_ABI,
+    functionName: "deals",
+  }) as Address;
+  return _dealsAddress;
 }
 
 export function getPublicClient() {

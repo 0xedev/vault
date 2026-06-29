@@ -1,7 +1,9 @@
 // Re-exports for backwards compatibility
-export { ESCROW_ABI, ERC721_ABI } from "./contract-abi";
+export { ESCROW_ABI, ERC721_ABI, VaultNFT_ABI, VaultDeals_ABI } from "./contract-abi";
 export {
   getEscrowAddress,
+  getNftAddress,
+  getDealsAddress,
   getPublicClient,
   getWalletClient,
   getUSDCAddress,
@@ -48,6 +50,11 @@ export {
   writeSubmitDealOffer,
   writeWithdrawDealOffer,
   writeAcceptDealOffer,
+  writeUpdateOffer,
+  writeAddAdmin,
+  writeRemoveAdmin,
+  writeSetTreasury,
+  writeSetPlatformFee,
 } from "./contract-writes";
 export {
   readListingCount,
@@ -57,6 +64,7 @@ export {
   readDeadline,
   readOfferCount,
   readOffer,
+  readOfferLenders,
   readLenderDeposit,
   readDealCount,
   readDeal,

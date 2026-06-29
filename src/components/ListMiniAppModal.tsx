@@ -5,7 +5,7 @@ import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
-  writeListDeal,
+  writeListMiniApp,
   waitForDealId,
   hashMetadata,
   parseContractError,
@@ -86,7 +86,7 @@ export default function ListMiniAppModal({ onClose }: Props) {
       };
       const metaHash = hashMetadata(metadata);
       const priceWei = parseUnits(price || "0", 6);
-      const txHash = await writeListDeal(
+      const txHash = await writeListMiniApp(
         address as Address,
         priceWei,
         metaHash,

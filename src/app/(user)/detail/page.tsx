@@ -13,7 +13,7 @@ import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
 import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline, writeApproveUsdc, getEscrowAddress } from "@/lib/contract";
+import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline, writeApproveUsdc, getNftAddress } from "@/lib/contract";
 import { parseUnits, type Address, type Hash } from "viem";
 import type { Loan } from "@/lib/data";
 import { shareAsCast } from "@/lib/farcaster-sdk";
@@ -53,7 +53,7 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       const amtWei = parseUnits(amt.toFixed(4), 6);
       // 1. Approve USDC
-      await waitForTx(await writeApproveUsdc(address as Address, getEscrowAddress(), amtWei));
+      await waitForTx(await writeApproveUsdc(address as Address, await getNftAddress(), amtWei));
       // 2. Deposit USDC into escrow contract
       const aprBps = Math.round(apr * 100);
       const txHash = await waitForTx(await writeSubmitOffer(
@@ -211,7 +211,7 @@ function LoanDetailContent() {
       if (!loan.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       const amtWei = parseUnits(o.amt.toFixed(4), 6);
       // 1. Approve USDC
-      await waitForTx(await writeApproveUsdc(address as Address, getEscrowAddress(), amtWei));
+      await waitForTx(await writeApproveUsdc(address as Address, await getNftAddress(), amtWei));
       // 2. Deposit USDC via contract
       const aprBps = Math.round(o.apr * 100);
       const txHash = await waitForTx(await writeSubmitOffer(
@@ -359,7 +359,7 @@ function LoanDetailContent() {
     try {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       const totalDueWei = parseUnits(repaymentDue.toFixed(4), 6);
-      await waitForTx(await writeApproveUsdc(address as Address, getEscrowAddress(), totalDueWei));
+      await waitForTx(await writeApproveUsdc(address as Address, await getNftAddress(), totalDueWei));
       await waitForTx(await writeRepay(
         address as Address,
         BigInt(l.contractListingId),
@@ -379,7 +379,7 @@ function LoanDetailContent() {
     try {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync.");
       const partialWei = parseUnits(partialAmt, 6);
-      await waitForTx(await writeApproveUsdc(address as Address, getEscrowAddress(), partialWei));
+      await waitForTx(await writeApproveUsdc(address as Address, await getNftAddress(), partialWei));
       await waitForTx(await writeRepayPartial(
         address as Address,
         BigInt(l.contractListingId),

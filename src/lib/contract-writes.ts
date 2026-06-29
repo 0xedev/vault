@@ -1,7 +1,13 @@
 import { type Address, type Hash } from "viem";
 import { base } from "viem/chains";
-import { ESCROW_ABI, ERC721_ABI } from "./contract-abi";
-import { getEscrowAddress, getWalletClient } from "./contract-helpers";
+import { VaultNFT_ABI, VaultDeals_ABI, ERC721_ABI } from "./contract-abi";
+import {
+  getNftAddress,
+  getDealsAddress,
+  getWalletClient,
+} from "./contract-helpers";
+
+// ── NFT loan writes (VaultNFT) ───────────────────────────────
 
 export async function writeListNFT(
   account: Address,
@@ -12,100 +18,12 @@ export async function writeListNFT(
   termDays: number,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getNftAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultNFT_ABI,
     functionName: "listNFT",
     args: [nftContract, tokenId, amountWei, BigInt(aprBps), BigInt(termDays)],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeSubmitOffer(
-  account: Address,
-  listingId: bigint,
-  amountWei: bigint,
-  aprBps: number,
-  termDays: number,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "submitOffer",
-    args: [listingId, amountWei, BigInt(aprBps), BigInt(termDays)],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeAcceptOffer(
-  account: Address,
-  listingId: bigint,
-  lender: Address,
-  amountWei: bigint,
-  aprBps: number,
-  termDays: number,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "acceptOffer",
-    args: [listingId, lender, amountWei, BigInt(aprBps), BigInt(termDays)],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeRepay(
-  account: Address,
-  listingId: bigint,
-  amountWei: bigint,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "repay",
-    args: [listingId, amountWei],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeClaimCollateral(
-  account: Address,
-  listingId: bigint,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "claimCollateral",
-    args: [listingId],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeWithdrawOffer(
-  account: Address,
-  listingId: bigint,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "withdrawOffer",
-    args: [listingId],
     account,
     chain: base,
   });
@@ -116,10 +34,10 @@ export async function writeCancelListing(
   listingId: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getNftAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultNFT_ABI,
     functionName: "cancelListing",
     args: [listingId],
     account,
@@ -135,10 +53,10 @@ export async function writeUpdateListing(
   newTermDays: number,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getNftAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultNFT_ABI,
     functionName: "updateListing",
     args: [listingId, newAmountWei, BigInt(newAprBps), BigInt(newTermDays)],
     account,
@@ -146,175 +64,76 @@ export async function writeUpdateListing(
   });
 }
 
-export async function writeListMiniApp(
-  account: Address,
-  priceWei: bigint,
-  metadataHash: `0x${string}`,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "listMiniApp",
-    args: [priceWei, metadataHash],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeCancelMiniApp(
+export async function writeSubmitOffer(
   account: Address,
   listingId: bigint,
+  amountWei: bigint,
+  aprBps: number,
+  termDays: number,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getNftAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
-    functionName: "cancelMiniApp",
-    args: [listingId],
+    abi: VaultNFT_ABI,
+    functionName: "submitOffer",
+    args: [listingId, amountWei, BigInt(aprBps), BigInt(termDays)],
     account,
     chain: base,
   });
 }
 
-export async function writeUpdateMiniApp(
+export async function writeUpdateOffer(
   account: Address,
   listingId: bigint,
-  newPriceWei: bigint,
-  newMetadataHash: `0x${string}`,
+  newAmountWei: bigint,
+  newAprBps: number,
+  newTermDays: number,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getNftAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
-    functionName: "updateMiniApp",
-    args: [listingId, newPriceWei, newMetadataHash],
+    abi: VaultNFT_ABI,
+    functionName: "updateOffer",
+    args: [listingId, newAmountWei, BigInt(newAprBps), BigInt(newTermDays)],
     account,
     chain: base,
   });
 }
 
-export async function writeBuyMiniApp(
+export async function writeAcceptOffer(
   account: Address,
-  miniAppId: bigint,
+  listingId: bigint,
+  lender: Address,
+  amountWei: bigint,
+  aprBps: number,
+  termDays: number,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getNftAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "acceptOffer",
+    args: [listingId, lender, amountWei, BigInt(aprBps), BigInt(termDays)],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeRepay(
+  account: Address,
+  listingId: bigint,
   amountWei: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getNftAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
-    functionName: "buyMiniApp",
-    args: [miniAppId, amountWei],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeListDeal(
-  account: Address,
-  priceWei: bigint,
-  metadataHash: `0x${string}`,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "listDeal",
-    args: [priceWei, metadataHash],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeFundDeal(
-  account: Address,
-  dealId: bigint,
-  amountWei: bigint,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "fundDeal",
-    args: [dealId, amountWei],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeMarkDelivered(
-  account: Address,
-  dealId: bigint,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "markDelivered",
-    args: [dealId],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeConfirmDelivery(
-  account: Address,
-  dealId: bigint,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "confirmDelivery",
-    args: [dealId],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeDisputeDeal(
-  account: Address,
-  dealId: bigint,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "disputeDeal",
-    args: [dealId],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeListBundle(
-  account: Address,
-  priceWei: bigint,
-  metadataHash: `0x${string}`,
-): Promise<Hash> {
-  return writeListDeal(account, priceWei, metadataHash);
-}
-
-export async function writeRefundDeal(
-  account: Address,
-  dealId: bigint,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "refundDeal",
-    args: [dealId],
+    abi: VaultNFT_ABI,
+    functionName: "repay",
+    args: [listingId, amountWei],
     account,
     chain: base,
   });
@@ -326,10 +145,10 @@ export async function writeRepayPartial(
   amountWei: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getNftAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultNFT_ABI,
     functionName: "repayPartial",
     args: [listingId, amountWei],
     account,
@@ -337,18 +156,33 @@ export async function writeRepayPartial(
   });
 }
 
-export async function approveNft(
+export async function writeClaimCollateral(
   account: Address,
-  nftContract: Address,
-  tokenId: bigint,
-  spender: Address,
+  listingId: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
+  const address = await getNftAddress();
   return wallet.writeContract({
-    address: nftContract,
-    abi: ERC721_ABI,
-    functionName: "approve",
-    args: [spender, tokenId],
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "claimCollateral",
+    args: [listingId],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeWithdrawOffer(
+  account: Address,
+  listingId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getNftAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "withdrawOffer",
+    args: [listingId],
     account,
     chain: base,
   });
@@ -359,10 +193,10 @@ export async function writeDispute(
   listingId: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getNftAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultNFT_ABI,
     functionName: "dispute",
     args: [listingId],
     account,
@@ -376,12 +210,112 @@ export async function writeResolve(
   nftToLender: boolean,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getNftAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultNFT_ABI,
     functionName: "resolve",
     args: [listingId, nftToLender],
+    account,
+    chain: base,
+  });
+}
+
+// ── Deal writes (VaultDeals) ──────────────────────────────────
+
+export async function writeListDeal(
+  account: Address,
+  priceWei: bigint,
+  metadataHash: `0x${string}`,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "listDeal",
+    args: [priceWei, metadataHash],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeFundDeal(
+  account: Address,
+  dealId: bigint,
+  amountWei: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "fundDeal",
+    args: [dealId, amountWei],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeMarkDelivered(
+  account: Address,
+  dealId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "markDelivered",
+    args: [dealId],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeConfirmDelivery(
+  account: Address,
+  dealId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "confirmDelivery",
+    args: [dealId],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeDisputeDeal(
+  account: Address,
+  dealId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "disputeDeal",
+    args: [dealId],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeRefundDeal(
+  account: Address,
+  dealId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "refundDeal",
+    args: [dealId],
     account,
     chain: base,
   });
@@ -392,10 +326,10 @@ export async function writeCancelDeal(
   dealId: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getDealsAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultDeals_ABI,
     functionName: "cancelDeal",
     args: [dealId],
     account,
@@ -410,10 +344,10 @@ export async function writeUpdateDeal(
   newMetadataHash: `0x${string}`,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getDealsAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultDeals_ABI,
     functionName: "updateDeal",
     args: [dealId, newPriceWei, newMetadataHash],
     account,
@@ -426,10 +360,10 @@ export async function writeExtendDeadline(
   dealId: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getDealsAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultDeals_ABI,
     functionName: "extendDeadline",
     args: [dealId],
     account,
@@ -444,10 +378,10 @@ export async function writeResolveDeal(
   sellerAmountWei: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getDealsAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultDeals_ABI,
     functionName: "resolveDeal",
     args: [dealId, buyerAmountWei, sellerAmountWei],
     account,
@@ -455,48 +389,16 @@ export async function writeResolveDeal(
   });
 }
 
-export async function writePause(
-  account: Address,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "pause",
-    args: [],
-    account,
-    chain: base,
-  });
-}
-
-export async function writeUnpause(
-  account: Address,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "unpause",
-    args: [],
-    account,
-    chain: base,
-  });
-}
-
-// ── Deal offer system ────────────────────────────────────────
-
 export async function writeSubmitDealOffer(
   account: Address,
   dealId: bigint,
   amountWei: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getDealsAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultDeals_ABI,
     functionName: "submitDealOffer",
     args: [dealId, amountWei],
     account,
@@ -509,10 +411,10 @@ export async function writeWithdrawDealOffer(
   dealId: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getDealsAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultDeals_ABI,
     functionName: "withdrawDealOffer",
     args: [dealId],
     account,
@@ -526,12 +428,207 @@ export async function writeAcceptDealOffer(
   buyer: Address,
 ): Promise<Hash> {
   const wallet = getWalletClient();
-  const address = getEscrowAddress();
+  const address = await getDealsAddress();
   return wallet.writeContract({
     address,
-    abi: ESCROW_ABI,
+    abi: VaultDeals_ABI,
     functionName: "acceptDealOffer",
     args: [dealId, buyer],
+    account,
+    chain: base,
+  });
+}
+
+// ── Mini App writes (VaultDeals) ──────────────────────────────
+
+export async function writeListMiniApp(
+  account: Address,
+  priceWei: bigint,
+  metadataHash: `0x${string}`,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "listMiniApp",
+    args: [priceWei, metadataHash],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeCancelMiniApp(
+  account: Address,
+  listingId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "cancelMiniApp",
+    args: [listingId],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeUpdateMiniApp(
+  account: Address,
+  listingId: bigint,
+  newPriceWei: bigint,
+  newMetadataHash: `0x${string}`,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "updateMiniApp",
+    args: [listingId, newPriceWei, newMetadataHash],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeBuyMiniApp(
+  account: Address,
+  miniAppId: bigint,
+  amountWei: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "buyMiniApp",
+    args: [miniAppId, amountWei],
+    account,
+    chain: base,
+  });
+}
+
+// ── Bundle (alias for listDeal) ───────────────────────────────
+
+export async function writeListBundle(
+  account: Address,
+  priceWei: bigint,
+  metadataHash: `0x${string}`,
+): Promise<Hash> {
+  return writeListDeal(account, priceWei, metadataHash);
+}
+
+// ── Admin writes (called on VaultNFT contract) ────────────────
+
+export async function writePause(
+  account: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getNftAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "pause",
+    args: [],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeUnpause(
+  account: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getNftAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "unpause",
+    args: [],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeAddAdmin(
+  account: Address,
+  newAdmin: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getNftAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "addAdmin",
+    args: [newAdmin],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeRemoveAdmin(
+  account: Address,
+  target: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getNftAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "removeAdmin",
+    args: [target],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeSetTreasury(
+  account: Address,
+  newTreasury: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getNftAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "setTreasury",
+    args: [newTreasury],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeSetPlatformFee(
+  account: Address,
+  newFeeBps: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getNftAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "setPlatformFee",
+    args: [newFeeBps],
+    account,
+    chain: base,
+  });
+}
+
+// ── ERC-721 helpers ───────────────────────────────────────────
+
+export async function approveNft(
+  account: Address,
+  nftContract: Address,
+  tokenId: bigint,
+  spender: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  return wallet.writeContract({
+    address: nftContract,
+    abi: ERC721_ABI,
+    functionName: "approve",
+    args: [spender, tokenId],
     account,
     chain: base,
   });
