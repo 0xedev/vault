@@ -15,7 +15,6 @@ type Summary = {
   estimatedFees: number;
   activeDisputes: number;
   openTickets: number;
-  pendingVerifications: number;
 };
 
 type AuditRow = { id: string; t: string; who: string; action: string; target: string; note: string };
@@ -27,7 +26,6 @@ const emptySummary: Summary = {
   estimatedFees: 0,
   activeDisputes: 0,
   openTickets: 0,
-  pendingVerifications: 0,
 };
 
 export default function AdminDashboardPage() {
@@ -112,7 +110,6 @@ export default function AdminDashboardPage() {
           <div className="eyebrow" style={{ marginBottom: 14 }}>Operational queues</div>
           <div className="col" style={{ gap: 14 }}>
             <HealthBar label="Open support tickets" count={summary.openTickets} href="/admin/tickets" />
-            <HealthBar label="Pending verifications" count={summary.pendingVerifications} href="/admin/verifications" />
             <HealthBar label="Active disputes" count={summary.activeDisputes} href="/admin/disputes" />
           </div>
         </div>

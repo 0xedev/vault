@@ -25,7 +25,7 @@ export default function InfoPage() {
               {
                 icon: <Icon.shield />,
                 step: "1. List your asset",
-                detail: "Connect your wallet, select the asset type (NFT, mini app, X account, Farcaster FID, or Clanker token), and set your price and terms. Your asset is verified before listing.",
+                detail: "Connect your wallet, select the asset type, and set your price and terms. Clanker tokens are checked automatically; other asset handoffs are confirmed by the buyer in escrow.",
               },
               {
                 icon: <Icon.escrow />,
@@ -55,7 +55,7 @@ export default function InfoPage() {
           {[
             { label: "NFT Loans", desc: "Borrow against your NFTs with ETH. Lenders earn yield.", href: "/market" },
             { label: "Mini Apps", desc: "Buy and sell web apps with escrow protection.", href: "/miniapps" },
-            { label: "X Accounts", desc: "Transfer X handles with verified ownership.", href: "/x" },
+            { label: "X Accounts", desc: "Transfer X handles with buyer-confirmed escrow.", href: "/x" },
             { label: "Farcaster FIDs", desc: "Escrow FID custody transfers on Optimism.", href: "/farcaster" },
             { label: "Clanker Tokens", desc: "Trade token rights, vault claims, and admin.", href: "/clanker" },
             { label: "Bundles", desc: "Package multiple assets into a single deal.", href: "/market?tab=bundles" },

@@ -3,12 +3,13 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 import "../mocks/MockERC721.sol";
+import "../mocks/MockERC20.sol";
 import "../../contracts/VaultEscrow.sol";
 
-/// @notice Gas cost measurement for core functions
 contract GasTest is Test {
     VaultEscrow public escrow;
     MockERC721 public nft;
+    MockERC20 public usdc;
 
     address admin = makeAddr("admin");
     address seller = makeAddr("seller");
@@ -17,23 +18,23 @@ contract GasTest is Test {
     address lender = makeAddr("lender");
 
     function setUp() public {
+        usdc = new MockERC20();
         vm.prank(admin);
-        escrow = new VaultEscrow(150);
+        escrow = new VaultEscrow(address(usdc), 150);
         nft = new MockERC721();
-        vm.deal(buyer, 100 ether);
-        vm.deal(lender, 100 ether);
-        vm.deal(borrower, 50 ether);
+        usdc.mint(buyer, 1_000_000_000 ether);
+        usdc.mint(lender, 1_000_000_000 ether);
+        usdc.mint(borrower, 1_000_000_000 ether);
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //  NFT LOAN GAS
-    // ═══════════════════════════════════════════════════════════
+    /* ================================================================
+       NFT LOAN GAS
+       ================================================================ */
 
     function testGas_listNFT() public {
         uint256 tokenId = nft.mint(borrower);
         vm.prank(borrower);
         nft.approve(address(escrow), tokenId);
-
         vm.prank(borrower);
         escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
     }
@@ -44,9 +45,10 @@ contract GasTest is Test {
         nft.approve(address(escrow), tokenId);
         vm.prank(borrower);
         uint256 listingId = escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
-
         vm.prank(lender);
-        escrow.submitOffer{value: 10 ether}(listingId, 10 ether, 1420, 30);
+        usdc.approve(address(escrow), 10 ether);
+        vm.prank(lender);
+        escrow.submitOffer(listingId, 10 ether, 1420, 30);
     }
 
     function testGas_acceptOffer() public {
@@ -56,8 +58,9 @@ contract GasTest is Test {
         vm.prank(borrower);
         uint256 listingId = escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
         vm.prank(lender);
-        escrow.submitOffer{value: 10 ether}(listingId, 10 ether, 1420, 30);
-
+        usdc.approve(address(escrow), 10 ether);
+        vm.prank(lender);
+        escrow.submitOffer(listingId, 10 ether, 1420, 30);
         vm.prank(borrower);
         escrow.acceptOffer(listingId, lender, 10 ether, 1420, 30);
     }
@@ -69,16 +72,17 @@ contract GasTest is Test {
         vm.prank(borrower);
         uint256 listingId = escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
         vm.prank(lender);
-        escrow.submitOffer{value: 10 ether}(listingId, 10 ether, 1420, 30);
+        usdc.approve(address(escrow), 10 ether);
+        vm.prank(lender);
+        escrow.submitOffer(listingId, 10 ether, 1420, 30);
         vm.prank(borrower);
         escrow.acceptOffer(listingId, lender, 10 ether, 1420, 30);
-
         uint256 interest = uint256(10 ether * 1420 * 30) / 3650000;
         uint256 totalDue = 10 ether + interest;
-        vm.deal(borrower, 100 ether);
-
         vm.prank(borrower);
-        escrow.repay{value: totalDue}(listingId);
+        usdc.approve(address(escrow), totalDue);
+        vm.prank(borrower);
+        escrow.repay(listingId, totalDue);
     }
 
     function testGas_repayPartial() public {
@@ -88,17 +92,17 @@ contract GasTest is Test {
         vm.prank(borrower);
         uint256 listingId = escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
         vm.prank(lender);
-        escrow.submitOffer{value: 10 ether}(listingId, 10 ether, 1420, 30);
+        usdc.approve(address(escrow), 10 ether);
+        vm.prank(lender);
+        escrow.submitOffer(listingId, 10 ether, 1420, 30);
         vm.prank(borrower);
         escrow.acceptOffer(listingId, lender, 10 ether, 1420, 30);
-
-        vm.deal(borrower, 100 ether);
-
         uint256 interest = uint256(10 ether * 1420 * 30) / 3650000;
         uint256 half = (10 ether + interest) / 2;
-
         vm.prank(borrower);
-        escrow.repayPartial{value: half}(listingId);
+        usdc.approve(address(escrow), half);
+        vm.prank(borrower);
+        escrow.repayPartial(listingId, half);
     }
 
     function testGas_claimCollateral() public {
@@ -108,18 +112,19 @@ contract GasTest is Test {
         vm.prank(borrower);
         uint256 listingId = escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
         vm.prank(lender);
-        escrow.submitOffer{value: 10 ether}(listingId, 10 ether, 1420, 30);
+        usdc.approve(address(escrow), 10 ether);
+        vm.prank(lender);
+        escrow.submitOffer(listingId, 10 ether, 1420, 30);
         vm.prank(borrower);
         escrow.acceptOffer(listingId, lender, 10 ether, 1420, 30);
-
         vm.warp(block.timestamp + 31 days);
         vm.prank(lender);
         escrow.claimCollateral(listingId);
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //  DEAL ESCROW GAS
-    // ═══════════════════════════════════════════════════════════
+    /* ================================================================
+       DEAL ESCROW GAS
+       ================================================================ */
 
     function testGas_listDeal() public {
         vm.prank(seller);
@@ -129,23 +134,21 @@ contract GasTest is Test {
     function testGas_fundDeal() public {
         vm.prank(seller);
         uint256 dealId = escrow.listDeal(5 ether, bytes32(uint256(1)));
-        vm.prank(admin);
-        escrow.verifyDeal(dealId);
-
         vm.prank(buyer);
-        escrow.fundDeal{value: 5 ether}(dealId);
+        usdc.approve(address(escrow), 5 ether);
+        vm.prank(buyer);
+        escrow.fundDeal(dealId, 5 ether);
     }
 
     function testGas_confirmDelivery() public {
         vm.prank(seller);
         uint256 dealId = escrow.listDeal(5 ether, bytes32(uint256(1)));
-        vm.prank(admin);
-        escrow.verifyDeal(dealId);
         vm.prank(buyer);
-        escrow.fundDeal{value: 5 ether}(dealId);
+        usdc.approve(address(escrow), 5 ether);
+        vm.prank(buyer);
+        escrow.fundDeal(dealId, 5 ether);
         vm.prank(seller);
         escrow.markDelivered(dealId);
-
         vm.prank(buyer);
         escrow.confirmDelivery(dealId);
     }
@@ -153,11 +156,10 @@ contract GasTest is Test {
     function testGas_refundDeal() public {
         vm.prank(seller);
         uint256 dealId = escrow.listDeal(5 ether, bytes32(uint256(1)));
-        vm.prank(admin);
-        escrow.verifyDeal(dealId);
         vm.prank(buyer);
-        escrow.fundDeal{value: 5 ether}(dealId);
-
+        usdc.approve(address(escrow), 5 ether);
+        vm.prank(buyer);
+        escrow.fundDeal(dealId, 5 ether);
         vm.warp(block.timestamp + 8 days);
         vm.prank(buyer);
         escrow.refundDeal(dealId);
@@ -166,13 +168,12 @@ contract GasTest is Test {
     function testGas_disputeDeal() public {
         vm.prank(seller);
         uint256 dealId = escrow.listDeal(5 ether, bytes32(uint256(1)));
-        vm.prank(admin);
-        escrow.verifyDeal(dealId);
         vm.prank(buyer);
-        escrow.fundDeal{value: 5 ether}(dealId);
+        usdc.approve(address(escrow), 5 ether);
+        vm.prank(buyer);
+        escrow.fundDeal(dealId, 5 ether);
         vm.prank(seller);
         escrow.markDelivered(dealId);
-
         vm.prank(buyer);
         escrow.disputeDeal(dealId);
     }
@@ -180,15 +181,14 @@ contract GasTest is Test {
     function testGas_resolveDeal() public {
         vm.prank(seller);
         uint256 dealId = escrow.listDeal(5 ether, bytes32(uint256(1)));
-        vm.prank(admin);
-        escrow.verifyDeal(dealId);
         vm.prank(buyer);
-        escrow.fundDeal{value: 5 ether}(dealId);
+        usdc.approve(address(escrow), 5 ether);
+        vm.prank(buyer);
+        escrow.fundDeal(dealId, 5 ether);
         vm.prank(seller);
         escrow.markDelivered(dealId);
         vm.prank(buyer);
         escrow.disputeDeal(dealId);
-
         vm.prank(admin);
         escrow.resolveDeal(dealId, 2 ether, 3 ether);
     }
@@ -196,10 +196,9 @@ contract GasTest is Test {
     function testGas_buyMiniApp() public {
         vm.prank(seller);
         uint256 miniAppId = escrow.listMiniApp(5 ether, bytes32(uint256(1)));
-        vm.prank(admin);
-        escrow.verifyMiniApp(miniAppId);
-
         vm.prank(buyer);
-        escrow.buyMiniApp{value: 5 ether}(miniAppId);
+        usdc.approve(address(escrow), 5 ether);
+        vm.prank(buyer);
+        escrow.buyMiniApp(miniAppId, 5 ether);
     }
 }

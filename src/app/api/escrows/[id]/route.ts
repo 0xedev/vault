@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { relativeDeadline, shortAddress, stageLabel, asNumber, asString, asBoolean, jsonArray, jsonRecord } from "@/lib/api";
+import { relativeDeadline, shortAddress, stageLabel, asNumber, asString, jsonArray, jsonRecord } from "@/lib/api";
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { readDeal, mapDealStage, readDealEscrowBalance } from "@/lib/contract";
 
@@ -52,9 +52,8 @@ export async function GET(
     amount: asNumber(r.amount),
     price: asNumber(r.price, asNumber(r.amount)),
     mrr: asNumber(collateral.mrr),
-    currency: asString(r.currency, "ETH"),
-    chain: asString(collateral.chain, "Unverified"),
-    verified: asBoolean(collateral.verified, String(r.listing_status) === "funded" || String(r.listing_status) === "completed"),
+    currency: asString(r.currency, "USDC"),
+    chain: asString(collateral.chain, "Base"),
     includes,
     isBundle,
     bundleAssets,
@@ -93,7 +92,7 @@ export async function GET(
         data: {
           ...baseData,
           onChain: {
-            verified: true,
+            synced: true,
             stage: deal.status === "fulfilled" ? mapDealStage(deal.value.stage) : null,
             seller: deal.status === "fulfilled" ? deal.value.seller : null,
             buyer: deal.status === "fulfilled" ? deal.value.buyer : null,

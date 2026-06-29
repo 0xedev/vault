@@ -8,7 +8,7 @@ const escrowSchema = z.object({
   buyerAddress: z.string().startsWith("0x").min(10).optional(),
   sellerAddress: z.string().startsWith("0x").min(10),
   amount: z.number().positive(),
-  currency: z.string().min(1).default("ETH"),
+  currency: z.string().min(1).default("USDC"),
   chainId: z.number().int().positive().optional(),
   contractAddress: z.string().startsWith("0x").optional(),
   contractListingId: z.string().optional(),
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     party: shortAddress(r.buyer_address),
     asset: r.title || r.listing_id || "Unlisted asset",
     amount: Number(r.amount),
-    asset_type: r.currency || "ETH",
+    asset_type: r.currency || "USDC",
     deadline: relativeDeadline(r.deadline),
     stage: stageLabel(r.stage),
     action: String(r.stage) === "funds_locked" ? "Awaiting seller" : String(r.stage) === "awaiting_confirmation" ? "Awaiting confirmation" : "On schedule",
@@ -68,22 +68,6 @@ export async function POST(req: NextRequest) {
         return `[${String(a.asset_type).replace(/_/g, " ")}] ${String(ad.label || ad.handle || ad.name || "Item")}`;
       });
 
-      for (const asset of assets) {
-        const ad = typeof asset.asset_data === "string" ? JSON.parse(asset.asset_data) : asset.asset_data as Record<string, unknown>;
-        const target = String(ad.label || ad.handle || ad.name || asset.id);
-        const method =
-          String(asset.asset_type) === "x_account" ? "x_tweet" :
-          String(asset.asset_type) === "farcaster" ? "farcaster_registry" :
-          String(asset.asset_type) === "clanker" ? "token_ownership" :
-          String(asset.asset_type) === "mini_app" ? "dns" :
-          "nft_ownership";
-
-        const existing = await db`SELECT id FROM verifications WHERE marketplace = ${String(asset.asset_type)} AND target = ${target} AND owner_address = ${data.sellerAddress} LIMIT 1` as Record<string, unknown>[];
-        if (existing.length === 0) {
-          await db`INSERT INTO verifications (id, marketplace, target, owner_address, method, status, checks)
-            VALUES (${`V-${Date.now()}-${asset.id}`}, ${String(asset.asset_type)}, ${target}, ${data.sellerAddress}, ${method}, 'pending', ${JSON.stringify([])})`;
-        }
-      }
     }
   }
 

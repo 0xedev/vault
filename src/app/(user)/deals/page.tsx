@@ -55,7 +55,6 @@ interface DealDetail {
   mrr: number;
   currency: string;
   chain: string;
-  verified: boolean;
   includes: string[];
   isBundle: boolean;
   bundleAssets: { id: string; kind: string; label: string; detail: string; position: number }[];
@@ -528,12 +527,12 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
                 <div className="eyebrow">Asset Overview</div>
                 <h3 className="serif" style={{ fontSize: 22, margin: "8px 0" }}>{deal.name}</h3>
               </div>
-              <span className="pill gold">{deal.bundleAssets.length > 0 ? <><Icon.shield style={{ width: 12, height: 12, marginRight: 4 }} />{deal.bundleAssets.length} assets</> : deal.verified ? <><span className="pdot" />Verified seller</> : "Pending verification"}</span>
+              <span className="pill gold">{deal.bundleAssets.length > 0 ? <><Icon.shield style={{ width: 12, height: 12, marginRight: 4 }} />{deal.bundleAssets.length} assets</> : "Buyer confirms"}</span>
             </div>
             <div className="grid grid-3" style={{ marginTop: 12 }}>
               <div className="metric"><span className="lab">Amount</span><span className="val">{deal.price} {deal.currency}</span><span className="delta">≈ {fmtUSD(deal.price * 3450)}</span></div>
-              <div className="metric"><span className="lab">Monthly fees</span><span className="val">{deal.mrr} {deal.currency}</span><span className="delta">last 30d, on-chain verified</span></div>
-              <div className="metric"><span className="lab">Chain</span><span className="val" style={{ fontSize: 16 }}>{deal.chain}</span><span className="delta">contract verified</span></div>
+              <div className="metric"><span className="lab">Monthly fees</span><span className="val">{deal.mrr} {deal.currency}</span><span className="delta">seller-provided</span></div>
+              <div className="metric"><span className="lab">Chain</span><span className="val" style={{ fontSize: 16 }}>{deal.chain}</span><span className="delta">escrow network</span></div>
             </div>
             {deal.isBundle && deal.bundleAssets.length > 0 && (
               <>
@@ -706,7 +705,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
               <Icon.cast style={{ width: 12, height: 12 }} /> Share on Farcaster
             </button>
             <div className="muted-2" style={{ fontSize: 11, marginTop: 10, textAlign: "center" }}>
-              Funds release is permanent. Only release after verifying all deliverables.
+              Funds release is permanent. Only release after confirming the negotiated deliverables.
             </div>
           </div>
         </div>

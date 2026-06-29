@@ -8,8 +8,8 @@ import { useRouter } from "next/navigation";
 import Icon from "@/components/icons";
 import { appColor, fmtCompact } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
-import { getEscrowAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, verificationCode, parseContractError } from "@/lib/contract";
-import { parseEther, type Address } from "viem";
+import { getEscrowAddress, getPublicClient, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
+import { parseUnits, type Address } from "viem";
 import type { MiniApp } from "@/lib/data";
 
 const DELIVERABLE_OPTIONS = [
@@ -38,28 +38,6 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
-  const [verifyCode, setVerifyCode] = useState("");
-  const [verifying, setVerifying] = useState(false);
-  const [verified, setVerified] = useState(false);
-
-  const checkVerification = async () => {
-    if (!url || !verifyCode) return;
-    setVerifying(true);
-    try {
-      const res = await fetch(`/api/verify?type=dns&domain=${encodeURIComponent(url)}&code=${verifyCode}`);
-      const json = await res.json();
-      if (json.verified) {
-        setVerified(true);
-        setDone("Ownership verified! Listing is now visible to buyers.");
-      } else {
-        setError(`Not verified yet. ${json.reason || "DNS TXT record not found."}`);
-      }
-    } catch {
-      setError("Verification check failed. Try again.");
-    } finally {
-      setVerifying(false);
-    }
-  };
 
   const toggleDeliverable = (key: string) => {
     setDeliverables((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -111,7 +89,7 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
         createdAt: new Date().toISOString(),
       };
       const metaHash = hashMetadata(metadata);
-      const priceWei = parseEther(price || "0");
+      const priceWei = parseUnits(price || "0", 6);
 
       // 2. Store on-chain
       const txHash = await writeListDeal(address as Address, priceWei, metaHash);
@@ -139,7 +117,6 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
             imageUrl,
             stack: metadata.stack,
             source: Boolean(repo),
-            verified: false,
             age: "New",
             url,
             repo,
@@ -150,8 +127,7 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to submit listing");
-      setVerifyCode(verificationCode(metaHash));
-      setDone("Listed on-chain. Verify ownership to make it visible to buyers.");
+      setDone("Listed on-chain. Buyers can fund escrow and confirm terms directly with the seller.");
     } catch (err) {
       setError(parseContractError(err));
     } finally {
@@ -271,27 +247,13 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
           <div className="warn-banner">
             <Icon.warn />
             <div style={{ fontSize: 11 }}>
-              Listing is stored on-chain and enters moderation. Platform fee of 2.5% applies on successful escrow release.
+              Listing is stored on-chain. Buyers and sellers negotiate deliverables in escrow.
             </div>
           </div>
           {error && <div className="warn-banner" style={{ color: "var(--risk)" }}>{error}</div>}
           {done && (
-            <div className="card" style={{ padding: 14, background: verified ? "rgba(127,157,197,0.12)" : "rgba(127,157,197,0.08)", border: `1px solid ${verified ? "var(--accent)" : "var(--line)"}` }}>
+            <div className="card" style={{ padding: 14, background: "rgba(127,157,197,0.08)", border: "1px solid var(--line)" }}>
               <div className="pill funded" style={{ width: "fit-content", marginBottom: 10 }}><span className="pdot" />{done}</div>
-              {!verified && (
-                <>
-                  <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4 }}>Prove ownership:</div>
-                    <div className="col" style={{ gap: 4 }}>
-                      <span>Add this TXT record to your domain DNS:<br /><code className="mono" style={{ background: "var(--surface-2)", padding: "2px 6px", borderRadius: 3, fontSize: 11 }}>vault-verify={verifyCode}</code></span>
-                      <span className="muted-2">Or add <code className="mono" style={{ background: "var(--surface-2)", padding: "1px 5px", borderRadius: 3, fontSize: 10 }}>vault-verify: {verifyCode}</code> to your repo README.</span>
-                    </div>
-                  </div>
-                  <button className="btn sm primary" onClick={checkVerification} disabled={verifying}>
-                    {verifying ? "Checking DNS…" : "Check verification"}
-                  </button>
-                </>
-              )}
             </div>
           )}
         </div>
@@ -348,7 +310,10 @@ export default function MiniAppsPage() {
       if (!app.sellerAddress) throw new Error("Listing seller is missing.");
       if (app.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
       if (!app.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-      const txHash = await writeFundDeal(address as Address, BigInt(app.contractListingId), parseEther(String(app.price)));
+      const amtWei = parseUnits(String(app.price), 6);
+      const approveHash = await writeApproveUsdc(address as Address, getEscrowAddress(), amtWei);
+      await getPublicClient().waitForTransactionReceipt({ hash: approveHash });
+      const txHash = await writeFundDeal(address as Address, BigInt(app.contractListingId), amtWei);
       const res = await fetch("/api/escrows", {
         method: "POST",
         credentials: "include",
@@ -358,7 +323,7 @@ export default function MiniAppsPage() {
           buyerAddress: address,
           sellerAddress: app.sellerAddress,
           amount: app.price,
-          currency: "ETH",
+          currency: "USDC",
           chainId: app.chainId || 8453,
           contractAddress: app.contractAddress || getEscrowAddress(),
           contractListingId: app.contractListingId,
@@ -386,7 +351,6 @@ export default function MiniAppsPage() {
         </div>
         <div className="row" style={{ gap: 18, alignItems: "center", flex: "0 0 auto", flexWrap: "wrap" }}>
           <div className="col right" style={{ gap: 1 }}><span className="smallcaps">Open listings</span><span className="mono" style={{ fontSize: 14 }}>{apps.length}</span></div>
-          <div className="col right" style={{ gap: 1 }}><span className="smallcaps">Verified</span><span className="mono" style={{ fontSize: 14 }}>{apps.filter((app) => app.verified).length}</span></div>
           <button className="btn primary" onClick={() => isConnected ? setShowListModal(true) : connect()}>
             {isConnected ? "List Mini App" : "Connect to list"}
           </button>
@@ -426,8 +390,7 @@ export default function MiniAppsPage() {
                 ) : (
                   <div style={{ fontFamily: "var(--display)", fontSize: 36, color: "#fff", letterSpacing: -0.5, textShadow: "0 2px 12px rgba(0,0,0,.3)" }}>{a.name}</div>
                 )}
-                <span className="pill" style={{ position: "absolute", top: 10, left: 10, background: "rgba(0,0,0,0.45)", borderColor: "transparent" }}><span className="pdot" style={{ background: a.verified ? "var(--gold)" : "var(--ink-4)" }}/>{a.kind}</span>
-                {a.verified && <span className="pill gold" style={{ position: "absolute", top: 10, right: 10 }}><Icon.check style={{ width: 11, height: 11 }}/> Verified</span>}
+                <span className="pill" style={{ position: "absolute", top: 10, left: 10, background: "rgba(0,0,0,0.45)", borderColor: "transparent" }}><span className="pdot" />{a.kind}</span>
               </div>
               <div className="row between"><span className="nm trunc">{a.name}</span><span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{a.id}</span></div>
               <div className="row between">

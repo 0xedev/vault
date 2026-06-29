@@ -7,8 +7,8 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
-import { getEscrowAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError } from "@/lib/contract";
-import { parseEther, type Address } from "viem";
+import { getEscrowAddress, getPublicClient, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
+import { parseUnits, type Address } from "viem";
 import type { ClankerToken } from "@/lib/data";
 import { fmtCompact } from "@/lib/utils";
 
@@ -49,7 +49,7 @@ export default function ClankerPage() {
   const [ownedLoading, setOwnedLoading] = useState(false);
   const [ownedLoaded, setOwnedLoaded] = useState(false);
   const [manualEntry, setManualEntry] = useState(false);
-  const [verifyingToken, setVerifyingToken] = useState(false);
+  const [checkingOwnership, setCheckingOwnership] = useState(false);
   const [selectedListingToken, setSelectedListingToken] = useState<ClankerToken | null>(null);
   const [saleRights, setSaleRights] = useState<string[]>(["full_package"]);
   const [openAfterAuth, setOpenAfterAuth] = useState(false);
@@ -140,20 +140,20 @@ export default function ClankerPage() {
     void loadOwnedTokens();
   };
 
-  const verifyManualToken = async () => {
+  const checkManualTokenOwnership = async () => {
     if (!contractAddress) return;
-    setVerifyingToken(true);
+    setCheckingOwnership(true);
     setError("");
     try {
-      const res = await fetch(`/api/clanker/verify?contractAddress=${encodeURIComponent(contractAddress)}&wallet=${encodeURIComponent(address || "")}`);
+      const res = await fetch(`/api/clanker/ownership?contractAddress=${encodeURIComponent(contractAddress)}&wallet=${encodeURIComponent(address || "")}`);
       const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(json.error || "Unable to verify token ownership");
+      if (!res.ok) throw new Error(json.error || "Unable to confirm token ownership");
       applyClankerToken(json.data);
     } catch (err) {
       setSelectedListingToken(null);
-      setError(err instanceof Error ? err.message : "Unable to verify token ownership");
+      setError(err instanceof Error ? err.message : "Unable to confirm token ownership");
     } finally {
-      setVerifyingToken(false);
+      setCheckingOwnership(false);
     }
   };
 
@@ -186,8 +186,8 @@ export default function ClankerPage() {
       setError("Sign in with your wallet before listing a token.");
       return;
     }
-    if (!selectedListingToken) {
-      setError("Choose one of your Clanker tokens or verify a contract address first.");
+    if (!contractAddress || !contractAddress.startsWith("0x") || contractAddress.length !== 42) {
+      setError("Enter a valid Clanker token contract address before listing.");
       return;
     }
     if (!saleRights.length) {
@@ -210,7 +210,7 @@ export default function ClankerPage() {
       };
       const metaHash = hashMetadata(metadata);
 
-      const txHash = await writeListDeal(address as Address, parseEther(price || "0"), metaHash);
+      const txHash = await writeListDeal(address as Address, parseUnits(price || "0", 6), metaHash);
       const contractListingId = await waitForDealId(txHash);
 
       const res = await fetch("/api/marketplace/clanker", {
@@ -264,7 +264,10 @@ export default function ClankerPage() {
       if (!token.sellerAddress) throw new Error("Listing seller is missing.");
       if (token.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
       if (!token.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-      const txHash = await writeFundDeal(address as Address, BigInt(token.contractListingId), parseEther(String(token.price)));
+      const amtWei = parseUnits(String(token.price), 6);
+      const approveHash = await writeApproveUsdc(address as Address, getEscrowAddress(), amtWei);
+      await getPublicClient().waitForTransactionReceipt({ hash: approveHash });
+      const txHash = await writeFundDeal(address as Address, BigInt(token.contractListingId), amtWei);
       const res = await fetch("/api/escrows", {
         method: "POST",
         credentials: "include",
@@ -274,7 +277,7 @@ export default function ClankerPage() {
           buyerAddress: address,
           sellerAddress: token.sellerAddress,
           amount: token.price,
-          currency: "ETH",
+          currency: "USDC",
           chainId: token.chainId || 8453,
           contractAddress: token.contractAddress || getEscrowAddress(),
           contractListingId: token.contractListingId,
@@ -307,7 +310,7 @@ export default function ClankerPage() {
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 24 }}>
-        <div className="metric"><span className="lab">Listings</span><span className="val">{tokens.length}</span><span className="delta">{tokens.filter(t => t.verified).length} verified</span></div>
+        <div className="metric"><span className="lab">Listings</span><span className="val">{tokens.length}</span><span className="delta">{tokens.filter(t => t.verified).length} ownership-confirmed</span></div>
         <div className="metric"><span className="lab">Total vaulted</span><span className="val">{totalLocked.toLocaleString()}</span><span className="delta">tokens locked in vault</span></div>
         <div className="metric"><span className="lab">Accrued fees</span><span className="val">{totalFees.toLocaleString()}</span><span className="delta">claimable fees across all</span></div>
         <div className="metric"><span className="lab">Chain</span><span className="val">Base</span><span className="delta">Uniswap v4 + Clanker</span></div>
@@ -389,7 +392,7 @@ export default function ClankerPage() {
               )}
               <div className="grid grid-3" style={{ gap: 12 }}>
                 <div className="metric"><span className="lab">Fee earnings</span><span className="val">{selectedToken.feeEarnings.toLocaleString()}</span><span className="delta">via ClankerFeeLocker</span></div>
-                <div className="metric"><span className="lab">Contract</span><span className="val mono" style={{ fontSize: 12 }}>{selectedToken.tokenAddress.slice(0, 10)}…</span><span className="delta">verified token</span></div>
+                <div className="metric"><span className="lab">Contract</span><span className="val mono" style={{ fontSize: 12 }}>{selectedToken.tokenAddress.slice(0, 10)}…</span><span className="delta">ownership confirmed</span></div>
                 <div className="metric"><span className="lab">Pool</span><span className="val mono" style={{ fontSize: 12 }}>{selectedToken.poolAddress ? selectedToken.poolAddress.slice(0, 10) + "…" : "—"}</span><span className="delta">Uniswap v4</span></div>
               </div>
             </div>
@@ -459,8 +462,8 @@ export default function ClankerPage() {
                     <span className="label">Token contract address</span>
                     <input className="input mono" value={contractAddress} onChange={e => { setContractAddress(e.target.value); setSelectedListingToken(null); }} placeholder="0x…" />
                   </div>
-                  <button className="btn" type="button" disabled={verifyingToken || !contractAddress} onClick={verifyManualToken}>
-                    {verifyingToken ? "Verifying..." : "Verify"}
+                  <button className="btn" type="button" disabled={checkingOwnership || !contractAddress} onClick={checkManualTokenOwnership}>
+                    {checkingOwnership ? "Checking..." : "Check ownership"}
                   </button>
                 </div>
               )}
@@ -512,8 +515,8 @@ export default function ClankerPage() {
             </div>
             <div className="modal-f">
               <button className="btn" onClick={() => { setListing(false); setError(""); resetListingForm(); }}>Close</button>
-              <button className="btn primary" disabled={submitting || !selectedListingToken || !price || saleRights.length === 0} onClick={submitListing}>
-                {submitting ? "Signing & listing…" : "Submit for review"}
+              <button className="btn primary" disabled={submitting || !contractAddress || !price || saleRights.length === 0} onClick={submitListing}>
+                {submitting ? "Signing & listing…" : "List token"}
               </button>
             </div>
           </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createNonce, verifySiweSession } from "@/lib/auth";
+import { createNonce, createSiweSession } from "@/lib/auth";
 
 export async function GET() {
   const result = await createNonce();
@@ -9,8 +9,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    return await verifySiweSession(req);
+    return await createSiweSession(req);
   } catch {
-    return NextResponse.json({ error: "Verification failed" }, { status: 400 });
+    return NextResponse.json({ error: "Sign-in failed" }, { status: 400 });
   }
 }

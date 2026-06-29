@@ -13,8 +13,8 @@ import { COLLECTIONS } from "@/lib/data";
 import { fmtETH } from "@/lib/utils";
 import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline } from "@/lib/contract";
-import { parseEther, type Address, type Hash } from "viem";
+import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline, writeApproveUsdc, getEscrowAddress } from "@/lib/contract";
+import { parseUnits, type Address, type Hash } from "viem";
 import type { Loan } from "@/lib/data";
 import { shareAsCast } from "@/lib/farcaster-sdk";
 
@@ -51,12 +51,15 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
     setSubmitting(true);
     try {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-      // 1. Deposit ETH into escrow contract
+      const amtWei = parseUnits(amt.toFixed(4), 6);
+      // 1. Approve USDC
+      await waitForTx(await writeApproveUsdc(address as Address, getEscrowAddress(), amtWei));
+      // 2. Deposit USDC into escrow contract
       const aprBps = Math.round(apr * 100);
       const txHash = await waitForTx(await writeSubmitOffer(
         address as Address,
         BigInt(l.contractListingId),
-        parseEther(amt.toFixed(4)),
+        amtWei,
         aprBps,
         term,
       ));
@@ -117,22 +120,22 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
           {done ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
               <Icon.check style={{ width: 36, height: 36, color: "var(--accent)" }} />
-              <p style={{ fontSize: 14, margin: "12px 0 4px" }}>{fmtETH(amt)} Ξ at {apr}% / {term}d submitted.</p>
+              <p style={{ fontSize: 14, margin: "12px 0 4px" }}>{fmtETH(amt)} USDC at {apr}% / {term}d submitted.</p>
               <p className="muted-2" style={{ fontSize: 12 }}>The borrower can now accept, reject, or counter.</p>
             </div>
           ) : (
             <>
               <p className="muted" style={{ marginTop: 0, fontSize: 12, lineHeight: 1.4 }}>
-                Listed: {fmtETH(l.amt)} Ξ at {l.apr}% / {l.term}d. Submit your terms.
+                Listed: {fmtETH(l.amt)} USDC at {l.apr}% / {l.term}d. Submit your terms.
               </p>
               <div className="grid grid-2" style={{ marginTop: 12, gap: 10 }}>
-                <div><span className="label">Amount (Ξ)</span><input className="input mono" type="number" step="0.1" value={amt} onChange={(e) => setAmt(+e.target.value)} /></div>
+                <div><span className="label">Amount (USDC)</span><input className="input mono" type="number" step="0.1" value={amt} onChange={(e) => setAmt(+e.target.value)} /></div>
                 <div><span className="label">APR (%)</span><input className="input mono" type="number" step="0.1" value={apr} onChange={(e) => setApr(+e.target.value)} /></div>
                 <div><span className="label">Term (days)</span><input className="input mono" type="number" value={term} onChange={(e) => setTerm(+e.target.value)} /></div>
                 <div><span className="label">Expires (h)</span><input className="input mono" type="number" value={exp} onChange={(e) => setExp(+e.target.value)} /></div>
               </div>
               <div className="card" style={{ padding: 10, marginTop: 12, background: "var(--surface-2)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>Repayment</span><span className="mono" style={{ fontSize: 12 }}>{(amt * (1 + apr / 100 * term / 365)).toFixed(2)} Ξ</span></div>
+                <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>Repayment</span><span className="mono" style={{ fontSize: 12 }}>{(amt * (1 + apr / 100 * term / 365)).toFixed(2)} USDC</span></div>
                 <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>LTV</span><span className="mono" style={{ fontSize: 12 }}>{l.value > 0 ? Math.round(amt / l.value * 100) : 0}%</span></div>
                 <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>Expires</span><span className="mono" style={{ fontSize: 12 }}>{exp}h</span></div>
               </div>
@@ -197,7 +200,6 @@ function LoanDetailContent() {
 
   // Live countdown tick
   useEffect(() => {
-    setNow(Date.now());
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
   }, []);
@@ -207,12 +209,15 @@ function LoanDetailContent() {
     setMatching(o.id);
     try {
       if (!loan.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-      // 1. Deposit ETH via contract
+      const amtWei = parseUnits(o.amt.toFixed(4), 6);
+      // 1. Approve USDC
+      await waitForTx(await writeApproveUsdc(address as Address, getEscrowAddress(), amtWei));
+      // 2. Deposit USDC via contract
       const aprBps = Math.round(o.apr * 100);
       const txHash = await waitForTx(await writeSubmitOffer(
         address as Address,
         BigInt(loan.contractListingId),
-        parseEther(o.amt.toFixed(4)),
+        amtWei,
         aprBps,
         o.term,
       ));
@@ -285,13 +290,13 @@ function LoanDetailContent() {
   if (!loan) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Listing not found.</div></main>;
 
   const l = loan;
-  const collectionName = l.collection || COLLECTIONS[l.coll] || "Unverified collection";
+  const collectionName = l.collection || COLLECTIONS[l.coll] || "Unknown collection";
   const isSeller = Boolean(address && l.sellerAddress && address.toLowerCase() === l.sellerAddress.toLowerCase());
   const updateOfferStatus = async (id: string, status: "accepted" | "rejected", offer: OfferRecord) => {
     setOfferAction(id);
     try {
       let txHash: Hash | undefined;
-      // 1. If accepting, call contract to release ETH to borrower
+      // 1. If accepting, call contract to release USDC to borrower
       if (status === "accepted" && address && offer.offererAddress) {
         if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
         const aprBps = Math.round(offer.apr * 100);
@@ -299,7 +304,7 @@ function LoanDetailContent() {
           address as Address,
           BigInt(l.contractListingId),
           offer.offererAddress as Address,
-          parseEther(offer.amt.toFixed(4)),
+          parseUnits(offer.amt.toFixed(4), 6),
           aprBps,
           offer.term,
         ));
@@ -336,7 +341,7 @@ function LoanDetailContent() {
       `DTSTAMP:${stamp(start)}`,
       `DTSTART:${stamp(due)}`,
       `SUMMARY:Vault repayment due for ${l.id}`,
-      `DESCRIPTION:Repay ${repaymentDue.toFixed(3)} ETH to avoid collateral transfer.`,
+      `DESCRIPTION:Repay ${repaymentDue.toFixed(3)} USDC to avoid collateral transfer.`,
       "END:VEVENT",
       "END:VCALENDAR",
     ].join("\r\n");
@@ -353,10 +358,12 @@ function LoanDetailContent() {
     setRepaying(true);
     try {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
+      const totalDueWei = parseUnits(repaymentDue.toFixed(4), 6);
+      await waitForTx(await writeApproveUsdc(address as Address, getEscrowAddress(), totalDueWei));
       await waitForTx(await writeRepay(
         address as Address,
         BigInt(l.contractListingId),
-        parseEther(repaymentDue.toFixed(4)),
+        totalDueWei,
       ));
       setLoan((prev) => prev ? { ...prev, status: "repaid" as Loan["status"] } : prev);
     } catch (err) {
@@ -371,10 +378,12 @@ function LoanDetailContent() {
     setRepayingPartial(true);
     try {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync.");
+      const partialWei = parseUnits(partialAmt, 6);
+      await waitForTx(await writeApproveUsdc(address as Address, getEscrowAddress(), partialWei));
       await waitForTx(await writeRepayPartial(
         address as Address,
         BigInt(l.contractListingId),
-        parseEther(partialAmt),
+        partialWei,
       ));
       setPartialAmt("");
     } catch (err) {
@@ -503,7 +512,7 @@ function LoanDetailContent() {
                       <span className="muted-2" style={{ fontSize: 11 }}>{new Date(o.when).toLocaleString()}</span>
                     </div>
                     <div className="col right" style={{ gap: 1 }}>
-                      <span className="mono" style={{ fontSize: 13 }}>{fmtETH(o.amt)} Ξ · {o.apr}% · {o.term}d</span>
+                      <span className="mono" style={{ fontSize: 13 }}>{fmtETH(o.amt)} USDC · {o.apr}% · {o.term}d</span>
                       <span className="muted-2" style={{ fontSize: 11, textTransform: "capitalize" }}>{o.status}</span>
                     </div>
                     {isSeller ? (
@@ -532,7 +541,7 @@ function LoanDetailContent() {
                     {offers.length === 0 ? (
                       <tr><td colSpan={5} className="muted" style={{ textAlign: "center", padding: 24 }}>No ledger activity recorded for this listing yet.</td></tr>
                     ) : offers.map((offer) => (
-                      <tr key={offer.id}><td className="mono">{offer.id}</td><td>Offer</td><td className="mono">{offer.who}</td><td className="right mono">{offer.amt} Ξ</td><td className="right muted">{new Date(offer.when).toLocaleString()}</td></tr>
+                      <tr key={offer.id}><td className="mono">{offer.id}</td><td>Offer</td><td className="mono">{offer.who}</td><td className="right mono">{offer.amt} USDC</td><td className="right muted">{new Date(offer.when).toLocaleString()}</td></tr>
                     ))}
                   </tbody>
                 </table>
@@ -549,14 +558,14 @@ function LoanDetailContent() {
                       <Icon.clock style={{ width: 12, height: 12 }} /> Export repayment calendar
                     </button>
                     <button className="btn sm" style={{ width: "fit-content" }} onClick={() => shareAsCast(
-                      `${collectionName} ${l.token} — ${l.amt} Ξ at ${l.apr}% APR on Vault`,
+                      `${collectionName} ${l.token} — ${l.amt} USDC at ${l.apr}% APR on Vault`,
                       `${window.location.origin}/detail?id=${l.id}`
                     )}>
                       <Icon.cast style={{ width: 12, height: 12 }} /> Share
                     </button>
                   </div>
                   <div className="muted-2" style={{ fontSize: 12 }}>
-                    On-chain verification link appears after escrow deployment records a contract address.
+                    On-chain escrow link appears after deployment records a contract address.
                   </div>
                 </div>
               </div>
@@ -567,12 +576,12 @@ function LoanDetailContent() {
         <div className="col" style={{ gap: 18 }}>
           <div className="card" style={{ padding: 22 }}>
             <div className="eyebrow">Loan terms</div>
-            <div className="kv"><span className="k">Principal</span><span className="v big">{fmtETH(l.amt)} Ξ</span></div>
-            <div className="kv"><span className="k">Interest ({l.apr}% APR)</span><span className="v">+ {proRatedInterest.toFixed(3)} Ξ</span></div>
-            <div className="kv"><span className="k">Repayment due</span><span className="v">{repaymentDue.toFixed(3)} Ξ {deadlinePassed ? <span style={{ color: "var(--risk)", fontSize: 11 }}>(overdue)</span> : ""}</span></div>
+            <div className="kv"><span className="k">Principal</span><span className="v big">{fmtETH(l.amt)} USDC</span></div>
+            <div className="kv"><span className="k">Interest ({l.apr}% APR)</span><span className="v">+ {proRatedInterest.toFixed(3)} USDC</span></div>
+            <div className="kv"><span className="k">Repayment due</span><span className="v">{repaymentDue.toFixed(3)} USDC {deadlinePassed ? <span style={{ color: "var(--risk)", fontSize: 11 }}>(overdue)</span> : ""}</span></div>
             <div className="kv"><span className="k">Term</span><span className="v">{l.term} days</span></div>
             <div className="kv"><span className="k">Loan-to-value</span><span className="v">{l.ltv}%</span></div>
-            <div className="kv"><span className="k">Platform fee</span><span className="v">1.5% · {(l.amt * 0.015).toFixed(3)} Ξ</span></div>
+            <div className="kv"><span className="k">Platform fee</span><span className="v">1.5% · {(l.amt * 0.015).toFixed(3)} USDC</span></div>
             <div className="kv"><span className="k">Escrow</span><span className="v" style={{ color: "var(--accent)" }}>baseshire.eth · EOA</span></div>
 
             <div className="row" style={{ gap: 8, marginTop: 18 }}>
@@ -587,10 +596,10 @@ function LoanDetailContent() {
               {isFunded && isBorrower && !deadlinePassed && (
                 <div className="col" style={{ gap: 8, flex: 1 }}>
                   <button className="btn primary lg" style={{ width: "100%" }} onClick={repayLoan} disabled={repaying}>
-                    {repaying ? "Repaying…" : `Repay ${repaymentDue.toFixed(3)} Ξ`}
+                    {repaying ? "Repaying…" : `Repay ${repaymentDue.toFixed(3)} USDC`}
                   </button>
                   <div className="row" style={{ gap: 6 }}>
-                    <input className="input mono" style={{ flex: 1, height: 36, fontSize: 13 }} type="number" step="0.001" placeholder="Partial amount (Ξ)" value={partialAmt} onChange={e => setPartialAmt(e.target.value)} />
+                    <input className="input mono" style={{ flex: 1, height: 36, fontSize: 13 }} type="number" step="0.001" placeholder="Partial amount (USDC)" value={partialAmt} onChange={e => setPartialAmt(e.target.value)} />
                     <button className="btn sm" onClick={repayPartialLoan} disabled={repayingPartial || !partialAmt}>
                       {repayingPartial ? "…" : "Partial"}
                     </button>
@@ -600,7 +609,7 @@ function LoanDetailContent() {
               {isFunded && isBorrower && deadlinePassed && (
                 <div className="col" style={{ gap: 8, flex: 1 }}>
                   <button className="btn danger lg" style={{ width: "100%" }} onClick={repayLoan} disabled={repaying}>
-                    {repaying ? "Repaying…" : `Repay ${repaymentDue.toFixed(3)} Ξ (overdue)`}
+                    {repaying ? "Repaying…" : `Repay ${repaymentDue.toFixed(3)} USDC (overdue)`}
                   </button>
                   <div className="muted-2" style={{ fontSize: 11, textAlign: "center" }}>Deadline passed. Lender can claim your NFT at any time.</div>
                 </div>
@@ -613,7 +622,7 @@ function LoanDetailContent() {
             </div>
             <div className="muted-2" style={{ fontSize: 11.5, marginTop: 10, textAlign: "center" }}>
               {!isFunded
-                ? `NFT is locked in escrow. Borrower receives ${fmtETH(l.amt)} Ξ only when they accept an offer.`
+                ? `NFT is locked in escrow. Borrower receives ${fmtETH(l.amt)} USDC only when they accept an offer.`
                 : isRepaid ? "Loan repaid. NFT returned to borrower."
                 : isDefaulted ? "Loan defaulted. NFT claimed by lender."
                 : deadlinePassed && isBorrower
@@ -657,12 +666,12 @@ function LoanDetailContent() {
             )}
             <hr className="hr" style={{ margin: "16px 0" }} />
             <div className="tline">
-              <div className="ev done"><div className="ttl">NFT locked in escrow</div><div className="sub">{l.contractListingId ? "On-chain verified" : "Pending sync"}</div></div>
-              <div className="ev done"><div className="ttl">Loan funded · {fmtETH(l.amt)} Ξ to borrower</div><div className="sub">{isFunded || isRepaid || isDefaulted ? "Funded" : "Awaiting lender"}</div></div>
+              <div className="ev done"><div className="ttl">NFT locked in escrow</div><div className="sub">{l.contractListingId ? "On-chain synced" : "Pending sync"}</div></div>
+              <div className="ev done"><div className="ttl">Loan funded · {fmtETH(l.amt)} USDC to borrower</div><div className="sub">{isFunded || isRepaid || isDefaulted ? "Funded" : "Awaiting lender"}</div></div>
               {deadlinePassed ? (
                 <div className="ev now" style={{ color: "var(--risk)" }}><div className="ttl">Deadline passed</div><div className="sub">{deadline ? formatDate(deadline) : ""}</div></div>
               ) : (
-                <div className="ev now"><div className="ttl">Active — accruing interest</div><div className="sub">{proRatedInterest.toFixed(3)} Ξ accrued · {l.apr}% APR</div></div>
+                <div className="ev now"><div className="ttl">Active — accruing interest</div><div className="sub">{proRatedInterest.toFixed(3)} USDC accrued · {l.apr}% APR</div></div>
               )}
               <div className="ev"><div className="ttl">Repayment due</div><div className="sub">{deadline !== null ? formatDate(deadline) : `${l.term} days`}</div></div>
             </div>

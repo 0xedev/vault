@@ -29,7 +29,6 @@ export async function GET(req: NextRequest) {
     handle: row.handle || "",
     joined: row.joined_at,
     trades: Number(row.trades || 0),
-    kyc: row.kyc_tier || "none",
     flags: Number(row.flags || 0),
     locked: Number(row.locked || 0),
     status: row.status || "active",

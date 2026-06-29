@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     market: String(row.marketplace || "Escrow").replace(/_/g, " "),
     asset: row.title || row.escrow_id || "Unlisted asset",
     frozen: Number(row.amount || 0),
-    currency: row.currency || "ETH",
+    currency: row.currency || "USDC",
     reason: row.reason,
     status: row.status === "open" ? "new" : row.status,
     priority: row.priority,

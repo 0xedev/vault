@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     title: row.title,
     seller: shortAddress(row.seller_address),
     sellerAddress: row.seller_address,
-    price: `${Number(row.price || 0)} ${row.currency || "ETH"}`,
+    price: `${Number(row.price || 0)} ${row.currency || "USDC"}`,
     flagged: Number(row.flagged_count || 0),
     risk: Number(row.risk_score || 0),
     filed: row.created_at,

@@ -23,7 +23,6 @@ export default function AdminSideBar({ open, onClose }: { open: boolean; onClose
     { sec: "Oversight" },
     { k: "/admin/listings",      t: "Listings",       icon: <Icon.market/> },
     { k: "/admin/users",         t: "Users",          icon: <Icon.shield/> },
-    { k: "/admin/verifications", t: "Verifications",  icon: <Icon.check/> },
     { sec: "System" },
     { k: "/admin/admin-escrow",  t: "Escrow ops",     icon: <Icon.escrow/> },
     { k: "/admin/audit",         t: "Audit log",      icon: <Icon.clock/> },

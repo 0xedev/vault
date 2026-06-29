@@ -39,7 +39,6 @@ export async function writeSubmitOffer(
     args: [listingId, amountWei, BigInt(aprBps), BigInt(termDays)],
     account,
     chain: base,
-    value: amountWei,
   });
 }
 
@@ -66,7 +65,7 @@ export async function writeAcceptOffer(
 export async function writeRepay(
   account: Address,
   listingId: bigint,
-  totalDueWei: bigint,
+  amountWei: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
   const address = getEscrowAddress();
@@ -74,10 +73,9 @@ export async function writeRepay(
     address,
     abi: ESCROW_ABI,
     functionName: "repay",
-    args: [listingId],
+    args: [listingId, amountWei],
     account,
     chain: base,
-    value: totalDueWei,
   });
 }
 
@@ -199,26 +197,10 @@ export async function writeUpdateMiniApp(
   });
 }
 
-export async function writeVerifyMiniApp(
-  account: Address,
-  listingId: bigint,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "verifyMiniApp",
-    args: [listingId],
-    account,
-    chain: base,
-  });
-}
-
 export async function writeBuyMiniApp(
   account: Address,
   miniAppId: bigint,
-  priceWei: bigint,
+  amountWei: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
   const address = getEscrowAddress();
@@ -226,10 +208,9 @@ export async function writeBuyMiniApp(
     address,
     abi: ESCROW_ABI,
     functionName: "buyMiniApp",
-    args: [miniAppId],
+    args: [miniAppId, amountWei],
     account,
     chain: base,
-    value: priceWei,
   });
 }
 
@@ -253,7 +234,7 @@ export async function writeListDeal(
 export async function writeFundDeal(
   account: Address,
   dealId: bigint,
-  priceWei: bigint,
+  amountWei: bigint,
 ): Promise<Hash> {
   const wallet = getWalletClient();
   const address = getEscrowAddress();
@@ -261,10 +242,9 @@ export async function writeFundDeal(
     address,
     abi: ESCROW_ABI,
     functionName: "fundDeal",
-    args: [dealId],
+    args: [dealId, amountWei],
     account,
     chain: base,
-    value: priceWei,
   });
 }
 
@@ -351,10 +331,9 @@ export async function writeRepayPartial(
     address,
     abi: ESCROW_ABI,
     functionName: "repayPartial",
-    args: [listingId],
+    args: [listingId, amountWei],
     account,
     chain: base,
-    value: amountWei,
   });
 }
 
@@ -442,22 +421,6 @@ export async function writeUpdateDeal(
   });
 }
 
-export async function writeVerifyDeal(
-  account: Address,
-  dealId: bigint,
-): Promise<Hash> {
-  const wallet = getWalletClient();
-  const address = getEscrowAddress();
-  return wallet.writeContract({
-    address,
-    abi: ESCROW_ABI,
-    functionName: "verifyDeal",
-    args: [dealId],
-    account,
-    chain: base,
-  });
-}
-
 export async function writeExtendDeadline(
   account: Address,
   dealId: bigint,
@@ -517,6 +480,58 @@ export async function writeUnpause(
     abi: ESCROW_ABI,
     functionName: "unpause",
     args: [],
+    account,
+    chain: base,
+  });
+}
+
+// ── Deal offer system ────────────────────────────────────────
+
+export async function writeSubmitDealOffer(
+  account: Address,
+  dealId: bigint,
+  amountWei: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "submitDealOffer",
+    args: [dealId, amountWei],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeWithdrawDealOffer(
+  account: Address,
+  dealId: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "withdrawDealOffer",
+    args: [dealId],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeAcceptDealOffer(
+  account: Address,
+  dealId: bigint,
+  buyer: Address,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = getEscrowAddress();
+  return wallet.writeContract({
+    address,
+    abi: ESCROW_ABI,
+    functionName: "acceptDealOffer",
+    args: [dealId, buyer],
     account,
     chain: base,
   });

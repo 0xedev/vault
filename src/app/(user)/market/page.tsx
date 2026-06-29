@@ -18,7 +18,7 @@ import {
   parseContractError,
 } from "@/lib/contract";
 import { getActiveWalletProvider } from "@/lib/contract-helpers";
-import { parseEther } from "viem";
+import { parseUnits } from "viem";
 import type {
   ClankerToken,
   FarcasterAccount,
@@ -161,7 +161,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
 
   const verifyOwnership = async () => {
     if (!address) return false;
-    // NFTs were already verified by Alchemy during scan
+    // NFT ownership was already confirmed by Alchemy during scan
     return detectedNfts.some(
       (n) => n.collection === collection && n.tokenId === tokenId,
     );
@@ -172,7 +172,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     const owns = await verifyOwnership();
     if (!owns) {
       setError(
-        "Ownership not verified. Make sure you own this NFT in the connected wallet.",
+        "Ownership not confirmed. Make sure you own this NFT in the connected wallet.",
       );
       return;
     }
@@ -189,7 +189,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       // 1. Sign a message proving intent to list
       const provider = getActiveWalletProvider();
       if (provider) {
-        const message = `List ${collection} ${tokenId} as collateral for ${amount} Ξ loan at ${apr}% APR / ${term} days on Vault`;
+        const message = `List ${collection} ${tokenId} as collateral for ${amount} USDC loan at ${apr}% APR / ${term} days on Vault`;
         await provider.request({
           method: "personal_sign",
           params: [message, address],
@@ -198,7 +198,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
 
       // 2. Approve NFT for escrow contract, then list on-chain
       const nftTokenId = BigInt(parseInt(tokenId.replace("#", "")) || collSeed);
-      const amountWei = parseEther(amount || "0");
+      const amountWei = parseUnits(amount || "0", 6);
       const aprBps = Math.round(Number(apr) * 100); // e.g. 14.2 → 1420
       const termDays = Number(term);
 
@@ -429,7 +429,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
 
               <div className="grid grid-2" style={{ gap: 12 }}>
                 <div>
-                  <span className="label">Borrow amount (Ξ)</span>
+                  <span className="label">Borrow amount (USDC)</span>
                   <input
                     className="input mono"
                     type="number"
@@ -450,7 +450,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                       }}
                       onMouseEnter={() =>
                         setTooltip(
-                          "APR is the annualized interest rate the borrower pays. A 14% APR on 8.4 Ξ over 30 days means ~0.098 Ξ in interest.",
+                          "APR is the annualized interest rate the borrower pays. A 14% APR on 8.4 USDC over 30 days means ~0.098 USDC in interest.",
                         )
                       }
                       onMouseLeave={() => setTooltip("")}
@@ -576,7 +576,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                 </div>
                 <div className="kv">
                   <span className="k">Borrow amount</span>
-                  <span className="v mono">{amount} Ξ</span>
+                  <span className="v mono">{amount} USDC</span>
                 </div>
                 <div className="kv">
                   <span className="k">APR</span>
@@ -599,12 +599,12 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                 </div>
                 <div className="kv">
                   <span className="k">Platform fee (1.5%)</span>
-                  <span className="v mono">{platformFee.toFixed(3)} Ξ</span>
+                  <span className="v mono">{platformFee.toFixed(3)} USDC</span>
                 </div>
                 <div className="kv">
                   <span className="k">You receive when funded</span>
                   <span className="v mono" style={{ color: "var(--accent)" }}>
-                    {(Number(amount) - platformFee).toFixed(3)} Ξ
+                    {(Number(amount) - platformFee).toFixed(3)} USDC
                   </span>
                 </div>
               </div>
@@ -616,7 +616,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                     Listing transfers your NFT to escrow.
                   </div>
                   <span className="muted-2">
-                    Your NFT is locked in the escrow contract. You receive ETH
+                    Your NFT is locked in the escrow contract. You receive USDC
                     only when you accept a lender&apos;s offer. If you default,
                     the lender claims the NFT.
                   </span>
@@ -988,10 +988,10 @@ export default function MarketplacePage() {
                 </span>
                 <strong>{app.name}</strong>
                 <small>
-                  {app.kind} · {app.dau.toLocaleString()} DAU · {app.mrr} Ξ MRR
+                  {app.kind} · {app.dau.toLocaleString()} DAU · {app.mrr} USDC MRR
                 </small>
                 <em>
-                  {app.price} Ξ <Icon.arrow />
+                  {app.price} USDC <Icon.arrow />
                 </em>
               </Link>
             ))}
@@ -1022,7 +1022,7 @@ export default function MarketplacePage() {
                   {account.engagement}% engagement
                 </small>
                 <em>
-                  {account.price} Ξ <Icon.arrow />
+                  {account.price} USDC <Icon.arrow />
                 </em>
               </Link>
             ))}
@@ -1057,7 +1057,7 @@ export default function MarketplacePage() {
                   {account.fid}
                 </small>
                 <em>
-                  {account.price} Ξ <Icon.arrow />
+                  {account.price} USDC <Icon.arrow />
                 </em>
               </Link>
             ))}
@@ -1093,7 +1093,7 @@ export default function MarketplacePage() {
                   {token.chain} · {token.totalSupply.toLocaleString()} supply
                 </small>
                 <em>
-                  {token.price} Ξ <Icon.arrow />
+                  {token.price} USDC <Icon.arrow />
                 </em>
               </Link>
             ))}
@@ -1174,7 +1174,7 @@ export default function MarketplacePage() {
                 <span className="smallcaps">Amount</span>
                 <input
                   className="input"
-                  placeholder="0 — 100 Ξ"
+                  placeholder="0 — 100 USDC"
                   style={{ width: 130, height: 32 }}
                 />
               </div>
@@ -1248,10 +1248,10 @@ export default function MarketplacePage() {
                 </span>
                 <strong>{app.name}</strong>
                 <small>
-                  {app.kind} · {app.dau.toLocaleString()} DAU · {app.mrr} Ξ MRR
+                  {app.kind} · {app.dau.toLocaleString()} DAU · {app.mrr} USDC MRR
                 </small>
                 <em>
-                  {app.price} Ξ <Icon.arrow />
+                  {app.price} USDC <Icon.arrow />
                 </em>
               </Link>
             ))
@@ -1278,7 +1278,7 @@ export default function MarketplacePage() {
                   {account.engagement}% engagement
                 </small>
                 <em>
-                  {account.price} Ξ <Icon.arrow />
+                  {account.price} USDC <Icon.arrow />
                 </em>
               </Link>
             ))
@@ -1309,7 +1309,7 @@ export default function MarketplacePage() {
                   {account.fid}
                 </small>
                 <em>
-                  {account.price} Ξ <Icon.arrow />
+                  {account.price} USDC <Icon.arrow />
                 </em>
               </Link>
             ))
@@ -1341,7 +1341,7 @@ export default function MarketplacePage() {
                   {token.chain} · {token.totalSupply.toLocaleString()} supply
                 </small>
                 <em>
-                  {token.price} Ξ <Icon.arrow />
+                  {token.price} USDC <Icon.arrow />
                 </em>
               </Link>
             ))

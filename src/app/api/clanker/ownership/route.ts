@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const owner = actorAddressForRequest(auth.user, walletParam);
   const result = await verifyClankerTokenOwnership(owner, contractAddress);
   if (!result.verified) {
-    return NextResponse.json({ error: result.reason || "Unable to verify ownership." }, { status: 403 });
+    return NextResponse.json({ error: result.reason || "Unable to confirm ownership." }, { status: 403 });
   }
 
   return NextResponse.json({ data: result.token });

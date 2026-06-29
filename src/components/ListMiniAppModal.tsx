@@ -8,10 +8,9 @@ import {
   writeListDeal,
   waitForDealId,
   hashMetadata,
-  verificationCode,
   parseContractError,
 } from "@/lib/contract";
-import { parseEther, type Address } from "viem";
+import { parseUnits, type Address } from "viem";
 const DELIVERABLE_OPTIONS = [
   { key: "source", label: "Source code repo" },
   { key: "domain", label: "Domain & DNS" },
@@ -40,32 +39,6 @@ export default function ListMiniAppModal({ onClose }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
-  const [verifyCode, setVerifyCode] = useState("");
-  const [verifying, setVerifying] = useState(false);
-  const [verified, setVerified] = useState(false);
-
-  const checkVerification = async () => {
-    if (!url || !verifyCode) return;
-    setVerifying(true);
-    try {
-      const res = await fetch(
-        `/api/verify?type=dns&domain=${encodeURIComponent(url)}&code=${verifyCode}`,
-      );
-      const json = await res.json();
-      if (json.verified) {
-        setVerified(true);
-        setDone("Ownership verified! Listing is now visible to buyers.");
-      } else {
-        setError(
-          `Not verified yet. ${json.reason || "DNS TXT record not found."}`,
-        );
-      }
-    } catch {
-      setError("Verification check failed. Try again.");
-    } finally {
-      setVerifying(false);
-    }
-  };
 
   const toggleDeliverable = (key: string) =>
     setDeliverables((p) => ({ ...p, [key]: !p[key] }));
@@ -112,7 +85,7 @@ export default function ListMiniAppModal({ onClose }: Props) {
         createdAt: new Date().toISOString(),
       };
       const metaHash = hashMetadata(metadata);
-      const priceWei = parseEther(price || "0");
+      const priceWei = parseUnits(price || "0", 6);
       const txHash = await writeListDeal(
         address as Address,
         priceWei,
@@ -140,7 +113,6 @@ export default function ListMiniAppModal({ onClose }: Props) {
             imageUrl,
             stack: metadata.stack,
             source: Boolean(repo),
-            verified: false,
             age: "New",
             url,
             repo,
@@ -151,9 +123,8 @@ export default function ListMiniAppModal({ onClose }: Props) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to submit listing");
-      setVerifyCode(verificationCode(metaHash));
       setDone(
-        "Listed on-chain. Verify ownership to make it visible to buyers.",
+        "Listed on-chain. Buyers can fund escrow and confirm terms directly with the seller.",
       );
     } catch (err) {
       setError(parseContractError(err));
@@ -235,7 +206,7 @@ export default function ListMiniAppModal({ onClose }: Props) {
               />
             </div>
             <div>
-              <span className="label">MRR (Ξ)</span>
+              <span className="label">MRR (USDC)</span>
               <input
                 className="input mono"
                 value={mrr}
@@ -245,7 +216,7 @@ export default function ListMiniAppModal({ onClose }: Props) {
             </div>
           </div>
           <div className="col" style={{ gap: 4 }}>
-            <span className="label">Asking price (Ξ)</span>
+            <span className="label">Asking price (USDC)</span>
             <input
               className="input mono"
               value={price}
@@ -290,54 +261,13 @@ export default function ListMiniAppModal({ onClose }: Props) {
               ))}
             </div>
           </div>
-          {verifyCode && !verified && (
-            <div
-              className="card"
-              style={{
-                padding: 14,
-                background: "rgba(127,157,197,0.08)",
-                border: "1px solid var(--line)",
-              }}
-            >
-              <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  Prove ownership:
-                </div>
-                <div className="col" style={{ gap: 4 }}>
-                  <span>
-                    Add this TXT record to your domain DNS:
-                    <br />
-                    <code
-                      className="mono"
-                      style={{
-                        background: "var(--surface-2)",
-                        padding: "2px 6px",
-                        borderRadius: 3,
-                        fontSize: 11,
-                      }}
-                    >
-                      vault-verify={verifyCode}
-                    </code>
-                  </span>
-                </div>
-              </div>
-              <button
-                className="btn sm primary"
-                onClick={checkVerification}
-                disabled={verifying}
-              >
-                {verifying ? "Checking DNS…" : "Check verification"}
-              </button>
-            </div>
-          )}
-
           {error && (
             <div className="warn-banner" style={{ color: "var(--risk)" }}>
               {error}
             </div>
           )}
 
-          {done && !verified && (
+          {done && (
             <div
               className="card"
               style={{
@@ -352,31 +282,6 @@ export default function ListMiniAppModal({ onClose }: Props) {
               >
                 <span className="pdot" />
                 {done}
-              </div>
-              <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  Prove ownership:
-                </div>
-                <span className="muted-2">
-                  Add the TXT record shown above and click Verify to confirm
-                  domain ownership.
-                </span>
-              </div>
-            </div>
-          )}
-
-          {verified && (
-            <div
-              className="card"
-              style={{
-                padding: 14,
-                background: "rgba(127,157,197,0.12)",
-                border: "1px solid var(--accent)",
-              }}
-            >
-              <div className="pill funded" style={{ width: "fit-content" }}>
-                <span className="pdot" />
-                Ownership verified!
               </div>
             </div>
           )}

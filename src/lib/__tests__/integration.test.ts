@@ -21,14 +21,14 @@ describe("auth integration", () => {
     expect(json.nonce).toBe("abc123");
   });
 
-  it("POST /api/auth/verify with invalid signature returns 401", async () => {
+  it("POST /api/auth with invalid signature returns 401", async () => {
     server.use(
-      http.post("http://localhost/api/auth/verify", () => {
+      http.post("http://localhost/api/auth", () => {
         return HttpResponse.json({ error: "Invalid signature" }, { status: 401 });
       }),
     );
 
-    const res = await fetch("http://localhost/api/auth/verify", {
+    const res = await fetch("http://localhost/api/auth", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: "bad", signature: "0x00" }),

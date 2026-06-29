@@ -5,8 +5,11 @@ pragma solidity ^0.8.28;
  * @title VaultEscrow
  * @notice NFT-collateralised loan escrow + digital asset marketplace with two-sided escrow.
  *         1. Borrower lists NFT → NFT enters escrow → lenders offer → borrower accepts → loan.
- *         2. Seller lists digital asset → buyer funds escrow → seller delivers → buyer confirms.
- *         3. Either party can dispute → admin resolves.
+ *         2. Seller lists digital asset → buyers offer (or pay full ask) → seller accepts → escrow.
+ *         3. Seller delivers → buyer confirms → funds release.
+ *         4. Either party can dispute → admin resolves.
+ *
+ *         All payments are in USDC (ERC20). No native ETH handled.
  */
 interface IERC721 {
     function transferFrom(address from, address to, uint256 tokenId) external;
@@ -18,8 +21,16 @@ interface IERC721Receiver {
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) external returns (bytes4);
 }
 
+interface IERC20 {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+    function transfer(address to, uint256 amount) external returns (bool);
+    function balanceOf(address account) external view returns (uint256);
+    function decimals() external view returns (uint8);
+}
+
 contract VaultEscrow is IERC721Receiver {
     address public admin;
+    IERC20 public immutable usdc;
     uint256 public platformFeeBps; // basis points (150 = 1.5%)
     uint256 public constant GRACE_PERIOD = 24 hours;
     bool public paused;
@@ -43,7 +54,7 @@ contract VaultEscrow is IERC721Receiver {
         uint256 acceptedApr;
         uint256 acceptedTerm;
         uint256 fundedAt;
-        uint256 repaidSoFar;   // tracks partial repayments
+        uint256 repaidSoFar;   // tracks partial repayments (USDC)
         Stage stage;
     }
 
@@ -124,8 +135,9 @@ contract VaultEscrow is IERC721Receiver {
         _;
     }
 
-    constructor(uint256 _platformFeeBps) {
+    constructor(address _usdc, uint256 _platformFeeBps) {
         admin = msg.sender;
+        usdc = IERC20(_usdc);
         platformFeeBps = _platformFeeBps;
     }
 
@@ -191,18 +203,19 @@ contract VaultEscrow is IERC721Receiver {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  LENDER — submit / withdraw offer
+    //  LENDER — submit / withdraw offer (USDC via transferFrom)
     // ═══════════════════════════════════════════════════════════
 
     function submitOffer(uint256 listingId, uint256 amount, uint256 apr, uint256 term)
-        external payable nonReentrant whenNotPaused atStage(listingId, Stage.LISTED)
+        external nonReentrant whenNotPaused atStage(listingId, Stage.LISTED)
     {
-        require(msg.value == amount, "ETH sent must equal offer amount");
         require(amount > 0, "Amount must be > 0");
         if (_hasOffer[listingId][msg.sender]) revert AlreadyOffered();
 
-        lenderDeposits[listingId][msg.sender] = msg.value;
-        listingEscrowBalance[listingId] += msg.value;
+        if (!usdc.transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
+
+        lenderDeposits[listingId][msg.sender] = amount;
+        listingEscrowBalance[listingId] += amount;
         _offerLenders[listingId].push(msg.sender);
         _hasOffer[listingId][msg.sender] = true;
         offers[listingId][msg.sender] = Offer({ apr: apr, term: term });
@@ -225,8 +238,7 @@ contract VaultEscrow is IERC721Receiver {
         _hasOffer[listingId][msg.sender] = false;
         delete offers[listingId][msg.sender];
 
-        (bool sent,) = msg.sender.call{value: deposited}("");
-        if (!sent) revert TransferFailed();
+        if (!usdc.transfer(msg.sender, deposited)) revert TransferFailed();
 
         emit OfferWithdrawn(listingId, msg.sender, deposited);
     }
@@ -243,6 +255,7 @@ contract VaultEscrow is IERC721Receiver {
     {
         uint256 deposited = lenderDeposits[listingId][lender];
         require(deposited >= acceptedAmount, "Lender has insufficient deposit");
+        require(acceptedAmount > 0, "Amount must be > 0");
         require(deposited > 0, "No deposit from this lender");
 
         // Validate accepted APR and term match what the lender offered
@@ -251,15 +264,13 @@ contract VaultEscrow is IERC721Receiver {
 
         Listing storage l = listings[listingId];
 
+        // Refund excess to lender
         uint256 excess = deposited - acceptedAmount;
         if (excess > 0) {
-            lenderDeposits[listingId][lender] = 0;
             listingEscrowBalance[listingId] -= excess;
-            (bool refunded,) = lender.call{value: excess}("");
-            if (!refunded) revert TransferFailed();
-        } else {
-            lenderDeposits[listingId][lender] = 0;
+            if (!usdc.transfer(lender, excess)) revert TransferFailed();
         }
+        lenderDeposits[listingId][lender] = 0;
         _hasOffer[listingId][lender] = false;
 
         l.acceptedLender = lender;
@@ -273,40 +284,41 @@ contract VaultEscrow is IERC721Receiver {
         uint256 net = acceptedAmount - fee;
         listingEscrowBalance[listingId] -= acceptedAmount;
 
-        (bool sent,) = msg.sender.call{value: net}("");
-        if (!sent) revert TransferFailed();
+        if (!usdc.transfer(msg.sender, net)) revert TransferFailed();
 
         if (fee > 0) {
-            (bool feeSent,) = admin.call{value: fee}("");
-            if (!feeSent) revert TransferFailed();
+            if (!usdc.transfer(admin, fee)) revert TransferFailed();
         }
 
         emit OfferAccepted(listingId, lender, acceptedAmount);
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  BORROWER — repay loan (full + partial)
+    //  BORROWER — repay loan (full + partial, USDC via transferFrom)
     // ═══════════════════════════════════════════════════════════
 
-    function repay(uint256 listingId)
-        external payable nonReentrant onlyBorrower(listingId) atStage(listingId, Stage.ACTIVE)
+    function repay(uint256 listingId, uint256 amount)
+        external nonReentrant onlyBorrower(listingId) atStage(listingId, Stage.ACTIVE)
     {
         Listing storage l = listings[listingId];
         uint256 interest = (l.acceptedAmount * l.acceptedApr * l.acceptedTerm) / 3650000;
         uint256 totalDue = l.acceptedAmount + interest;
         uint256 remaining = totalDue - l.repaidSoFar;
 
-        require(msg.value >= remaining, "Insufficient repayment");
+        require(amount >= remaining, "Insufficient repayment");
+
+        // Pull the full amount — includes any overpayment for refund
+        if (!usdc.transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
 
         l.stage = Stage.REPAID;
 
-        (bool sent,) = l.acceptedLender.call{value: remaining}("");
-        if (!sent) revert TransferFailed();
+        // Send what's owed to lender
+        if (!usdc.transfer(l.acceptedLender, remaining)) revert TransferFailed();
 
-        uint256 excess = msg.value - remaining;
-        if (excess > 0) {
-            (bool refunded,) = msg.sender.call{value: excess}("");
-            if (!refunded) revert TransferFailed();
+        // Refund overpayment to borrower
+        uint256 overpay = amount - remaining;
+        if (overpay > 0) {
+            if (!usdc.transfer(msg.sender, overpay)) revert TransferFailed();
         }
 
         IERC721(l.nftContract).safeTransferFrom(address(this), msg.sender, l.nftTokenId);
@@ -315,29 +327,30 @@ contract VaultEscrow is IERC721Receiver {
     }
 
     /// @notice Partial repayment. Reduces outstanding balance without closing the loan.
-    function repayPartial(uint256 listingId)
-        external payable nonReentrant onlyBorrower(listingId) atStage(listingId, Stage.ACTIVE)
+    function repayPartial(uint256 listingId, uint256 partialAmount)
+        external nonReentrant onlyBorrower(listingId) atStage(listingId, Stage.ACTIVE)
     {
-        require(msg.value > 0, "Amount must be > 0");
+        require(partialAmount > 0, "Amount must be > 0");
 
         Listing storage l = listings[listingId];
         uint256 interest = (l.acceptedAmount * l.acceptedApr * l.acceptedTerm) / 3650000;
         uint256 totalDue = l.acceptedAmount + interest;
         uint256 remaining = totalDue - l.repaidSoFar;
 
-        require(msg.value <= remaining, "Overpayment - use repay() to close");
+        require(partialAmount <= remaining, "Overpayment - use repay() to close");
 
-        l.repaidSoFar += msg.value;
+        if (!usdc.transferFrom(msg.sender, address(this), partialAmount)) revert TransferFailed();
 
-        (bool sent,) = l.acceptedLender.call{value: msg.value}("");
-        if (!sent) revert TransferFailed();
+        l.repaidSoFar += partialAmount;
+
+        if (!usdc.transfer(l.acceptedLender, partialAmount)) revert TransferFailed();
 
         if (l.repaidSoFar >= totalDue) {
             l.stage = Stage.REPAID;
             IERC721(l.nftContract).safeTransferFrom(address(this), msg.sender, l.nftTokenId);
         }
 
-        emit Repaid(listingId, msg.value);
+        emit Repaid(listingId, partialAmount);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -384,28 +397,35 @@ contract VaultEscrow is IERC721Receiver {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  DIGITAL ASSET ESCROW (Mini Apps, X Accounts, Farcaster, Clanker)
+    //  DIGITAL ASSET ESCROW (Mini Apps, X Accounts, Farcaster, Clanker, Bundles)
+    //  No admin verification — listings go LISTED → directly fundable.
+    //  Buyers can offer any amount; seller picks the winning offer.
     // ═══════════════════════════════════════════════════════════
 
-    enum DealStage { LISTED, VERIFIED, FUNDED, DELIVERED, CONFIRMED, DISPUTED, RESOLVED, REFUNDED, CANCELLED }
+    enum DealStage { LISTED, FUNDED, DELIVERED, CONFIRMED, DISPUTED, RESOLVED, REFUNDED, CANCELLED }
 
     struct Deal {
         address seller;
         address buyer;
-        uint256 price;
+        uint256 price;          // listing price (updated to accepted amount on offer accept)
         bytes32 metadataHash;
         uint256 deadline;       // delivery deadline set when funded
         uint256 createdAt;      // block timestamp when listed
         DealStage stage;
-        uint256 buyerAmount;    // admin resolution: ETH to return to buyer
-        uint256 sellerAmount;   // admin resolution: ETH to release to seller
+        uint256 buyerAmount;    // admin resolution: USDC to return to buyer
+        uint256 sellerAmount;   // admin resolution: USDC to release to seller
     }
 
     uint256 public dealCount;
     mapping(uint256 => Deal) public deals;
 
-    // Track ETH locked per deal
+    // Track USDC locked per deal
     mapping(uint256 => uint256) public dealEscrowBalance;
+
+    // ── Deal offer system (buyers offer an amount, seller picks the winner) ──
+    mapping(uint256 => mapping(address => uint256)) public dealOfferDeposits;
+    mapping(uint256 => address[]) private _dealOfferBuyers;
+    mapping(uint256 => mapping(address => bool)) private _hasDealOffer;
 
     event DealListed(uint256 indexed dealId, address seller, uint256 price, bytes32 metadataHash);
     event DealFunded(uint256 indexed dealId, address buyer, uint256 amount);
@@ -416,6 +436,9 @@ contract VaultEscrow is IERC721Receiver {
     event DealRefunded(uint256 indexed dealId);
     event DealCancelled(uint256 indexed dealId);
     event DealDeadlineExtended(uint256 indexed dealId, uint256 newDeadline);
+    event DealOfferSubmitted(uint256 indexed dealId, address buyer, uint256 amount);
+    event DealOfferWithdrawn(uint256 indexed dealId, address buyer, uint256 amount);
+    event DealOfferAccepted(uint256 indexed dealId, address buyer, uint256 amount);
 
     modifier atDealStage(uint256 dealId, DealStage expected) {
         if (deals[dealId].stage != expected) revert InvalidDealStage(deals[dealId].stage, expected);
@@ -438,8 +461,8 @@ contract VaultEscrow is IERC721Receiver {
         _;
     }
 
-    /// @notice Seller lists a digital asset for sale. Stores metadata hash on-chain.
-    /// @param price Asking price in wei
+    /// @notice Seller lists a digital asset for sale.
+    /// @param price Asking price in USDC (smallest unit)
     /// @param metadataHash Hash of off-chain metadata (name, description, deliverables, etc.)
     /// @return dealId The new listing ID
     function listDeal(uint256 price, bytes32 metadataHash) public returns (uint256) {
@@ -477,32 +500,100 @@ contract VaultEscrow is IERC721Receiver {
         deals[dealId].metadataHash = newMetadataHash;
     }
 
-    /// @notice Admin verifies seller ownership, activating the listing for buyers.
-    function verifyDeal(uint256 dealId)
-        public onlyAdmin atDealStage(dealId, DealStage.LISTED)
-    {
-        deals[dealId].stage = DealStage.VERIFIED;
-        emit DealDelivered(dealId); // reuse event — just means "activated"
-    }
+    // ═══════════════════════════════════════════════════════════
+    //  BUYER — fund deal (full ask, fast path — no offer needed)
+    // ═══════════════════════════════════════════════════════════
 
-    /// @notice Buyer funds the escrow. ETH locked until delivery is confirmed or disputed.
-    /// @param dealId The listing to purchase
-    function fundDeal(uint256 dealId)
-        public payable nonReentrant whenNotPaused atDealStage(dealId, DealStage.VERIFIED)
+    /// @notice Buyer funds the escrow at full listed price. USDC transferred in.
+    function fundDeal(uint256 dealId, uint256 amount)
+        public nonReentrant whenNotPaused atDealStage(dealId, DealStage.LISTED)
     {
         Deal storage d = deals[dealId];
         require(msg.sender != d.seller, "Seller cannot buy own listing");
-        require(msg.value == d.price, "ETH sent must equal listing price");
+        require(amount == d.price, "Amount must equal listing price");
+
+        if (!usdc.transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
 
         d.buyer = msg.sender;
         d.stage = DealStage.FUNDED;
         d.deadline = block.timestamp + 7 days; // seller has 7 days to deliver
-        dealEscrowBalance[dealId] = msg.value;
+        dealEscrowBalance[dealId] = amount;
 
-        emit DealFunded(dealId, msg.sender, msg.value);
+        emit DealFunded(dealId, msg.sender, amount);
     }
 
-    /// @notice Seller marks the asset as delivered. Buyer must confirm within 3 days.
+    // ═══════════════════════════════════════════════════════════
+    //  BUYER — submit deal offer (negotiable amount, USDC locked)
+    // ═══════════════════════════════════════════════════════════
+
+    function submitDealOffer(uint256 dealId, uint256 amount)
+        external nonReentrant whenNotPaused atDealStage(dealId, DealStage.LISTED)
+    {
+        require(amount > 0, "Amount must be > 0");
+        require(msg.sender != deals[dealId].seller, "Seller cannot offer on own listing");
+        if (_hasDealOffer[dealId][msg.sender]) revert AlreadyOffered();
+
+        if (!usdc.transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
+
+        dealOfferDeposits[dealId][msg.sender] = amount;
+        _dealOfferBuyers[dealId].push(msg.sender);
+        _hasDealOffer[dealId][msg.sender] = true;
+
+        emit DealOfferSubmitted(dealId, msg.sender, amount);
+    }
+
+    /// @notice Buyer withdraws an unaccepted offer.
+    function withdrawDealOffer(uint256 dealId) external nonReentrant {
+        uint256 deposited = dealOfferDeposits[dealId][msg.sender];
+        require(deposited > 0, "No deposit for this deal");
+
+        dealOfferDeposits[dealId][msg.sender] = 0;
+        _hasDealOffer[dealId][msg.sender] = false;
+
+        if (!usdc.transfer(msg.sender, deposited)) revert TransferFailed();
+
+        emit DealOfferWithdrawn(dealId, msg.sender, deposited);
+    }
+
+    /// @notice Seller accepts a deal offer. Rejected offers are auto-refunded.
+    function acceptDealOffer(uint256 dealId, address buyer)
+        external nonReentrant onlySeller(dealId) atDealStage(dealId, DealStage.LISTED)
+    {
+        uint256 deposited = dealOfferDeposits[dealId][buyer];
+        require(deposited > 0, "No deposit from this buyer");
+
+        Deal storage d = deals[dealId];
+        d.buyer = buyer;
+        d.price = deposited;           // deal price = accepted offer
+        d.stage = DealStage.FUNDED;
+        d.deadline = block.timestamp + 7 days;
+        dealEscrowBalance[dealId] = deposited;
+
+        // Clear accepted buyer's deposit (USDC stays in escrow as deal balance)
+        dealOfferDeposits[dealId][buyer] = 0;
+        _hasDealOffer[dealId][buyer] = false;
+
+        // Auto-refund all other offerers, then clear the array
+        address[] storage offerers = _dealOfferBuyers[dealId];
+        for (uint256 i = 0; i < offerers.length; i++) {
+            address other = offerers[i];
+            if (other != buyer && dealOfferDeposits[dealId][other] > 0) {
+                uint256 refund = dealOfferDeposits[dealId][other];
+                dealOfferDeposits[dealId][other] = 0;
+                _hasDealOffer[dealId][other] = false;
+                if (!usdc.transfer(other, refund)) revert TransferFailed();
+            }
+        }
+        delete _dealOfferBuyers[dealId];
+
+        emit DealOfferAccepted(dealId, buyer, deposited);
+        emit DealFunded(dealId, buyer, deposited);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  SELLER — mark delivered / extend deadline
+    // ═══════════════════════════════════════════════════════════
+
     function markDelivered(uint256 dealId)
         public nonReentrant onlySeller(dealId) atDealStage(dealId, DealStage.FUNDED)
     {
@@ -515,19 +606,21 @@ contract VaultEscrow is IERC721Receiver {
         emit DealDelivered(dealId);
     }
 
-    /// @notice Seller extends the delivery deadline within a 14 day window from funding.
     function extendDeadline(uint256 dealId)
-        public onlySeller(dealId) atDealStage(dealId, DealStage.FUNDED)
+        public nonReentrant onlySeller(dealId) atDealStage(dealId, DealStage.FUNDED)
     {
         Deal storage d = deals[dealId];
-        uint256 maxDeadline = d.deadline + 7 days;
-        uint256 newDeadline = block.timestamp + 3 days;
+        uint256 maxDeadline = d.createdAt + 14 days;
+        uint256 newDeadline = d.deadline + 3 days;
         require(newDeadline <= maxDeadline, "Cannot extend beyond 14 days");
         d.deadline = newDeadline;
         emit DealDeadlineExtended(dealId, newDeadline);
     }
 
-    /// @notice Buyer confirms receipt. Funds released to seller (minus platform fee).
+    // ═══════════════════════════════════════════════════════════
+    //  BUYER — confirm delivery / refund / dispute
+    // ═══════════════════════════════════════════════════════════
+
     function confirmDelivery(uint256 dealId)
         public nonReentrant whenNotPaused onlyBuyer(dealId) atDealStage(dealId, DealStage.DELIVERED)
     {
@@ -538,18 +631,15 @@ contract VaultEscrow is IERC721Receiver {
         d.stage = DealStage.CONFIRMED;
         dealEscrowBalance[dealId] = 0;
 
-        (bool sent,) = d.seller.call{value: net}("");
-        if (!sent) revert TransferFailed();
+        if (!usdc.transfer(d.seller, net)) revert TransferFailed();
 
         if (fee > 0) {
-            (bool feeSent,) = admin.call{value: fee}("");
-            if (!feeSent) revert TransferFailed();
+            if (!usdc.transfer(admin, fee)) revert TransferFailed();
         }
 
         emit DealConfirmed(dealId, net);
     }
 
-    /// @notice Either party disputes the deal.
     function disputeDeal(uint256 dealId)
         public onlyDealParty(dealId) atDealStage(dealId, DealStage.DELIVERED)
     {
@@ -557,9 +647,6 @@ contract VaultEscrow is IERC721Receiver {
         emit DealDisputed(dealId);
     }
 
-    /// @notice Admin resolves a deal dispute. Splits funds between buyer and seller.
-    /// @param buyerAmount ETH to return to buyer
-    /// @param sellerAmount ETH to release to seller
     function resolveDeal(uint256 dealId, uint256 buyerAmount, uint256 sellerAmount)
         public onlyAdmin nonReentrant atDealStage(dealId, DealStage.DISPUTED)
     {
@@ -573,31 +660,26 @@ contract VaultEscrow is IERC721Receiver {
         dealEscrowBalance[dealId] = 0;
 
         if (buyerAmount > 0) {
-            (bool sent,) = d.buyer.call{value: buyerAmount}("");
-            if (!sent) revert TransferFailed();
+            if (!usdc.transfer(d.buyer, buyerAmount)) revert TransferFailed();
         }
         if (sellerAmount > 0) {
             uint256 fee = (sellerAmount * platformFeeBps) / 10000;
             uint256 net = sellerAmount - fee;
-            (bool sent,) = d.seller.call{value: net}("");
-            if (!sent) revert TransferFailed();
+            if (!usdc.transfer(d.seller, net)) revert TransferFailed();
             if (fee > 0) {
-                (bool feeSent,) = admin.call{value: fee}("");
-                if (!feeSent) revert TransferFailed();
+                if (!usdc.transfer(admin, fee)) revert TransferFailed();
             }
         }
 
         // Remaining dust to admin
         uint256 dust = balance - buyerAmount - sellerAmount;
         if (dust > 0) {
-            (bool dustSent,) = admin.call{value: dust}("");
-            if (!dustSent) revert TransferFailed();
+            if (!usdc.transfer(admin, dust)) revert TransferFailed();
         }
 
         emit DealResolved(dealId, buyerAmount, sellerAmount);
     }
 
-    /// @notice Buyer claims refund if seller misses delivery deadline.
     function refundDeal(uint256 dealId)
         public nonReentrant onlyBuyer(dealId) atDealStage(dealId, DealStage.FUNDED)
     {
@@ -608,8 +690,7 @@ contract VaultEscrow is IERC721Receiver {
         uint256 amount = dealEscrowBalance[dealId];
         dealEscrowBalance[dealId] = 0;
 
-        (bool sent,) = d.buyer.call{value: amount}("");
-        if (!sent) revert TransferFailed();
+        if (!usdc.transfer(d.buyer, amount)) revert TransferFailed();
 
         emit DealRefunded(dealId);
     }
@@ -618,15 +699,13 @@ contract VaultEscrow is IERC721Receiver {
     //  BACKWARD COMPATIBILITY — MiniApp (wraps Deal system)
     // ═══════════════════════════════════════════════════════════
 
-    uint256 public miniAppCount; // mirror of dealCount for backward compat
-    mapping(uint256 => uint256) private _miniAppToDeal; // miniAppId → dealId
+    uint256 public miniAppCount;
+    mapping(uint256 => uint256) private _miniAppToDeal;
 
     event MiniAppListed(uint256 indexed listingId, address seller, uint256 price, bytes32 metadataHash);
-    event MiniAppVerified(uint256 indexed listingId);
     event MiniAppSold(uint256 indexed listingId, address buyer, uint256 amount);
     event MiniAppCancelled(uint256 indexed listingId);
 
-    /// @notice Backward-compatible wrapper — calls listDeal under the hood.
     function listMiniApp(uint256 price, bytes32 metadataHash) external returns (uint256) {
         uint256 dealId = listDeal(price, metadataHash);
         miniAppCount++;
@@ -648,21 +727,18 @@ contract VaultEscrow is IERC721Receiver {
         updateDeal(dealId, newPrice, newMetadataHash);
     }
 
-    function verifyMiniApp(uint256 miniAppId) external onlyAdmin {
-        uint256 dealId = _miniAppToDeal[miniAppId];
-        require(dealId > 0, "Not found");
-        verifyDeal(dealId);
-        emit MiniAppVerified(miniAppId);
-    }
-
-    /// @notice Buyer purchases a verified mini app — routes ETH directly to seller.
-    function buyMiniApp(uint256 miniAppId) external payable {
+    /// @notice Buyer purchases directly at full price (no offer needed). USDC transferred in.
+    function buyMiniApp(uint256 miniAppId, uint256 amount)
+        external nonReentrant whenNotPaused
+    {
         uint256 dealId = _miniAppToDeal[miniAppId];
         require(dealId > 0, "Not found");
         Deal storage d = deals[dealId];
-        require(d.stage == DealStage.VERIFIED, "Not verified");
+        require(d.stage == DealStage.LISTED, "Not available");
         require(msg.sender != d.seller, "Seller cannot buy own listing");
-        require(msg.value == d.price, "Incorrect payment");
+        require(amount == d.price, "Amount must equal listing price");
+
+        if (!usdc.transferFrom(msg.sender, address(this), amount)) revert TransferFailed();
 
         d.buyer = msg.sender;
         d.stage = DealStage.CONFIRMED;
@@ -670,17 +746,15 @@ contract VaultEscrow is IERC721Receiver {
         uint256 fee = (d.price * platformFeeBps) / 10000;
         uint256 net = d.price - fee;
 
-        (bool sent,) = d.seller.call{value: net}("");
-        if (!sent) revert TransferFailed();
+        if (!usdc.transfer(d.seller, net)) revert TransferFailed();
 
         if (fee > 0) {
-            (bool feeSent,) = admin.call{value: fee}("");
-            if (!feeSent) revert TransferFailed();
+            if (!usdc.transfer(admin, fee)) revert TransferFailed();
         }
 
-        emit DealFunded(dealId, msg.sender, msg.value);
+        emit DealFunded(dealId, msg.sender, amount);
         emit DealConfirmed(dealId, net);
-        emit MiniAppSold(miniAppId, msg.sender, msg.value);
+        emit MiniAppSold(miniAppId, msg.sender, amount);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -726,6 +800,14 @@ contract VaultEscrow is IERC721Receiver {
         return _offerLenders[listingId];
     }
 
+    function getDealOfferCount(uint256 dealId) external view returns (uint256) {
+        return _dealOfferBuyers[dealId].length;
+    }
+
+    function getDealOfferBuyers(uint256 dealId) external view returns (address[] memory) {
+        return _dealOfferBuyers[dealId];
+    }
+
     function getRepaymentDue(uint256 listingId) external view returns (uint256 totalDue, uint256 paid, uint256 remaining) {
         Listing storage l = listings[listingId];
         uint256 interest = (l.acceptedAmount * l.acceptedApr * l.acceptedTerm) / 3650000;
@@ -738,6 +820,4 @@ contract VaultEscrow is IERC721Receiver {
         Listing storage l = listings[listingId];
         return l.fundedAt + (l.acceptedTerm * 1 days);
     }
-
-    receive() external payable {}
 }

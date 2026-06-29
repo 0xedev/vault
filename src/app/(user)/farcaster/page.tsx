@@ -9,8 +9,8 @@ import Icon from "@/components/icons";
 import type { FarcasterAccount } from "@/lib/data";
 import { fmtCompact } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
-import { getEscrowAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError } from "@/lib/contract";
-import { parseEther, type Address } from "viem";
+import { getEscrowAddress, getPublicClient, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
+import { parseUnits, type Address } from "viem";
 
 const FC_DELIVERABLE_OPTIONS = [
   { key: "fid", label: "FID transfer (on-chain)" },
@@ -20,7 +20,6 @@ const FC_DELIVERABLE_OPTIONS = [
   { key: "keys", label: "Signer key rotation" },
   { key: "storage", label: "Storage units transfer" },
   { key: "casts", label: "Cast history export" },
-  { key: "verifications", label: "Verification removal" },
 ] as const;
 
 function ListFidModal({ onClose }: { onClose: () => void }) {
@@ -36,27 +35,6 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
-  const [verifying, setVerifying] = useState(false);
-  const [verified, setVerified] = useState(false);
-
-  const checkFarcasterVerification = async () => {
-    if (!fid || !address) return;
-    setVerifying(true);
-    try {
-      const res = await fetch(`/api/verify?type=farcaster&fid=${fid}&address=${address}`);
-      const json = await res.json();
-      if (json.verified) {
-        setVerified(true);
-        setDone("On-chain ownership verified! Listing is visible to buyers.");
-      } else {
-        setError(`Not verified: ${json.reason || "Connected wallet does not own FID " + fid}`);
-      }
-    } catch {
-      setError("Verification check failed. Try again.");
-    } finally {
-      setVerifying(false);
-    }
-  };
 
   const toggleDeliverable = (key: string) => {
     setDeliverables((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -86,7 +64,7 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
       const metaHash = hashMetadata(metadata);
 
       // On-chain
-      const txHash = await writeListDeal(address as Address, parseEther(price || "0"), metaHash);
+      const txHash = await writeListDeal(address as Address, parseUnits(price || "0", 6), metaHash);
       const contractListingId = await waitForDealId(txHash);
 
       // API
@@ -112,7 +90,6 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
             casts_30d: 0,
             rev_30d: 0,
             power_badge: false,
-            verified: false,
             includes: selectedDeliverables,
             metadataHash: metaHash,
           },
@@ -120,8 +97,7 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to submit FID listing");
-      setVerified(false);
-      setDone("Listed on-chain. Verify on-chain ownership to make it visible.");
+      setDone("Listed on-chain. Buyers can fund escrow and confirm terms directly with the seller.");
     } catch (err) {
       setError(parseContractError(err));
     } finally {
@@ -157,7 +133,7 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
           </div>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="col" style={{ gap: 4 }}>
-              <span className="label">Asking price (Ξ)</span>
+              <span className="label">Asking price (USDC)</span>
               <input className="input mono" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="8.5" />
             </div>
             <div className="col" style={{ gap: 4 }}>
@@ -180,39 +156,21 @@ function ListFidModal({ onClose }: { onClose: () => void }) {
               ))}
             </div>
           </div>
-          <div className="warn-banner">
-            <Icon.warn />
-            <div style={{ fontSize: 11 }}>Stored on-chain. Connected wallet must own the FID to verify.</div>
-          </div>
-
-          {/* Verification */}
-          {done && !verified && (
+          {done && (
             <div className="card" style={{ padding: 14, background: "rgba(127,157,197,0.08)", border: "1px solid var(--line)" }}>
               <div className="pill funded" style={{ width: "fit-content", marginBottom: 10 }}><span className="pdot" />{done}</div>
-              <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>On-chain verification</div>
-                <span className="muted-2">We check the Farcaster IdRegistry to confirm your connected wallet ({address?.slice(0, 6)}…{address?.slice(-4)}) owns FID #{fid}.</span>
-              </div>
-              <button className="btn sm primary" onClick={checkFarcasterVerification} disabled={verifying}>
-                {verifying ? "Checking on-chain…" : "Verify ownership"}
-              </button>
-            </div>
-          )}
-          {verified && (
-            <div className="card" style={{ padding: 14, background: "rgba(127,157,197,0.12)", border: "1px solid var(--accent)" }}>
-              <div className="pill funded" style={{ width: "fit-content" }}><span className="pdot" />{done}</div>
             </div>
           )}
           {error && <div className="warn-banner" style={{ color: "var(--risk)" }}>{error}</div>}
         </div>
         <div className="modal-f">
-          <button className="btn" style={{ flex: 1 }} onClick={() => { onClose(); setDone(""); setVerified(false); }}>Close</button>
+          <button className="btn" style={{ flex: 1 }} onClick={() => { onClose(); setDone(""); }}>Close</button>
           {!done ? (
             <button className="btn primary lg" style={{ flex: 1 }} onClick={submitListing} disabled={submitting || !fid || !handle || !price}>
-              {submitting ? "Signing & listing…" : "Submit for review"}
+              {submitting ? "Signing & listing…" : "List FID"}
             </button>
           ) : (
-            <button className="btn primary lg" style={{ flex: 1 }} disabled={!verified} onClick={onClose}>{verified ? "Done" : "Awaiting verification"}</button>
+            <button className="btn primary lg" style={{ flex: 1 }} onClick={onClose}>Done</button>
           )}
         </div>
       </div>
@@ -244,7 +202,6 @@ export default function FarcasterPage() {
   const filt = useMemo(() => {
     let r = accounts;
     if (filter === "power") r = r.filter(a => a.power_badge);
-    if (filter === "verified") r = r.filter(a => a.verified);
     if (sort === "followers") r = [...r].sort((a, b) => b.followers - a.followers);
     if (sort === "rev")       r = [...r].sort((a, b) => b.rev_30d - a.rev_30d);
     if (sort === "price")     r = [...r].sort((a, b) => a.price - b.price);
@@ -254,7 +211,6 @@ export default function FarcasterPage() {
   const chips: [string, string, number][] = [
     ["all",      "All FIDs",     accounts.length],
     ["power",    "Power badge",  accounts.filter(a => a.power_badge).length],
-    ["verified", "Verified",     accounts.filter(a => a.verified).length],
   ];
 
   const fundEscrow = async (account: FarcasterAccount) => {
@@ -268,7 +224,10 @@ export default function FarcasterPage() {
       if (!account.sellerAddress) throw new Error("Listing seller is missing.");
       if (account.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
       if (!account.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-      const txHash = await writeFundDeal(address as Address, BigInt(account.contractListingId), parseEther(String(account.price)));
+      const amtWei = parseUnits(String(account.price), 6);
+      const approveHash = await writeApproveUsdc(address as Address, getEscrowAddress(), amtWei);
+      await getPublicClient().waitForTransactionReceipt({ hash: approveHash });
+      const txHash = await writeFundDeal(address as Address, BigInt(account.contractListingId), amtWei);
       const res = await fetch("/api/escrows", {
         method: "POST",
         credentials: "include",
@@ -278,7 +237,7 @@ export default function FarcasterPage() {
           buyerAddress: address,
           sellerAddress: account.sellerAddress,
           amount: account.price,
-          currency: "ETH",
+          currency: "USDC",
           chainId: account.chainId || 8453,
           contractAddress: account.contractAddress || getEscrowAddress(),
           contractListingId: account.contractListingId,
@@ -380,10 +339,9 @@ export default function FarcasterPage() {
                 <td>
                   <div className="row" style={{ gap: 4 }}>
                     {a.power_badge && <span className="pill" style={{ background: "color-mix(in oklab, var(--gold) 14%, transparent)", color: "var(--gold)", borderColor: "color-mix(in oklab, var(--gold) 30%, transparent)" }}><span className="pdot" style={{ background: "var(--gold)" }}/>Power</span>}
-                    {a.verified && <span className="pill funded"><span className="pdot"/>Verified</span>}
                   </div>
                 </td>
-                <td className="right mono" style={{ color: "var(--ink)" }}>{a.price} Ξ</td>
+                <td className="right mono" style={{ color: "var(--ink)" }}>{a.price} USDC</td>
                 <td className="right">
                   <button className="btn sm primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()}>
                     {buying === a.id ? "Funding..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Yours" : "Buy"}
@@ -396,7 +354,7 @@ export default function FarcasterPage() {
       </div>
 
       <div className="grid grid-3" style={{ marginTop: 18 }}>
-        <div className="metric"><span className="lab">Avg sale price</span><span className="val">{(accounts.reduce((a, b) => a + b.price, 0) / (accounts.length || 1)).toFixed(1)} Ξ</span><span className="delta">last 30 days</span></div>
+        <div className="metric"><span className="lab">Avg sale price</span><span className="val">{(accounts.reduce((a, b) => a + b.price, 0) / (accounts.length || 1)).toFixed(1)} USDC</span><span className="delta">listed inventory</span></div>
         <div className="metric"><span className="lab">Power badge</span><span className="val">{accounts.filter((account) => account.power_badge).length}</span><span className="delta">live listings</span></div>
         <div className="metric"><span className="lab">Median followers listed</span><span className="val">{fmtCompact(accounts[Math.floor(accounts.length / 2)]?.followers || 0)}</span><span className="delta">from current inventory</span></div>
       </div>

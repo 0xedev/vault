@@ -122,14 +122,14 @@ async function siweSignIn(
       params: [message.prepareMessage(), address],
     });
 
-    const verifyRes = await fetch("/api/auth/verify", {
+    const sessionRes = await fetch("/api/auth", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, signature }),
     });
-    if (!verifyRes.ok) return null;
-    return verifyRes.json();
+    if (!sessionRes.ok) return null;
+    return sessionRes.json();
   } catch {
     return null;
   }
@@ -145,7 +145,7 @@ async function farcasterSignIn(
       return null;
     }
 
-    const verifyRes = await fetch("/api/auth/farcaster", {
+    const sessionRes = await fetch("/api/auth/farcaster", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -153,17 +153,17 @@ async function farcasterSignIn(
         token: result.token,
       }),
     });
-    if (!verifyRes.ok) {
-      const json = await verifyRes.json().catch(() => ({}));
-      logClientError("wallet:farcasterSignIn:verify-failed", json.error || `status ${verifyRes.status}`, { status: verifyRes.status });
+    if (!sessionRes.ok) {
+      const json = await sessionRes.json().catch(() => ({}));
+      logClientError("wallet:farcasterSignIn:session-failed", json.error || `status ${sessionRes.status}`, { status: sessionRes.status });
       console.warn(
-        "Vault Farcaster sign-in verification failed:",
-        json.error || verifyRes.statusText,
+        "Vault Farcaster sign-in failed:",
+        json.error || sessionRes.statusText,
       );
       return null;
     }
 
-    return verifyRes.json();
+    return sessionRes.json();
   } catch (err) {
     logClientError("wallet:farcasterSignIn:exception", err);
     console.warn("Vault Farcaster sign-in failed:", err);

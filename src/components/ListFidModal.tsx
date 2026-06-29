@@ -10,7 +10,7 @@ import {
   hashMetadata,
   parseContractError,
 } from "@/lib/contract";
-import { parseEther, type Address } from "viem";
+import { parseUnits, type Address } from "viem";
 
 const FC_DELIVERABLE_OPTIONS = [
   { key: "fid", label: "FID transfer (on-chain)" },
@@ -20,7 +20,6 @@ const FC_DELIVERABLE_OPTIONS = [
   { key: "keys", label: "Signer key rotation" },
   { key: "storage", label: "Storage units transfer" },
   { key: "casts", label: "Cast history export" },
-  { key: "verifications", label: "Verification removal" },
 ] as const;
 
 export default function ListFidModal({ onClose }: { onClose: () => void }) {
@@ -36,34 +35,9 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
-  const [verifying, setVerifying] = useState(false);
-  const [verified, setVerified] = useState(false);
 
   const toggleDeliverable = (key: string) =>
     setDeliverables((p) => ({ ...p, [key]: !p[key] }));
-
-  const checkFarcasterVerification = async () => {
-    if (!fid || !address) return;
-    setVerifying(true);
-    try {
-      const res = await fetch(
-        `/api/verify?type=farcaster&fid=${fid}&address=${address}`,
-      );
-      const json = await res.json();
-      if (json.verified) {
-        setVerified(true);
-        setDone("On-chain ownership verified! Listing is visible to buyers.");
-      } else {
-        setError(
-          `Not verified: ${json.reason || "Connected wallet does not own FID " + fid}`,
-        );
-      }
-    } catch {
-      setError("Verification check failed. Try again.");
-    } finally {
-      setVerifying(false);
-    }
-  };
 
   const submitListing = async () => {
     if (!address) return;
@@ -88,7 +62,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
       const metaHash = hashMetadata(metadata);
       const txHash = await writeListDeal(
         address as Address,
-        parseEther(price || "0"),
+        parseUnits(price || "0", 6),
         metaHash,
       );
       const contractListingId = await waitForDealId(txHash);
@@ -116,7 +90,6 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
             casts_30d: 0,
             rev_30d: 0,
             power_badge: false,
-            verified: false,
             includes: selectedDeliverables,
             metadataHash: metaHash,
           },
@@ -125,8 +98,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
       const json = await res.json();
       if (!res.ok)
         throw new Error(json.error || "Unable to submit FID listing");
-      setVerified(false);
-      setDone("Listed on-chain. Verify on-chain ownership to make it visible.");
+      setDone("Listed on-chain. Buyers can fund escrow and confirm terms directly with the seller.");
     } catch (err) {
       setError(parseContractError(err));
     } finally {
@@ -199,7 +171,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
           </div>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="col" style={{ gap: 4 }}>
-              <span className="label">Asking price (Ξ)</span>
+              <span className="label">Asking price (USDC)</span>
               <input
                 className="input mono"
                 value={price}
@@ -273,36 +245,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {!done && (
-            <div
-              className="card"
-              style={{
-                padding: 14,
-                background: "rgba(127,157,197,0.08)",
-                border: "1px solid var(--line)",
-              }}
-            >
-              <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 10 }}>
-                <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  On-chain verification
-                </div>
-                <span className="muted-2">
-                  We check the Farcaster IdRegistry to confirm your connected
-                  wallet ({address?.slice(0, 6)}…{address?.slice(-4)}) owns FID
-                  #{fid}.
-                </span>
-              </div>
-              <button
-                className="btn sm primary"
-                onClick={checkFarcasterVerification}
-                disabled={verifying || !fid}
-              >
-                {verifying ? "Checking on-chain…" : "Verify ownership"}
-              </button>
-            </div>
-          )}
-
-          {verified && (
+          {done && (
             <div
               className="card"
               style={{
@@ -313,7 +256,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
             >
               <div className="pill funded" style={{ width: "fit-content" }}>
                 <span className="pdot" />
-                {done || "Ownership verified!"}
+                {done}
               </div>
             </div>
           )}
@@ -321,11 +264,10 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
             <button
               className="btn"
               style={{ flex: 1 }}
-              onClick={() => {
-                onClose();
-                setDone("");
-                setVerified(false);
-              }}
+                onClick={() => {
+                  onClose();
+                  setDone("");
+                }}
             >
               Close
             </button>
@@ -336,16 +278,15 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
                 onClick={submitListing}
                 disabled={submitting || !fid || !handle || !price}
               >
-                {submitting ? "Signing & listing…" : "Submit for review"}
+                {submitting ? "Signing & listing…" : "List FID"}
               </button>
             ) : (
               <button
                 className="btn primary lg"
                 style={{ flex: 1 }}
-                disabled={!verified}
                 onClick={onClose}
               >
-                {verified ? "Done" : "Awaiting verification"}
+                Done
               </button>
             )}
           </div>

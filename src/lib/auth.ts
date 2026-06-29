@@ -127,7 +127,7 @@ export async function createNonce() {
   return { nonce };
 }
 
-export async function verifySiweSession(req: NextRequest) {
+export async function createSiweSession(req: NextRequest) {
   const guarded = await mutationGuard(req);
   if (guarded) return guarded;
 
@@ -153,7 +153,7 @@ export async function verifySiweSession(req: NextRequest) {
   return createSession(db, address, data.chainId);
 }
 
-export async function verifyFarcasterQuickAuthSession(req: NextRequest) {
+export async function createFarcasterQuickAuthSession(req: NextRequest) {
   const guarded = await mutationGuard(req);
   if (guarded) return guarded;
 
@@ -197,7 +197,7 @@ export async function verifyFarcasterQuickAuthSession(req: NextRequest) {
 
     return createSession(db, farcasterAddress(fid));
   } catch (err) {
-    console.warn("[auth/farcaster] Quick Auth verification failed", {
+    console.warn("[auth/farcaster] Quick Auth sign-in failed", {
       domains,
       error: err,
     });

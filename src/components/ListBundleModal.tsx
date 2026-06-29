@@ -6,7 +6,7 @@ import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
 import { hashMetadata, writeListBundle, waitForDealId, parseContractError } from "@/lib/contract";
 import { bundleAssetLabel, type BundleAssetKind } from "@/lib/data";
-import { parseEther, type Address } from "viem";
+import { parseUnits, type Address } from "viem";
 
 const ASSET_KINDS: { kind: BundleAssetKind; icon: React.ReactNode }[] = [
   { kind: "nft_loan", icon: <Icon.loan /> },
@@ -98,7 +98,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
     try {
       const metadata = { name, description, totalPrice, assets, imageUrl, createdAt: new Date().toISOString() };
       const metadataHash = hashMetadata(metadata);
-      const priceWei = parseEther(String(totalPrice));
+      const priceWei = parseUnits(String(totalPrice), 6);
 
       const txHash = await writeListBundle(address as Address, priceWei, metadataHash as `0x${string}`);
       const contractListingId = await waitForDealId(txHash);
@@ -194,7 +194,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
             )}
           </div>
           <div>
-            <span className="label">Bundle price (Ξ)</span>
+            <span className="label">Bundle price (USDC)</span>
             <input
               className="input mono"
               type="number"
@@ -274,7 +274,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid var(--line)" }}>
             <span className="smallcaps" style={{ fontSize: 13 }}>Total bundle price</span>
             <span className="mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--accent)" }}>
-              {totalPrice.toFixed(4)} Ξ
+              {totalPrice.toFixed(4)} USDC
             </span>
           </div>
 
@@ -283,7 +283,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
           <div className="row" style={{ gap: 8 }}>
             <button className="btn" style={{ flex: 1 }} onClick={onClose} disabled={submitting}>Cancel</button>
             <button className="btn primary lg" style={{ flex: 1 }} onClick={handleSubmit} disabled={submitting || !canSubmit}>
-              {submitting ? "Signing…" : `List bundle for ${totalPrice.toFixed(4)} Ξ`}
+              {submitting ? "Signing…" : `List bundle for ${totalPrice.toFixed(4)} USDC`}
             </button>
           </div>
         </div>

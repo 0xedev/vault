@@ -3,19 +3,23 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 import "../mocks/MockERC721.sol";
+import "../mocks/MockERC20.sol";
 import "../../contracts/VaultEscrow.sol";
 
-/// @notice Unit tests for access control and pause/unpause
 contract AccessControlTest is Test {
     VaultEscrow public escrow;
+    MockERC20 public usdc;
 
     address admin = makeAddr("admin");
     address user = makeAddr("user");
     address other = makeAddr("other");
 
     function setUp() public {
+        usdc = new MockERC20();
         vm.prank(admin);
-        escrow = new VaultEscrow(150);
+        escrow = new VaultEscrow(address(usdc), 150);
+        usdc.mint(user, 1_000_000_000 ether);
+        usdc.mint(other, 1_000_000_000 ether);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -24,7 +28,7 @@ contract AccessControlTest is Test {
 
     function test_onlyAdmin_SetPlatformFee() public {
         vm.prank(admin);
-        escrow.setPlatformFee(300); // 3%
+        escrow.setPlatformFee(300);
         assertEq(escrow.platformFeeBps(), 300);
     }
 
@@ -46,7 +50,6 @@ contract AccessControlTest is Test {
 
         assertEq(escrow.admin(), user);
 
-        // Old admin can no longer act
         vm.prank(admin);
         vm.expectRevert(VaultEscrow.NotAdmin.selector);
         escrow.setPlatformFee(100);
@@ -103,38 +106,34 @@ contract AccessControlTest is Test {
         vm.prank(admin);
         escrow.pause();
 
-        // Setup: create a listing (not paused — listNFT is not pausable)
         MockERC721 nft = new MockERC721();
         uint256 tokenId = nft.mint(user);
         vm.prank(user);
         nft.approve(address(escrow), tokenId);
 
-        vm.deal(user, 100 ether);
         vm.prank(user);
         uint256 listingId = escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
 
-        // Submit offer should be blocked
-        vm.deal(other, 100 ether);
+        vm.prank(other);
+        usdc.approve(address(escrow), 10 ether);
         vm.prank(other);
         vm.expectRevert(VaultEscrow.ContractPaused.selector);
-        escrow.submitOffer{value: 10 ether}(listingId, 10 ether, 1420, 30);
+        escrow.submitOffer(listingId, 10 ether, 1420, 30);
     }
 
     function test_whenNotPaused_BlocksAcceptOffer() public {
-        // Setup listing + offer before pausing
         MockERC721 nft = new MockERC721();
         uint256 tokenId = nft.mint(user);
         vm.prank(user);
         nft.approve(address(escrow), tokenId);
 
-        vm.deal(user, 100 ether);
-        vm.deal(other, 100 ether);
-
         vm.prank(user);
         uint256 listingId = escrow.listNFT(address(nft), tokenId, 10 ether, 1420, 30);
 
         vm.prank(other);
-        escrow.submitOffer{value: 10 ether}(listingId, 10 ether, 1420, 30);
+        usdc.approve(address(escrow), 10 ether);
+        vm.prank(other);
+        escrow.submitOffer(listingId, 10 ether, 1420, 30);
 
         vm.prank(admin);
         escrow.pause();
@@ -145,19 +144,17 @@ contract AccessControlTest is Test {
     }
 
     function test_whenNotPaused_BlocksFundDeal() public {
-        // Setup deal
         vm.prank(user);
         uint256 dealId = escrow.listDeal(5 ether, bytes32(uint256(1)));
-        vm.prank(admin);
-        escrow.verifyDeal(dealId);
 
         vm.prank(admin);
         escrow.pause();
 
-        vm.deal(other, 100 ether);
+        vm.prank(other);
+        usdc.approve(address(escrow), 5 ether);
         vm.prank(other);
         vm.expectRevert(VaultEscrow.ContractPaused.selector);
-        escrow.fundDeal{value: 5 ether}(dealId);
+        escrow.fundDeal(dealId, 5 ether);
     }
 
     function test_pause_Events() public {

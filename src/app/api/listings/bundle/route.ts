@@ -103,15 +103,6 @@ export async function POST(req: NextRequest) {
     const assetId = `A-${id}-${i}`;
     await db`INSERT INTO listing_assets (id, listing_id, asset_type, asset_data, position)
       VALUES (${assetId}, ${id}, ${asset.kind}, ${JSON.stringify(asset)}, ${i})`;
-
-    const method =
-      asset.kind === "x_account" ? "x_tweet" :
-      asset.kind === "farcaster" ? "farcaster_registry" :
-      asset.kind === "clanker" ? "token_ownership" :
-      asset.kind === "mini_app" ? "dns" :
-      "nft_ownership";
-    await db`INSERT INTO verifications (id, marketplace, target, owner_address, method, status, checks)
-      VALUES (${`V-${Date.now()}-${i}`}, ${asset.kind}, ${asset.label}, ${sellerAddress}, ${method}, 'pending', ${JSON.stringify([])})`;
   }
 
   const bundle: BundleAsset[] = data.assets.map((a: z.infer<typeof bundleAssetSchema>, i: number) => ({

@@ -112,8 +112,6 @@ function tokenAddress(token: ClankerRawToken) {
 
 function tokenOwnerMatches(token: ClankerRawToken, ownerAddress: string) {
   const owner = normalizeAddress(ownerAddress);
-  const trust = jsonRecord(token.trustStatus);
-  const verified = Array.isArray(trust.verifiedAddresses) ? trust.verifiedAddresses : [];
 
   return [
     token.admin,
@@ -121,14 +119,11 @@ function tokenOwnerMatches(token: ClankerRawToken, ownerAddress: string) {
     token.deployer,
     token.requestor_address,
     token.owner,
-    ...(verified as unknown[]),
   ].some((value) => normalizeAddress(value) === owner);
 }
 
 function ownerSignalsFromPublicData(token: ClankerRawToken, ownerAddress: string): OwnershipSignal[] {
   const owner = normalizeAddress(ownerAddress);
-  const trust = jsonRecord(token.trustStatus);
-  const verified = Array.isArray(trust.verifiedAddresses) ? trust.verifiedAddresses : [];
   const signals: OwnershipSignal[] = [];
 
   if (normalizeAddress(token.msg_sender) === owner) {
@@ -136,9 +131,6 @@ function ownerSignalsFromPublicData(token: ClankerRawToken, ownerAddress: string
   }
   if (normalizeAddress(token.admin) === owner) {
     signals.push({ source: clankerApiKey() ? "clanker_api" : "public", detail: "Connected wallet matches token admin." });
-  }
-  if (verified.some((value) => normalizeAddress(value) === owner)) {
-    signals.push({ source: "public", detail: "Connected wallet is a verified creator address." });
   }
 
   return signals;
@@ -386,7 +378,7 @@ export async function verifyClankerTokenOwnership(ownerAddress: string, contract
     ...sdk.signals,
   ];
   if (!tokenOwnerMatches(token, owner) && signals.length === 0) {
-    return { verified: false, reason: "This wallet is not the token deployer, admin, reward recipient, or verified creator." };
+    return { verified: false, reason: "This wallet is not the token deployer, admin, reward recipient, or owner." };
   }
 
   const mapped = mapClankerApiToken(token);

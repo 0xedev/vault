@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyFarcasterQuickAuthSession } from "@/lib/auth";
+import { createFarcasterQuickAuthSession } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    return await verifyFarcasterQuickAuthSession(req);
+    return await createFarcasterQuickAuthSession(req);
   } catch (err) {
-    console.error("[api/auth/farcaster] verification failed", err);
-    return NextResponse.json({ error: "Verification failed" }, { status: 400 });
+    console.error("[api/auth/farcaster] sign-in failed", err);
+    return NextResponse.json({ error: "Sign-in failed" }, { status: 400 });
   }
 }

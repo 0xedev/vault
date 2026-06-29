@@ -5,7 +5,7 @@ Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X han
 - / — Landing (market overview, feed, categories)
 - /market — NFT Loans marketplace (browse + list NFT-backed loans)
 - /miniapps — Mini Apps marketplace (browse + list apps/websites for sale)
-- /x — X Accounts marketplace (browse + list X handles with deliverables)
+- /x — X Accounts marketplace (browse + list X handles through escrow)
 - /farcaster — Farcaster marketplace (browse + list FID accounts)
 - /clanker — Clanker Tokens marketplace (browse + list token offerings)
 - /deals — Profile (active deals, deal room, encrypted chat)
@@ -17,7 +17,6 @@ Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X han
 - /admin/listings — Listing moderation
 - /admin/users — User management
 - /admin/admin-escrow — Escrow operations (release/refund/dispute)
-- /admin/verifications — KYC verification management
 - /admin/tickets — Support inbox
 - /admin/audit — Audit log viewer
 

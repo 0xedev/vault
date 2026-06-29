@@ -10,7 +10,6 @@ type AdminUser = {
   handle: string;
   joined: string;
   trades: number;
-  kyc: string;
   flags: number;
   locked: number;
   status: string;
@@ -56,13 +55,13 @@ export default function AdminUsersPage() {
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 12 }}>
         <div>
           <div className="eyebrow">User Management</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>KYC, freezes, bans · all wallet-keyed.</h1>
+          <h1 className="h2" style={{ marginTop: 8 }}>Wallet controls, freezes, bans.</h1>
         </div>
       </div>
 
       <div className="grid grid-4" style={{ marginBottom: 22 }}>
         <div className="metric"><span className="lab">Total accounts</span><span className="val">{users.length}</span></div>
-        <div className="metric"><span className="lab">KYC complete</span><span className="val">{users.filter(u => u.kyc !== "none").length}</span></div>
+        <div className="metric"><span className="lab">Active wallets</span><span className="val">{users.filter(u => u.status === "active").length}</span></div>
         <div className="metric"><span className="lab">Frozen</span><span className="val" style={{ color: "var(--warn)" }}>{users.filter(u => u.status === "frozen").length}</span></div>
         <div className="metric"><span className="lab">Banned</span><span className="val" style={{ color: "var(--risk)" }}>{users.filter(u => u.status === "banned").length}</span></div>
       </div>
@@ -78,19 +77,18 @@ export default function AdminUsersPage() {
           </div>
         </div>
         <table className="tbl">
-          <thead><tr><th>Wallet</th><th>Handle</th><th>Joined</th><th className="right">Trades</th><th>KYC</th><th>Flags</th><th className="right">In escrow</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>Wallet</th><th>Handle</th><th>Joined</th><th className="right">Trades</th><th>Flags</th><th className="right">In escrow</th><th>Status</th><th></th></tr></thead>
           <tbody>
             {error ? (
-              <tr><td colSpan={9} className="muted" style={{ textAlign: "center", padding: 24 }}>{error}</td></tr>
+              <tr><td colSpan={8} className="muted" style={{ textAlign: "center", padding: 24 }}>{error}</td></tr>
             ) : list.length === 0 ? (
-              <tr><td colSpan={9} className="muted" style={{ textAlign: "center", padding: 24 }}>No users match this filter.</td></tr>
+              <tr><td colSpan={8} className="muted" style={{ textAlign: "center", padding: 24 }}>No users match this filter.</td></tr>
             ) : list.map(u => (
               <tr key={u.address}>
                 <td className="mono" style={{ color: "var(--ink)" }}>{u.addr}</td>
                 <td>{u.handle || <span className="muted-2">-</span>}</td>
                 <td className="muted">{new Date(u.joined).toLocaleDateString()}</td>
                 <td className="right mono">{u.trades.toLocaleString()}</td>
-                <td><span className="pill">{u.kyc}</span></td>
                 <td>{u.flags > 0 ? <span style={{ color: u.flags >= 3 ? "var(--risk)" : "var(--warn)", fontFamily: "var(--mono)", fontSize: 12 }}>{u.flags}</span> : <span className="muted-2">-</span>}</td>
                 <td className="right mono">{u.locked > 0 ? `${u.locked.toFixed(3)} Ξ` : <span className="muted-2">-</span>}</td>
                 <td><UserStatus status={u.status} /></td>

@@ -3,11 +3,13 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Test.sol";
 import "../mocks/MockERC721.sol";
+import "../mocks/MockERC20.sol";
 import "../../contracts/VaultEscrow.sol";
 
 contract NFTLoanTest is Test {
     VaultEscrow public escrow;
     MockERC721 public nft;
+    MockERC20 public usdc;
 
     address admin = makeAddr("admin");
     address borrower = makeAddr("borrower");
@@ -17,12 +19,13 @@ contract NFTLoanTest is Test {
     uint256 constant FEE = 150;
 
     function setUp() public {
+        usdc = new MockERC20();
         vm.prank(admin);
-        escrow = new VaultEscrow(FEE);
+        escrow = new VaultEscrow(address(usdc), FEE);
         nft = new MockERC721();
-        vm.deal(lender, 100 ether);
-        vm.deal(lender2, 100 ether);
-        vm.deal(borrower, 100 ether);
+        usdc.mint(lender, 1_000_000_000 ether);
+        usdc.mint(lender2, 1_000_000_000 ether);
+        usdc.mint(borrower, 1_000_000_000 ether);
     }
 
     function _listNFT(uint256 amount, uint256 apr, uint256 term) internal returns (uint256) {
@@ -35,7 +38,9 @@ contract NFTLoanTest is Test {
 
     function _submitOffer(uint256 id, address from, uint256 amount, uint256 apr, uint256 term) internal {
         vm.prank(from);
-        escrow.submitOffer{value: amount}(id, amount, apr, term);
+        usdc.approve(address(escrow), amount);
+        vm.prank(from);
+        escrow.submitOffer(id, amount, apr, term);
     }
 
     function _activateLoan(uint256 amount, uint256 apr, uint256 term) internal returns (uint256) {
@@ -118,7 +123,9 @@ contract NFTLoanTest is Test {
         uint256 interest = uint256(10 ether * 1420 * 30) / 3650000;
         uint256 totalDue = 10 ether + interest;
         vm.prank(borrower);
-        escrow.repay{value: totalDue}(listingId);
+        usdc.approve(address(escrow), totalDue);
+        vm.prank(borrower);
+        escrow.repay(listingId, totalDue);
         assertEq(nft.ownerOf(0), borrower);
     }
 
@@ -128,7 +135,9 @@ contract NFTLoanTest is Test {
         uint256 totalDue = 10 ether + interest;
         uint256 half = totalDue / 2;
         vm.prank(borrower);
-        escrow.repayPartial{value: half}(listingId);
+        usdc.approve(address(escrow), half);
+        vm.prank(borrower);
+        escrow.repayPartial(listingId, half);
         (, uint256 paid, uint256 remaining) = escrow.getRepaymentDue(listingId);
         assertEq(paid, half);
         assertEq(remaining, totalDue - half);
@@ -145,7 +154,7 @@ contract NFTLoanTest is Test {
 
     function test_claimCollateral_Revert_BeforeGrace() public {
         uint256 listingId = _activateLoan(10 ether, 1420, 30);
-        vm.warp(block.timestamp + 30 days + 23 hours); // within grace period
+        vm.warp(block.timestamp + 30 days + 23 hours);
         vm.prank(lender);
         vm.expectRevert(VaultEscrow.GracePeriodNotPassed.selector);
         escrow.claimCollateral(listingId);

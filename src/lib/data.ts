@@ -40,7 +40,6 @@ export interface BundleListing {
   assets: BundleAsset[];
   totalPrice: number;
   currency: string;
-  verified: boolean;
   sellerAddress: string;
   chainId?: number;
   contractAddress?: string;
@@ -102,7 +101,6 @@ export interface DigitalDeal {
   price: number;
   mrr: number;
   chain: string;
-  verified: boolean;
   includes: string[];
   sellerAddress?: string;
   chainId?: number;
@@ -132,7 +130,6 @@ export interface XAccount {
   price: number;
   age: string;
   engagement: number;
-  verified: boolean;
   posts_30d: number;
   growth: string;
   imageUrl?: string;
@@ -154,7 +151,6 @@ export interface FarcasterAccount {
   price: number;
   casts_30d: number;
   power_badge: boolean;
-  verified: boolean;
   rev_30d: number;
   imageUrl?: string;
   sellerAddress?: string;
@@ -174,7 +170,6 @@ export interface MiniApp {
   mrr: number;
   price: number;
   stack: string[];
-  verified: boolean;
   source: boolean;
   age: string;
   imageUrl?: string;

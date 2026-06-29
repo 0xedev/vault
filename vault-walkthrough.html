@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault — NFT Lend/Borrow & Marketplace Walkthrough</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #1a1a1a;
+    --surface2: #222;
+    --border: #2a2a2a;
+    --text: #e0e0e0;
+    --text2: #a0a0a0;
+    --accent: #6366f1;
+    --accent2: #22c55e;
+    --red: #ff6b6b;
+    --amber: #f59e0b;
+    --blue: #3b82f6;
+    --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --serif: 'Instrument Serif', 'Georgia', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  h1 { font-family: var(--serif); font-size: 2.4rem; font-weight: 400; margin-bottom: 4px; color: #fff; }
+  h2 { font-family: var(--serif); font-size: 1.7rem; font-weight: 400; margin: 40px 0 16px; color: #fff; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  h3 { font-size: 1.1rem; margin: 24px 0 10px; color: var(--text); }
+  h4 { font-size: 0.95rem; margin: 16px 0 6px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.06em; }
+  p { margin: 6px 0; color: var(--text2); font-size: 0.91rem; }
+
+  .subtitle { color: var(--text2); font-size: 0.95rem; margin-bottom: 28px; }
+
+  /* ── Tables ──────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; margin: 16px 0 28px; border: 1px solid var(--border); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; min-width: 800px; }
+  th { background: var(--surface2); text-align: left; padding: 11px 14px; font-weight: 600; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text2); border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(99,102,241,0.04); }
+
+  .col-mono { font-family: var(--mono); font-size: 0.82rem; }
+  .col-type { font-family: var(--mono); font-size: 0.78rem; width: 80px; }
+
+  /* ── Badges ──────────────────────────────────────────── */
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; letter-spacing: 0.03em; }
+  .badge-accent { background: rgba(99,102,241,0.18); color: #a5b4fc; }
+  .badge-green { background: rgba(34,197,94,0.18); color: #4ade80; }
+  .badge-red { background: rgba(255,107,107,0.18); color: #fca5a5; }
+  .badge-amber { background: rgba(245,158,11,0.18); color: #fcd34d; }
+  .badge-blue { background: rgba(59,130,246,0.18); color: #93c5fd; }
+
+  /* ── Flow diagrams ───────────────────────────────────── */
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0 20px; font-size: 0.84rem; }
+  .flow-step { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-family: var(--mono); font-size: 0.8rem; white-space: nowrap; }
+  .flow-step.active { border-color: var(--accent); background: rgba(99,102,241,0.12); }
+  .flow-arrow { color: var(--text2); font-size: 1.1rem; margin: 0 2px; }
+
+  /* ── Cards ───────────────────────────────────────────── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin: 14px 0; }
+  .card h3 { margin-top: 0; font-size: 1rem; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin: 16px 0; }
+
+  /* ── Misc ────────────────────────────────────────────── */
+  code { font-family: var(--mono); font-size: 0.82rem; background: var(--surface2); padding: 1px 6px; border-radius: 4px; }
+  .fn-sig { font-family: var(--mono); font-size: 0.82rem; color: #c4b5fd; background: rgba(99,102,241,0.08); padding: 3px 8px; border-radius: 4px; display: inline-block; margin: 2px 0; }
+  .fn-payable { color: #86efac; }
+  .fn-view { color: #93c5fd; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  .note { background: rgba(245,158,11,0.08); border-left: 3px solid var(--amber); padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 12px 0; font-size: 0.85rem; color: #fcd34d; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 16px 0; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<h1>Vault — Walkthrough</h1>
+<p class="subtitle">
+  NFT-collateralised lending & multi-asset marketplace on Base L2.
+  Single monolithic contract <code>VaultEscrow.sol</code> (743 lines, Solidity ^0.8.28) + Neon Postgres + Next.js 16 App Router + viem + Pusher real-time chat.
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>1. NFT Lend / Borrow Flow</h2>
+
+<div class="two-col">
+  <div class="card">
+    <h3><span class="badge badge-blue">UI</span> &nbsp;Borrower Lists NFT</h3>
+    <p>Route: <code>/market</code> → "List your NFT" → <code>ListNFTModal</code></p>
+    <p><strong>Step 0 — Scan wallet:</strong> Alchemy API scans Base NFTs owned by connected wallet. User selects one from detected collection list (Meridian Genesis, Aperture, BAYC, Azuki, etc.).</p>
+    <p><strong>Step 1 — Set terms:</strong> Loan amount (ETH), APR (%), term (days). Implied LTV shown as bar.</p>
+    <p><strong>Step 2 — Sign & submit:</strong> Signs a message proving intent. Then two on-chain txs fire:</p>
+    <p>① <code>ERC721.approve(escrowContract, tokenId)</code></p>
+    <p>② <code>escrow.listNFT(nftContract, tokenId, amount, apr, term)</code></p>
+    <p>NFT transferred into escrow. Listing ID extracted from <code>Listed</code> event. POST <code>/api/listings</code> to persist in DB.</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge badge-accent">Contract</span> &nbsp;listNFT</h3>
+    <p class="fn-sig">listNFT(address nftContract, uint256 tokenId, uint256 amount, uint256 apr, uint256 term) → uint256 listingId</p>
+    <p><strong>Validates:</strong> <code>amount &gt; 0</code>, <code>term &gt; 0</code>, sender owns the NFT.</p>
+    <p><strong>Effects:</strong> Increments <code>listingCount</code>, stores <code>Listing</code> struct (borrower, nftContract, nftTokenId, principal, apr, term, stage: LISTED).</p>
+    <p><strong>Transfer:</strong> <code>nft.safeTransferFrom(msg.sender, address(this), tokenId)</code> — NFT custody goes to escrow.</p>
+    <p>Emits <code>Listed(listingId, borrower, nftContract, tokenId, amount, apr, term)</code>.</p>
+  </div>
+</div>
+
+<div class="flow">
+  <div class="flow-step">LISTED</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step active">FUNDED<br>(ACTIVE)</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">REPAID</div>
+  <div class="flow-step">DEFAULTED</div>
+  <div class="flow-step">DISPUTED</div>
+  <div class="flow-step">CANCELLED</div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h3><span class="badge badge-blue">UI</span> &nbsp;Lender Submits Offer</h3>
+    <p>Route: <code>/market</code> → click <code>LoanCard</code> → <code>/detail?id={listingId}</code></p>
+    <p>Lender sees NFT details, borrower terms, existing offers. Two actions:</p>
+    <p><strong>Match:</strong> Accepts existing offer terms (from offer list).</p>
+    <p><strong>Counter:</strong> Opens <code>CounterOfferModal</code> — sets amount, APR, term, expiry. Preview shows total repayment = amount + interest.</p>
+    <p>On submit: <code>writeSubmitOffer()</code> sends ETH to contract (payable). POST <code>/api/offers</code> records in DB.</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge badge-accent">Contract</span> &nbsp;submitOffer</h3>
+    <p class="fn-sig fn-payable">submitOffer(uint256 listingId, uint256 amount, uint256 apr, uint256 term) payable nonReentrant whenNotPaused</p>
+    <p><strong>Validates:</strong> <code>msg.value == amount</code>, listing is at stage LISTED, lender hasn't already offered.</p>
+    <p><strong>Effects:</strong> Records deposit in <code>lenderDeposits[listingId][msg.sender]</code>, stores <code>Offer{apr, term}</code>, adds to <code>listingEscrowBalance</code>.</p>
+    <p>Emits <code>OfferSubmitted(listingId, lender, amount, apr, term)</code>.</p>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h3><span class="badge badge-blue">UI</span> &nbsp;Borrower Accepts Offer</h3>
+    <p>Borrower opens <code>/detail</code> for their listing, sees pending offers with Accept / Reject buttons.</p>
+    <p><strong>Accept:</strong> Calls <code>writeAcceptOffer()</code> with matching offer params. On chain: ETH released to borrower (minus platform fee), loan moves to ACTIVE. Off chain: PATCH <code>/api/offers</code> with status "accepted".</p>
+    <p>Live countdown timer starts. Borrower can export repayment calendar (<code>.ics</code>).</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge badge-accent">Contract</span> &nbsp;acceptOffer</h3>
+    <p class="fn-sig">acceptOffer(uint256 listingId, address lender, uint256 acceptedAmount, uint256 acceptedApr, uint256 acceptedTerm)</p>
+    <p><strong>Validates:</strong> lender deposit ≥ acceptedAmount, APR and term match the recorded offer (OfferMismatch otherwise).</p>
+    <p><strong>Effects:</strong> Excess ETH refunded to lender. Platform fee <code>(acceptedAmount × platformFeeBps / 10000)</code> sent to admin. Net ETH to borrower. <code>fundedAt = block.timestamp</code>. Stage → ACTIVE.</p>
+    <p>Emits <code>OfferAccepted(listingId, lender, acceptedAmount)</code>.</p>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h3><span class="badge badge-blue">UI</span> &nbsp;Borrower Repays</h3>
+    <p><strong>Full repay:</strong> Click "Repay full amount", sends <code>principal + interest</code> ETH. NFT returned from escrow to borrower.</p>
+    <p><strong>Partial repay:</strong> Click "Partial repayment", sends a fraction. Reduces outstanding balance. If fully paid, auto-closes.</p>
+    <p>Interest = <code>principal × aprBps × termDays / 3,650,000</code> (pro-rated).</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge badge-accent">Contract</span> &nbsp;repay / repayPartial</h3>
+    <p class="fn-sig fn-payable">repay(uint256 listingId) payable</p>
+    <p class="fn-sig fn-payable">repayPartial(uint256 listingId) payable</p>
+    <p><strong>repay:</strong> Must cover total due (principal + interest). Transfers remaining balance to lender, returns NFT to borrower. Stage → REPAID.</p>
+    <p><strong>repayPartial:</strong> Partial ETH sent to lender, <code>repaidSoFar</code> incremented. If fully repaid, auto-closes loan.</p>
+    <p>Emits <code>Repaid(listingId, amount)</code>.</p>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h3><span class="badge badge-blue">UI</span> &nbsp;Lender Claims Defaulted NFT</h3>
+    <p>After term + 24hr grace period, "Claim collateral" button activates on lender's <code>/detail</code> view. Click calls <code>writeClaimCollateral()</code>. NFT transferred to lender. Loan stage → DEFAULTED.</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge badge-accent">Contract</span> &nbsp;claimCollateral</h3>
+    <p class="fn-sig">claimCollateral(uint256 listingId)</p>
+    <p><strong>Validates:</strong> <code>block.timestamp ≥ fundedAt + term + GRACE_PERIOD</code> (24 hours).</p>
+    <p>Stage → DEFAULTED. <code>nft.safeTransferFrom(address(this), lender, nftTokenId)</code>.</p>
+    <p>Emits <code>DefaultClaimed(listingId, lender, nftContract, tokenId)</code>.</p>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h3><span class="badge badge-red">UI</span> &nbsp;Dispute & Admin Resolution</h3>
+    <p>Either party clicks "File dispute" on <code>/detail</code> → calls <code>writeDispute()</code>. Loan freezes.</p>
+    <p>Admin resolves at <code>/admin/disputes</code>: chooses whether NFT goes to lender or borrower, calls <code>writeResolve()</code>.</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge badge-accent">Contract</span> &nbsp;dispute / resolve</h3>
+    <p class="fn-sig">dispute(uint256 listingId) → Stage DISPUTED</p>
+    <p class="fn-sig">resolve(uint256 listingId, bool nftToLender) onlyAdmin</p>
+    <p><code>resolve</code>: If <code>nftToLender=true</code>, NFT → lender. Otherwise NFT → borrower. ESCROW balance to appropriate party minus fee.</p>
+    <p>Emits <code>Disputed(listingId)</code> / <code>Resolved(listingId, outcome, nftToLender)</code>.</p>
+  </div>
+</div>
+
+<h3>NFT Loan Lifecycle Summary</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr>
+    <th>Step</th><th>Stage</th><th>Actor</th><th>Contract Call</th><th>UI / Page</th><th>ETH Movement</th>
+  </tr></thead>
+  <tbody>
+    <tr>
+      <td>1</td><td><span class="badge badge-blue">LISTED</span></td>
+      <td>Borrower</td>
+      <td><span class="fn-sig">listNFT()</span></td>
+      <td><code>/market</code> → ListNFTModal</td>
+      <td>None (NFT → escrow)</td>
+    </tr>
+    <tr>
+      <td>2</td><td><span class="badge badge-blue">LISTED</span></td>
+      <td>Lender</td>
+      <td><span class="fn-sig fn-payable">submitOffer{value:ETH}()</span></td>
+      <td><code>/detail</code> → CounterOfferModal</td>
+      <td>ETH → escrow</td>
+    </tr>
+    <tr>
+      <td>3</td><td><span class="badge badge-green">ACTIVE</span></td>
+      <td>Borrower</td>
+      <td><span class="fn-sig">acceptOffer()</span></td>
+      <td><code>/detail</code> → Accept button</td>
+      <td>ETH → borrower (minus fee)</td>
+    </tr>
+    <tr>
+      <td>4a</td><td><span class="badge badge-green">REPAID</span></td>
+      <td>Borrower</td>
+      <td><span class="fn-sig fn-payable">repay{value:due}()</span></td>
+      <td><code>/detail</code> → Repay full</td>
+      <td>ETH → lender, NFT → borrower</td>
+    </tr>
+    <tr>
+      <td>4b</td><td><span class="badge badge-green">REPAID</span></td>
+      <td>Borrower</td>
+      <td><span class="fn-sig fn-payable">repayPartial{value:partial}()</span></td>
+      <td><code>/detail</code> → Partial repayment</td>
+      <td>Partial ETH → lender</td>
+    </tr>
+    <tr>
+      <td>5</td><td><span class="badge badge-red">DEFAULTED</span></td>
+      <td>Lender</td>
+      <td><span class="fn-sig">claimCollateral()</span></td>
+      <td><code>/detail</code> → Claim collateral</td>
+      <td>NFT → lender</td>
+    </tr>
+    <tr>
+      <td>6a</td><td><span class="badge badge-amber">DISPUTED</span></td>
+      <td>Either</td>
+      <td><span class="fn-sig">dispute()</span></td>
+      <td><code>/detail</code> → File dispute</td>
+      <td>ETH + NFT frozen</td>
+    </tr>
+    <tr>
+      <td>6b</td><td><span class="badge badge-amber">RESOLVED</span></td>
+      <td>Admin</td>
+      <td><span class="fn-sig">resolve(nftToLender)</span></td>
+      <td><code>/admin/disputes</code></td>
+      <td>NFT + ETH to winner</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note"><strong>Grace period:</strong> 24 hours after loan term before lender can claim collateral. <strong>Platform fee:</strong> configurable up to 500 bps (5%), deducted on <code>acceptOffer()</code>.</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>2. Digital Asset Escrow — Deals Flow</h2>
+<p class="subtitle">Used by Mini Apps, X Accounts, Farcaster FIDs, Clanker Tokens, and Bundles. All share the same Deal system under the hood.</p>
+
+<div class="flow">
+  <div class="flow-step">LISTED</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">VERIFIED</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step active">FUNDED</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">DELIVERED</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">CONFIRMED</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">DISPUTED</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">REFUNDED</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">CANCELLED</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">RESOLVED</div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h3><span class="badge badge-blue">UI</span> &nbsp;Seller Lists Asset</h3>
+    <p>Each market has a dedicated page + listing modal:</p>
+    <p>→ <strong>Mini Apps:</strong> <code>/miniapps</code> → <code>ListMiniAppModal</code> — name, URL, repo, DAU, MRR, price, deliverable checkboxes (source code, domain, API keys, docs, etc.), DNS TXT verification.</p>
+    <p>→ <strong>X Accounts:</strong> <code>/x</code> → <code>ListXModal</code> — handle, followers, price, tweet-pin verification, deliverable options (OAuth, 2FA, email, phone, apps, data archive).</p>
+    <p>→ <strong>Farcaster:</strong> <code>/farcaster</code> → <code>ListFidModal</code> — FID number, channel, followers, on-chain FID custody proof, deliverable options (FID transfer, wallet, recovery, signer keys, storage).</p>
+    <p>→ <strong>Clanker:</strong> <code>/clanker</code> — token address, chain, sale rights selection (fee rights, admin rights, vaulted tokens, remaining supply).</p>
+    <p>→ <strong>Bundles:</strong> <code>/market</code> → <code>ListBundleModal</code> — name, description, cover image, multi-asset form (up to 10 assets of mixed types).</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge badge-accent">Contract</span> &nbsp;listDeal / listMiniApp</h3>
+    <p class="fn-sig">listDeal(uint256 price, bytes32 metadataHash) → uint256 dealId</p>
+    <p class="fn-sig">listMiniApp(uint256 price, bytes32 metadataHash) → uint256 miniAppId</p>
+    <p><strong>listDeal:</strong> Creates <code>Deal{seller, price, metadataHash, stage: LISTED}</code>. The <code>metadataHash</code> is <code>keccak256(sortedJSON)</code> of off-chain metadata (name, description, deliverables).</p>
+    <p><strong>listMiniApp:</strong> Wrapper that calls <code>listDeal()</code> internally and maps <code>miniAppId → dealId</code> for backward compatibility.</p>
+    <p>Emits <code>DealListed</code> / <code>MiniAppListed</code>.</p>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h3><span class="badge badge-blue">UI</span> &nbsp;Admin Verifies & Buyer Funds</h3>
+    <p><strong>Verify:</strong> Admin at <code>/admin/listings</code> reviews and verifies seller ownership. May be auto-approved for some markets.</p>
+    <p><strong>Fund:</strong> Buyer clicks "Buy" on listing page, wallet confirms transaction. ETH locked in escrow. POST <code>/api/escrows</code> creates escrow record. Deal room created at <code>/deals?id={dealId}</code>.</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge badge-accent">Contract</span> &nbsp;verifyDeal / fundDeal</h3>
+    <p class="fn-sig">verifyDeal(uint256 dealId) onlyAdmin</p>
+    <p class="fn-sig fn-payable">fundDeal(uint256 dealId) payable nonReentrant</p>
+    <p><strong>verifyDeal:</strong> Stage LISTED → VERIFIED.</p>
+    <p><strong>fundDeal:</strong> <code>msg.value == price</code>, buyer ≠ seller. Sets buyer, stage → FUNDED, <code>deadline = now + 7 days</code>. ETH locked in <code>dealEscrowBalance</code>.</p>
+    <p>Emits <code>DealFunded(dealId, buyer, amount)</code>.</p>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h3><span class="badge badge-blue">UI</span> &nbsp;Seller Delivers & Buyer Confirms</h3>
+    <p><strong>Deliver:</strong> In deal room (<code>/deals</code>), seller attaches delivery proof (URL + content hash) via POST <code>/api/escrows/{id}/proofs</code>. Then calls <code>writeMarkDelivered()</code>. 3-day buyer confirmation window starts.</p>
+    <p><strong>Confirm:</strong> Buyer verifies asset, clicks "Confirm receipt" → <code>writeConfirmDelivery()</code>. Off-chain validation also runs: for Clanker, verifies token rights transferred. For Farcaster, verifies FID custody on Optimism. Funds released to seller (minus 2.5% platform fee).</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge badge-accent">Contract</span> &nbsp;markDelivered / confirmDelivery</h3>
+    <p class="fn-sig">markDelivered(uint256 dealId) onlySeller nonReentrant</p>
+    <p class="fn-sig">confirmDelivery(uint256 dealId) onlyBuyer nonReentrant</p>
+    <p><strong>markDelivered:</strong> Stage FUNDED → DELIVERED. <code>deadline = now + 3 days</code>.</p>
+    <p><strong>confirmDelivery:</strong> Deducts platform fee, sends net to seller, remainder (if any) to buyer. Stage DELIVERED → CONFIRMED.</p>
+    <p>Emits <code>DealDelivered</code> / <code>DealConfirmed(dealId, sellerAmount)</code>.</p>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h3><span class="badge badge-red">UI</span> &nbsp;Refund / Dispute</h3>
+    <p><strong>Refund:</strong> If seller misses 7-day delivery deadline, buyer's "Claim refund" button activates → <code>writeRefundDeal()</code>. ETH returned to buyer.</p>
+    <p><strong>Dispute:</strong> Either party files dispute → <code>writeDisputeDeal()</code>. Admin resolves at <code>/admin/disputes</code> with split amounts.</p>
+  </div>
+  <div class="card">
+    <h3><span class="badge badge-accent">Contract</span> &nbsp;refundDeal / disputeDeal / resolveDeal</h3>
+    <p class="fn-sig">refundDeal(uint256 dealId) onlyBuyer</p>
+    <p class="fn-sig">disputeDeal(uint256 dealId) onlyDealParty</p>
+    <p class="fn-sig">resolveDeal(uint256 dealId, uint256 buyerAmount, uint256 sellerAmount) onlyAdmin</p>
+    <p><strong>refundDeal:</strong> Validates <code>block.timestamp > deadline</code>. Returns ETH to buyer.</p>
+    <p><strong>resolveDeal:</strong> Admin splits escrow balance between buyer and seller. Platform fee deducted from seller's portion. Dust sent to admin.</p>
+  </div>
+</div>
+
+<h3>Deal Escrow Lifecycle Summary</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr>
+    <th>Step</th><th>Stage</th><th>Actor</th><th>Contract Call</th><th>UI / Page</th><th>ETH Movement</th>
+  </tr></thead>
+  <tbody>
+    <tr><td>1</td><td><span class="badge badge-blue">LISTED</span></td><td>Seller</td><td><span class="fn-sig">listDeal()</span></td><td>Market-specific page + listing modal</td><td>None</td></tr>
+    <tr><td>2</td><td><span class="badge badge-blue">VERIFIED</span></td><td>Admin</td><td><span class="fn-sig">verifyDeal()</span></td><td><code>/admin/listings</code></td><td>None</td></tr>
+    <tr><td>3</td><td><span class="badge badge-green">FUNDED</span></td><td>Buyer</td><td><span class="fn-sig fn-payable">fundDeal{value:price}()</span></td><td>Listing page → Buy button</td><td>ETH → escrow</td></tr>
+    <tr><td>4</td><td><span class="badge badge-green">DELIVERED</span></td><td>Seller</td><td><span class="fn-sig">markDelivered()</span></td><td><code>/deals</code> → Deal room → Add proof + Mark delivered</td><td>None (3-day window starts)</td></tr>
+    <tr><td>5</td><td><span class="badge badge-green">CONFIRMED</span></td><td>Buyer</td><td><span class="fn-sig">confirmDelivery()</span></td><td><code>/deals</code> → Confirm receipt</td><td>ETH → seller (minus fee)</td></tr>
+    <tr><td>6a</td><td><span class="badge badge-red">REFUNDED</span></td><td>Buyer</td><td><span class="fn-sig">refundDeal()</span></td><td><code>/deals</code> → Claim refund</td><td>ETH → buyer</td></tr>
+    <tr><td>6b</td><td><span class="badge badge-amber">DISPUTED</span></td><td>Either</td><td><span class="fn-sig">disputeDeal()</span></td><td><code>/deals</code> → File dispute</td><td>ETH frozen</td></tr>
+    <tr><td>6c</td><td><span class="badge badge-amber">RESOLVED</span></td><td>Admin</td><td><span class="fn-sig">resolveDeal(buyerAmt, sellerAmt)</span></td><td><code>/admin/disputes</code></td><td>ETH split per ruling</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="note"><strong>Key timers:</strong> 7 days for seller to deliver after funding. 3 days for buyer to confirm after delivery. Seller can extend deadline up to 14 days total via <code>extendDeadline()</code>. <strong>platformFeeBps</strong> deducted on <code>confirmDelivery</code> and <code>resolveDeal</code>.</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>3. Master Comparison Table — All Markets</h2>
+
+<div class="table-wrap">
+<table>
+  <thead><tr>
+    <th>Feature</th>
+    <th>NFT Loans</th>
+    <th>Mini Apps</th>
+    <th>X Accounts</th>
+    <th>Farcaster</th>
+    <th>Clanker Tokens</th>
+    <th>Bundles</th>
+  </tr></thead>
+  <tbody>
+
+    <!-- ── ROUTING ── -->
+    <tr>
+      <td><strong>Page Route</strong></td>
+      <td><code>/market</code> (nft tab)&nbsp;<br><code>/detail</code></td>
+      <td><code>/miniapps</code></td>
+      <td><code>/x</code></td>
+      <td><code>/farcaster</code></td>
+      <td><code>/clanker</code></td>
+      <td><code>/market</code> (bundles tab)</td>
+    </tr>
+    <tr>
+      <td><strong>DB <code>marketplace</code> key</strong></td>
+      <td><code>"nft_loan"</code></td>
+      <td><code>"mini_app"</code></td>
+      <td><code>"x_account"</code></td>
+      <td><code>"farcaster"</code></td>
+      <td><code>"clanker"</code></td>
+      <td><code>"bundle"</code></td>
+    </tr>
+    <tr>
+      <td><strong>Deal Room</strong></td>
+      <td class="col-mono">No — uses /detail page</td>
+      <td class="col-mono">Yes — <code>/deals</code></td>
+      <td class="col-mono">Yes — <code>/deals</code></td>
+      <td class="col-mono">Yes — <code>/deals</code></td>
+      <td class="col-mono">Yes — <code>/deals</code></td>
+      <td class="col-mono">Yes — <code>/deals</code></td>
+    </tr>
+
+    <!-- ── CONTRACT SYSTEM ── -->
+    <tr>
+      <td><strong>Contract System</strong></td>
+      <td><span class="badge badge-accent">Loan System</span></td>
+      <td><span class="badge badge-blue">Deal System</span>&nbsp;+ MiniApp wrappers</td>
+      <td><span class="badge badge-blue">Deal System</span></td>
+      <td><span class="badge badge-blue">Deal System</span></td>
+      <td><span class="badge badge-blue">Deal System</span>&nbsp;+ Clanker SDK</td>
+      <td><span class="badge badge-blue">Deal System</span></td>
+    </tr>
+    <tr>
+      <td><strong>Stages (on-chain)</strong></td>
+      <td class="col-mono">LISTED → FUNDED&nbsp;(ACTIVE) → REPAID&nbsp;|&nbsp;DEFAULTED&nbsp;|&nbsp;CANCELLED&nbsp;|&nbsp;DISPUTED</td>
+      <td class="col-mono">LISTED → VERIFIED → FUNDED → DELIVERED → CONFIRMED&nbsp;|&nbsp;DISPUTED&nbsp;|&nbsp;REFUNDED&nbsp;|&nbsp;CANCELLED</td>
+      <td class="col-mono">LISTED → VERIFIED → FUNDED → DELIVERED → CONFIRMED&nbsp;|&nbsp;DISPUTED&nbsp;|&nbsp;REFUNDED&nbsp;|&nbsp;CANCELLED</td>
+      <td class="col-mono">LISTED → VERIFIED → FUNDED → DELIVERED → CONFIRMED&nbsp;|&nbsp;DISPUTED&nbsp;|&nbsp;REFUNDED&nbsp;|&nbsp;CANCELLED</td>
+      <td class="col-mono">LISTED → VERIFIED → FUNDED → DELIVERED → CONFIRMED&nbsp;|&nbsp;DISPUTED&nbsp;|&nbsp;REFUNDED&nbsp;|&nbsp;CANCELLED</td>
+      <td class="col-mono">LISTED → VERIFIED → FUNDED → DELIVERED → CONFIRMED&nbsp;|&nbsp;DISPUTED&nbsp;|&nbsp;REFUNDED&nbsp;|&nbsp;CANCELLED</td>
+    </tr>
+    <tr>
+      <td><strong>On-Chain Collateral</strong></td>
+      <td><span class="badge badge-green">Yes</span> — NFT locked in escrow until repay/default</td>
+      <td><span class="badge badge-red">No</span> — metadata hash only</td>
+      <td><span class="badge badge-red">No</span> — metadata hash only</td>
+      <td><span class="badge badge-red">No</span> — metadata hash only</td>
+      <td><span class="badge badge-red">No</span> — metadata hash only</td>
+      <td><span class="badge badge-red">No</span> — metadata hash only</td>
+    </tr>
+
+    <!-- ── LISTING FORM ── -->
+    <tr>
+      <td><strong>Listing Modal</strong></td>
+      <td><code>ListNFTModal</code> <em>(inline in /market)</em></td>
+      <td><code>ListMiniAppModal</code></td>
+      <td><code>ListXModal</code></td>
+      <td><code>ListFidModal</code></td>
+      <td>Inline form in <code>/clanker</code></td>
+      <td><code>ListBundleModal</code></td>
+    </tr>
+    <tr>
+      <td><strong>Key Listing Fields</strong></td>
+      <td>NFT collection, tokenId, amount (ETH), APR (%), term (days)</td>
+      <td>Name, URL, repo, DAU, MRR, price, deliverables (checkboxes)</td>
+      <td>Handle, followers, price, deliverables (OAuth, 2FA, etc.)</td>
+      <td>FID, handle, channel, followers, deliverables (FID transfer, wallet, etc.)</td>
+      <td>Token address, chain, sale rights (fee rights, admin, vaulted, supply)</td>
+      <td>Name, description, cover image, price, multi-asset form (≤10 assets)</td>
+    </tr>
+
+    <!-- ── VERIFICATION ── -->
+    <tr>
+      <td><strong>Ownership Verification</strong></td>
+      <td>On-chain NFT ownership check via Alchemy API</td>
+      <td>DNS TXT record verification</td>
+      <td>Tweet-pin code verification</td>
+      <td>On-chain FID custody check <br>(Optimism registry <code>0x00...9f489b</code>)</td>
+      <td>Clanker API token ownership + on-chain <code>admin()</code>/<code>owner()</code> check</td>
+      <td>Composite — per-asset verification</td>
+    </tr>
+    <tr>
+      <td><strong>Admin Verification Required?</strong></td>
+      <td><span class="badge badge-red">No</span></td>
+      <td><span class="badge badge-green">Yes</span> — <code>verifyDeal()</code></td>
+      <td><span class="badge badge-green">Yes</span> — <code>verifyDeal()</code></td>
+      <td><span class="badge badge-green">Yes</span> — <code>verifyDeal()</code></td>
+      <td><span class="badge badge-green">Yes</span> — <code>verifyDeal()</code></td>
+      <td><span class="badge badge-green">Yes</span> — <code>verifyDeal()</code></td>
+    </tr>
+
+    <!-- ── KEY CONTRACT WRITES ── -->
+    <tr>
+      <td><strong>Core Write Functions</strong></td>
+      <td class="col-mono"><code>listNFT</code>, <code>submitOffer</code>, <code>acceptOffer</code>, <code>repay</code>, <code>repayPartial</code>, <code>claimCollateral</code></td>
+      <td class="col-mono"><code>listDeal</code>, <code>fundDeal</code>, <code>markDelivered</code>, <code>confirmDelivery</code>, <code>refundDeal</code>, <code>buyMiniApp</code> (direct)</td>
+      <td class="col-mono"><code>listDeal</code>, <code>fundDeal</code>, <code>markDelivered</code>, <code>confirmDelivery</code>, <code>refundDeal</code></td>
+      <td class="col-mono"><code>listDeal</code>, <code>fundDeal</code>, <code>markDelivered</code>, <code>confirmDelivery</code>, <code>refundDeal</code></td>
+      <td class="col-mono"><code>listDeal</code>, <code>fundDeal</code>, <code>markDelivered</code>, <code>confirmDelivery</code> + Clanker SDK writes</td>
+      <td class="col-mono"><code>listDeal</code> (alias <code>writeListBundle</code>), <code>fundDeal</code>, <code>markDelivered</code>, <code>confirmDelivery</code></td>
+    </tr>
+    <tr>
+      <td><strong>Payable Functions</strong></td>
+      <td class="col-mono fn-payable"><code>submitOffer</code>, <code>repay</code>, <code>repayPartial</code></td>
+      <td class="col-mono fn-payable"><code>fundDeal</code>, <code>buyMiniApp</code></td>
+      <td class="col-mono fn-payable"><code>fundDeal</code></td>
+      <td class="col-mono fn-payable"><code>fundDeal</code></td>
+      <td class="col-mono fn-payable"><code>fundDeal</code></td>
+      <td class="col-mono fn-payable"><code>fundDeal</code></td>
+    </tr>
+
+    <!-- ── BUYER / LENDER EXPERIENCE ── -->
+    <tr>
+      <td><strong>Buyer / Lender Role</strong></td>
+      <td>Lender — submits offers, earns interest, can claim NFT on default</td>
+      <td>Buyer — funds escrow, receives asset on delivery</td>
+      <td>Buyer — funds escrow, receives asset on delivery</td>
+      <td>Buyer — funds escrow, FID custody verified before release</td>
+      <td>Buyer — funds escrow, Clanker rights verified before release</td>
+      <td>Buyer — funds escrow, all sub-assets verified on release</td>
+    </tr>
+    <tr>
+      <td><strong>Seller / Borrower Role</strong></td>
+      <td>Borrower — receives ETH loan, repays with interest, risks NFT</td>
+      <td>Seller — delivers asset, receives ETH (minus fee)</td>
+      <td>Seller — delivers asset, receives ETH (minus fee)</td>
+      <td>Seller — transfers FID custody, receives ETH</td>
+      <td>Seller — transfers Clanker rights, receives ETH</td>
+      <td>Seller — delivers multiple assets, receives ETH</td>
+    </tr>
+
+    <!-- ── FUNDS FLOW ── -->
+    <tr>
+      <td><strong>Funds Flow Direction</strong></td>
+      <td>Lender ETH → escrow → Borrower (on accept) → back to Lender (on repay)</td>
+      <td>Buyer ETH → escrow → Seller (on confirm)</td>
+      <td>Buyer ETH → escrow → Seller (on confirm)</td>
+      <td>Buyer ETH → escrow → Seller (on confirm)</td>
+      <td>Buyer ETH → escrow → Seller (on confirm)</td>
+      <td>Buyer ETH → escrow → Seller (on confirm)</td>
+    </tr>
+    <tr>
+      <td><strong>Platform Fee (where deducted)</strong></td>
+      <td>On <code>acceptOffer()</code></td>
+      <td>On <code>confirmDelivery()</code> /&nbsp;<code>buyMiniApp()</code> / <code>resolveDeal()</code></td>
+      <td>On <code>confirmDelivery()</code> / <code>resolveDeal()</code></td>
+      <td>On <code>confirmDelivery()</code> / <code>resolveDeal()</code></td>
+      <td>On <code>confirmDelivery()</code> / <code>resolveDeal()</code></td>
+      <td>On <code>confirmDelivery()</code> / <code>resolveDeal()</code></td>
+    </tr>
+
+    <!-- ── TIMERS ── -->
+    <tr>
+      <td><strong>Timers / Deadlines</strong></td>
+      <td>Loan term (configurable, e.g. 30 days) + 24hr grace period</td>
+      <td>7-day delivery, 3-day confirmation, max 14-day deadline extension</td>
+      <td>7-day delivery, 3-day confirmation, max 14-day deadline extension</td>
+      <td>7-day delivery, 3-day confirmation, max 14-day deadline extension</td>
+      <td>7-day delivery, 3-day confirmation, max 14-day deadline extension</td>
+      <td>7-day delivery, 3-day confirmation, max 14-day deadline extension</td>
+    </tr>
+
+    <!-- ── SPECIAL FEATURES ── -->
+    <tr>
+      <td><strong>Special Features</strong></td>
+      <td>Partial repayments, offer matching/countering, .ics calendar export, LTV bar</td>
+      <td>DNS verification, OG preview fetch on listing, backward-compatible <code>buyMiniApp</code> direct purchase path</td>
+      <td>Tweet-pin verification, OAuth token transfer as deliverable</td>
+      <td>Farcaster Mini App SDK (Quick Auth, composeCast, addMiniApp), FID custody on Optimism, @farcaster/miniapp-wagmi-connector wallet</td>
+      <td>Clanker SDK v4 for reward admin/fee recipient management, multi-chain token support (Base, ETH, OP, Arb, BSC), vaulted token claiming, supply transfer validation on release</td>
+      <td>Up to 10 mixed-type assets, composite verification, asset-type icons in card</td>
+    </tr>
+
+    <!-- ── DISPUTE RESOLUTION ── -->
+    <tr>
+      <td><strong>Dispute Resolution</strong></td>
+      <td>Binary — admin decides NFT goes to lender or borrower</td>
+      <td>Split — admin allocates ETH amounts to buyer and seller</td>
+      <td>Split — admin allocates ETH amounts to buyer and seller</td>
+      <td>Split — admin allocates ETH amounts to buyer and seller</td>
+      <td>Split — admin allocates ETH amounts to buyer and seller</td>
+      <td>Split — admin allocates ETH amounts to buyer and seller</td>
+    </tr>
+
+    <!-- ── KEY API ROUTES ── -->
+    <tr>
+      <td><strong>Key API Routes</strong></td>
+      <td class="col-mono">/api/listings, /api/offers, /api/nfts/{addr}</td>
+      <td class="col-mono">/api/marketplace/mini_app, /api/escrows/{id}, /api/verify</td>
+      <td class="col-mono">/api/marketplace/x_account, /api/escrows/{id}</td>
+      <td class="col-mono">/api/marketplace/farcaster, /api/escrows/{id}, /api/verify</td>
+      <td class="col-mono">/api/marketplace/clanker, /api/escrows/{id}, /api/clanker/owned, /api/clanker/verify</td>
+      <td class="col-mono">/api/listings/bundle, /api/escrows/{id}</td>
+    </tr>
+
+    <!-- ── CHAT ── -->
+    <tr>
+      <td><strong>Real-time Chat</strong></td>
+      <td>No</td>
+      <td><span class="badge badge-green">Yes</span> — Pusher, AES-256-GCM, deal room</td>
+      <td><span class="badge badge-green">Yes</span> — Pusher, AES-256-GCM, deal room</td>
+      <td><span class="badge badge-green">Yes</span> — Pusher, AES-256-GCM, deal room</td>
+      <td><span class="badge badge-green">Yes</span> — Pusher, AES-256-GCM, deal room</td>
+      <td><span class="badge badge-green">Yes</span> — Pusher, AES-256-GCM, deal room</td>
+    </tr>
+
+    <!-- ── SHARING ── -->
+    <tr>
+      <td><strong>Cast Sharing</strong></td>
+      <td>Yes — <code>shareAsCast()</code></td>
+      <td>Yes — <code>shareAsCast()</code></td>
+      <td>Yes — <code>shareAsCast()</code></td>
+      <td>Yes — <code>shareAsCast()</code></td>
+      <td>Yes — <code>shareAsCast()</code></td>
+      <td>Yes — <code>shareAsCast()</code></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>4. Contract Function Reference</h2>
+
+<h3>NFT Loan System — Full ABI</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr>
+    <th>Category</th>
+    <th>Function Signature</th>
+    <th class="col-type">Type</th>
+    <th>Who</th>
+    <th>Description</th>
+  </tr></thead>
+  <tbody>
+    <tr><td rowspan="3" style="vertical-align:middle;"><strong>Borrower</strong></td>
+      <td class="fn-sig">listNFT(address nftContract, uint256 tokenId, uint256 amount, uint256 apr, uint256 term)</td><td class="col-type">write</td><td>Borrower</td><td>List NFT as collateral. Returns listingId.</td></tr>
+    <tr><td class="fn-sig">cancelListing(uint256 listingId)</td><td class="col-type">write</td><td>Borrower</td><td>Cancel listing at LISTED stage. NFT returned.</td></tr>
+    <tr><td class="fn-sig">updateListing(uint256 listingId, uint256 newAmount, uint256 newApr, uint256 newTerm)</td><td class="col-type">write</td><td>Borrower</td><td>Update terms before any offers accepted.</td></tr>
+    <tr><td rowspan="2" style="vertical-align:middle;"><strong>Lender</strong></td>
+      <td class="fn-sig fn-payable">submitOffer(uint256 listingId, uint256 amount, uint256 apr, uint256 term) payable</td><td class="col-type">payable</td><td>Lender</td><td>Submit loan offer with ETH deposit.</td></tr>
+    <tr><td class="fn-sig">withdrawOffer(uint256 listingId)</td><td class="col-type">write</td><td>Lender</td><td>Withdraw offer + ETH deposit before accepted.</td></tr>
+    <tr><td><strong>Acceptance</strong></td>
+      <td class="fn-sig">acceptOffer(uint256 listingId, address lender, uint256 acceptedAmount, uint256 acceptedApr, uint256 acceptedTerm)</td><td class="col-type">write</td><td>Borrower</td><td>Accept a lender's offer. ETH released, loan ACTIVE.</td></tr>
+    <tr><td rowspan="2" style="vertical-align:middle;"><strong>Repayment</strong></td>
+      <td class="fn-sig fn-payable">repay(uint256 listingId) payable</td><td class="col-type">payable</td><td>Borrower</td><td>Full repayment. NFT returned.</td></tr>
+    <tr><td class="fn-sig fn-payable">repayPartial(uint256 listingId) payable</td><td class="col-type">payable</td><td>Borrower</td><td>Partial repayment. Auto-closes if fully paid.</td></tr>
+    <tr><td><strong>Default</strong></td>
+      <td class="fn-sig">claimCollateral(uint256 listingId)</td><td class="col-type">write</td><td>Lender</td><td>Claim NFT after term + grace period.</td></tr>
+    <tr><td rowspan="2" style="vertical-align:middle;"><strong>Dispute</strong></td>
+      <td class="fn-sig">dispute(uint256 listingId)</td><td class="col-type">write</td><td>Either</td><td>Freeze loan for admin review.</td></tr>
+    <tr><td class="fn-sig">resolve(uint256 listingId, bool nftToLender)</td><td class="col-type">write</td><td>Admin</td><td>Admin resolves dispute.</td></tr>
+    <tr><td rowspan="6" style="vertical-align:middle;"><strong>Views</strong></td>
+      <td class="fn-sig fn-view">listingCount() → uint256</td><td class="col-type">view</td><td>Anyone</td><td>Total listings created.</td></tr>
+    <tr><td class="fn-sig fn-view">listings(uint256) → Listing</td><td class="col-type">view</td><td>Anyone</td><td>Get full listing details.</td></tr>
+    <tr><td class="fn-sig fn-view">offers(uint256, address) → Offer</td><td class="col-type">view</td><td>Anyone</td><td>Get lender's offer for a listing.</td></tr>
+    <tr><td class="fn-sig fn-view">getRepaymentDue(uint256 listingId) → uint256</td><td class="col-type">view</td><td>Anyone</td><td>Principal + accrued interest.</td></tr>
+    <tr><td class="fn-sig fn-view">getDeadline(uint256 listingId) → uint256</td><td class="col-type">view</td><td>Anyone</td><td>Timestamp when repayment is due.</td></tr>
+    <tr><td class="fn-sig fn-view">lenderDeposits(uint256, address) → uint256</td><td class="col-type">view</td><td>Anyone</td><td>ETH deposited by a lender for a listing.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Deal Escrow System — Full ABI</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr>
+    <th>Category</th>
+    <th>Function Signature</th>
+    <th class="col-type">Type</th>
+    <th>Who</th>
+    <th>Description</th>
+  </tr></thead>
+  <tbody>
+    <tr><td rowspan="3" style="vertical-align:middle;"><strong>Seller</strong></td>
+      <td class="fn-sig">listDeal(uint256 price, bytes32 metadataHash) → uint256</td><td class="col-type">write</td><td>Seller</td><td>List a digital asset for sale.</td></tr>
+    <tr><td class="fn-sig">cancelDeal(uint256 dealId)</td><td class="col-type">write</td><td>Seller</td><td>Cancel listing before funded.</td></tr>
+    <tr><td class="fn-sig">updateDeal(uint256 dealId, uint256 newPrice, bytes32 newMetadataHash)</td><td class="col-type">write</td><td>Seller</td><td>Update listing price/metadata.</td></tr>
+    <tr><td><strong>Verification</strong></td>
+      <td class="fn-sig">verifyDeal(uint256 dealId)</td><td class="col-type">write</td><td>Admin</td><td>Verify seller ownership → VERIFIED.</td></tr>
+    <tr><td><strong>Funding</strong></td>
+      <td class="fn-sig fn-payable">fundDeal(uint256 dealId) payable</td><td class="col-type">payable</td><td>Buyer</td><td>Lock ETH in escrow. 7-day clock starts.</td></tr>
+    <tr><td rowspan="2" style="vertical-align:middle;"><strong>Delivery</strong></td>
+      <td class="fn-sig">markDelivered(uint256 dealId)</td><td class="col-type">write</td><td>Seller</td><td>Mark asset delivered. 3-day confirmation starts.</td></tr>
+    <tr><td class="fn-sig">extendDeadline(uint256 dealId)</td><td class="col-type">write</td><td>Seller</td><td>Extend delivery deadline (max 14 days).</td></tr>
+    <tr><td><strong>Completion</strong></td>
+      <td class="fn-sig">confirmDelivery(uint256 dealId)</td><td class="col-type">write</td><td>Buyer</td><td>Confirm receipt. ETH → seller (minus fee).</td></tr>
+    <tr><td><strong>Refund</strong></td>
+      <td class="fn-sig">refundDeal(uint256 dealId)</td><td class="col-type">write</td><td>Buyer</td><td>Refund after delivery deadline passes.</td></tr>
+    <tr><td rowspan="2" style="vertical-align:middle;"><strong>Dispute</strong></td>
+      <td class="fn-sig">disputeDeal(uint256 dealId)</td><td class="col-type">write</td><td>Either</td><td>File dispute on deal.</td></tr>
+    <tr><td class="fn-sig">resolveDeal(uint256 dealId, uint256 buyerAmount, uint256 sellerAmount)</td><td class="col-type">write</td><td>Admin</td><td>Split escrow between buyer & seller.</td></tr>
+    <tr><td rowspan="2" style="vertical-align:middle;"><strong>MiniApp<br>(compat)</strong></td>
+      <td class="fn-sig">listMiniApp(uint256 price, bytes32 metadataHash) → uint256</td><td class="col-type">write</td><td>Seller</td><td>Wrapper around listDeal. Returns miniAppId.</td></tr>
+    <tr><td class="fn-sig fn-payable">buyMiniApp(uint256 miniAppId) payable</td><td class="col-type">payable</td><td>Buyer</td><td>Direct purchase (no escrow), funds → seller immediately.</td></tr>
+    <tr><td rowspan="5" style="vertical-align:middle;"><strong>Views</strong></td>
+      <td class="fn-sig fn-view">dealCount() → uint256</td><td class="col-type">view</td><td>Anyone</td><td>Total deals created.</td></tr>
+    <tr><td class="fn-sig fn-view">deals(uint256) → Deal</td><td class="col-type">view</td><td>Anyone</td><td>Get full deal details.</td></tr>
+    <tr><td class="fn-sig fn-view">dealEscrowBalance(uint256) → uint256</td><td class="col-type">view</td><td>Anyone</td><td>ETH locked in a deal escrow.</td></tr>
+    <tr><td class="fn-sig fn-view">paused() → bool</td><td class="col-type">view</td><td>Anyone</td><td>Contract pause state.</td></tr>
+    <tr><td class="fn-sig fn-view">miniAppCount() → uint256</td><td class="col-type">view</td><td>Anyone</td><td>Total mini apps listed (backward compat).</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Admin-Only Functions</h3>
+<div class="table-wrap">
+<table>
+  <thead><tr>
+    <th>Function Signature</th>
+    <th>Description</th>
+  </tr></thead>
+  <tbody>
+    <tr><td class="fn-sig">setPlatformFee(uint256 newFee)</td><td>Set platform fee in bps (max 500 = 5%).</td></tr>
+    <tr><td class="fn-sig">transferAdmin(address newAdmin)</td><td>Transfer admin rights to another address.</td></tr>
+    <tr><td class="fn-sig">pause()</td><td>Pause the contract — no new offers/funding.</td></tr>
+    <tr><td class="fn-sig">unpause()</td><td>Unpause the contract.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>5. Architecture Overview</h2>
+
+<div class="card">
+<pre style="font-family: var(--mono); font-size: 0.82rem; line-height: 1.8; color: #cbd5e1;">
+
+┌──────────────────────────────────────────────────────────────────┐
+│                     User Browser (React 19 + Next.js 16)         │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────────────┐  │
+│  │  /market │  │ /detail  │  │  /deals  │  │ /miniapps /x    │  │
+│  │  (hub)   │  │ (loan)   │  │ (room)   │  │ /fc /clanker    │  │
+│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └───────┬─────────┘  │
+│       │             │             │                  │            │
+│  ┌────┴─────────────┴─────────────┴──────────────────┴─────────┐ │
+│  │              src/lib/contract.ts (viem — Base chain)         │ │
+│  │  contract-abi.ts  │  contract-reads.ts  │  contract-writes.ts│ │
+│  │  contract-helpers.ts (wallet, chain switch, event decode)    │ │
+│  └──────────────────────────┬──────────────────────────────────┘ │
+└─────────────────────────────┼────────────────────────────────────┘
+                              │
+          ┌───────────────────┼───────────────────┐
+          ▼                   ▼                   ▼
+    ┌───────────┐      ┌───────────┐       ┌──────────┐
+    │  Alchemy  │      │ Neon PG   │       │  Pusher  │
+    │  NFT API  │      │ (Drizzle) │       │ realtime │
+    └───────────┘      └───────────┘       │ chat +   │
+          │                   │            │ events   │
+          ▼                   ▼            └──────────┘
+    ┌─────────────────────────────────────┐
+    │  VaultEscrow.sol (Base L2 chain)    │
+    │  • NFT Loan System  (lines 28-384)  │
+    │  • Deal Escrow      (lines 386-615) │
+    │  • MiniApp compat   (lines 617-684) │
+    │  • Admin ops        (lines 686-711) │
+    └─────────────────────────────────────┘
+
+Hybrid on-chain / off-chain architecture:
+  → Critical state (NFT custody, ETH escrow, stages) lives on-chain
+  → Metadata, offers, chat messages, proofs live in Neon Postgres
+  → Event syncer bridges chain → DB via sync.ts
+  → Farcaster custody verified on Optimism (separate chain)
+  → Clanker token rights verified across 5 chains (Base, ETH, OP, Arb, BSC)
+</pre>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h3>Tech Stack</h3>
+    <table style="min-width:0;">
+      <tr><td><strong>Chain</strong></td><td>Base Mainnet (chainId 8453)</td></tr>
+      <tr><td><strong>Contract</strong></td><td>Solidity ^0.8.28, Foundry tests</td></tr>
+      <tr><td><strong>Frontend</strong></td><td>Next.js 16 App Router, React 19, TypeScript</td></tr>
+      <tr><td><strong>Blockchain SDK</strong></td><td>viem (reads/writes/events), @wagmi/core (Farcaster)</td></tr>
+      <tr><td><strong>Database</strong></td><td>Neon Serverless Postgres + Drizzle ORM</td></tr>
+      <tr><td><strong>Realtime</strong></td><td>Pusher (private channels, deal room chat)</td></tr>
+      <tr><td><strong>Encryption</strong></td><td>AES-256-GCM (per-deal chat messages)</td></tr>
+      <tr><td><strong>Auth</strong></td><td>SIWE (Sign-In with Ethereum), Farcaster Quick Auth</td></tr>
+      <tr><td><strong>NFT API</strong></td><td>Alchemy NFT API (wallet scanning, metadata)</td></tr>
+      <tr><td><strong>Clanker</strong></td><td>clanker-sdk/v4 (reward admin, fee recipient, vault claims)</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3>Key Numbers</h3>
+    <table style="min-width:0;">
+      <tr><td><strong>Platform Fee</strong></td><td>1.5% (150 bps), configurable up to 5%</td></tr>
+      <tr><td><strong>Grace Period</strong></td><td>24 hours (NFT loan default)</td></tr>
+      <tr><td><strong>Delivery Window</strong></td><td>7 days (seller must deliver)</td></tr>
+      <tr><td><strong>Confirmation Window</strong></td><td>3 days (buyer must confirm)</td></tr>
+      <tr><td><strong>Max Deadline Extension</strong></td><td>14 days total from funding</td></tr>
+      <tr><td><strong>Interest Formula</strong></td><td><code>principal × aprBps × termDays / 3,650,000</code></td></tr>
+      <tr><td><strong>Max Bundle Assets</strong></td><td>10 mixed-type assets</td></tr>
+      <tr><td><strong>Supported Chains (Clanker)</strong></td><td>mainnet, optimism, bsc, arbitrum, base, baseSepolia</td></tr>
+      <tr><td><strong>NFT Collections Tracked</strong></td><td>12 (Meridian, Aperture, BAYC, Azuki, Pudgy Penguins, etc.)</td></tr>
+    </table>
+  </div>
+</div>
+
+<hr>
+
+<!-- ═══════════════════════════════════════════════════════════════════════ -->
+<h2>6. Deal Room Flow — End-to-End</h2>
+
+<div class="flow">
+  <div class="flow-step">1. Buyer deposits</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">2. Seller transfers</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">3. Buyer confirms</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">4. Funds release</div>
+  <div class="flow-arrow">→</div>
+  <div class="flow-step">5. Fee deducted</div>
+</div>
+
+<div class="card-grid">
+  <div class="card">
+    <h4>1. Buyer deposits <span class="badge badge-accent">fundDeal</span></h4>
+    <p>Buyer clicks "Buy" on listing. Wallet confirms <code>fundDeal{value: price}()</code>. ETH locked in <code>dealEscrowBalance</code>. 7-day delivery clock starts. Escrow created in DB. Deal room opened.</p>
+  </div>
+  <div class="card">
+    <h4>2. Seller transfers <span class="badge badge-accent">markDelivered</span></h4>
+    <p>Seller uploads delivery proof (URL + hash) via <code>/api/escrows/{id}/proofs</code>. Clicks "Mark as delivered" → <code>markDelivered()</code>. Stage → DELIVERED. 3-day confirmation window starts.</p>
+  </div>
+  <div class="card">
+    <h4>3. Buyer confirms <span class="badge badge-accent">confirmDelivery</span></h4>
+    <p>Buyer verifies asset. Clanker: checks fee rights, admin rights, token supply transferred on-chain. Farcaster: checks FID custody on Optimism. Clicks "Confirm receipt" → <code>confirmDelivery()</code>. ETH released to seller minus platform fee.</p>
+  </div>
+  <div class="card">
+    <h4>Timeline & Chat</h4>
+    <p>Deal room shows a 5-step timeline with current position highlighted. Real-time Pusher chat (<code>private-deal-{escrowId}</code>) with AES-256-GCM encrypted messages. Quick replies, image upload, read receipts. Cursor-based pagination.</p>
+  </div>
+</div>
+
+<hr>
+<p style="text-align:center; color:var(--text2); font-size:0.82rem; margin-top:40px;">
+  Vault Escrow — NFT-backed lending & digital asset marketplace on Base.<br>
+  Contract: <code>VaultEscrow.sol</code> | 743 lines | Solidity ^0.8.28 | Base Chain (8453)
+</p>
+
+</body>
+</html>
