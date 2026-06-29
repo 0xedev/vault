@@ -10,12 +10,13 @@ export type ThemeSettings = {
 };
 
 const STORAGE_KEY = "vault-theme";
+const USER_ACCENT = "#0035A8";
 
 const defaults: ThemeSettings = {
   theme: "dark",
   card: "solid",
   density: "regular",
-  accent: "#7F9DC5",
+  accent: USER_ACCENT,
 };
 
 function loadSettings(): ThemeSettings {
@@ -24,7 +25,7 @@ function loadSettings(): ThemeSettings {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return { ...defaults, ...parsed };
+      return { ...defaults, ...parsed, accent: USER_ACCENT };
     }
   } catch {}
   return defaults;
@@ -44,7 +45,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const setSetting = useCallback(<K extends keyof ThemeSettings>(key: K, value: ThemeSettings[K]) => {
     setSettings(prev => {
-      const next = { ...prev, [key]: value };
+      const next = { ...prev, [key]: key === "accent" ? USER_ACCENT : value };
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
       return next;
     });
@@ -56,7 +57,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     document.body.dataset.density = settings.density;
 
     const isAdmin = document.body.dataset.role === "admin";
-    const accent = isAdmin ? "#FF6B6B" : settings.accent;
+    const accent = isAdmin ? "#FF6B6B" : USER_ACCENT;
     document.documentElement.style.setProperty("--accent", accent);
 
     const c = accent;
