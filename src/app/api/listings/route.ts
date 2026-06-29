@@ -87,8 +87,10 @@ export async function GET(req: NextRequest) {
         const mappedStatus: Loan["status"] =
           onChainStatus === "listed" ? "open" :
           onChainStatus === "funded" ? "funded" :
+          onChainStatus === "active" ? "funded" :
           onChainStatus === "repaid" ? "repaid" :
           onChainStatus === "defaulted" ? "default" :
+          onChainStatus === "cancelled" ? "cancelled" as Loan["status"] :
           onChainStatus === "disputed" ? "disputed" : "open";
 
         return {

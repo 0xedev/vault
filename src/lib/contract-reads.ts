@@ -213,20 +213,56 @@ export async function readPaused(): Promise<boolean> {
   }) as Promise<boolean>;
 }
 
+// ── Deal offer readers ───────────────────────────────────────
+
+export async function readDealOfferCount(dealId: bigint): Promise<bigint> {
+  return client().readContract({
+    address: address(),
+    abi: ESCROW_ABI,
+    functionName: "getDealOfferCount",
+    args: [dealId],
+  }) as Promise<bigint>;
+}
+
+export async function readDealOfferBuyers(dealId: bigint): Promise<Address[]> {
+  return client().readContract({
+    address: address(),
+    abi: ESCROW_ABI,
+    functionName: "getDealOfferBuyers",
+    args: [dealId],
+  }) as Promise<Address[]>;
+}
+
+export async function readDealOfferDeposit(dealId: bigint, buyer: Address): Promise<bigint> {
+  return client().readContract({
+    address: address(),
+    abi: ESCROW_ABI,
+    functionName: "dealOfferDeposits",
+    args: [dealId, buyer],
+  }) as Promise<bigint>;
+}
+
+// ── Stage mapping ────────────────────────────────────────────
+
 export type EscrowStage =
   | "not_listed"
   | "listed"
   | "funded"
+  | "active"
   | "repaid"
   | "defaulted"
-  | "disputed"
-  | "resolved";
+  | "cancelled"
+  | "disputed";
 
 export function mapListingStage(stage: number): EscrowStage {
-  const stages: EscrowStage[] = ["not_listed", "listed", "funded", "repaid", "defaulted", "disputed", "resolved"];
+  // Contract Stage enum: LISTED=0, FUNDED=1, ACTIVE=2, REPAID=3, DEFAULTED=4, CANCELLED=5, DISPUTED=6
+  const stages: EscrowStage[] = ["listed", "funded", "active", "repaid", "defaulted", "cancelled", "disputed"];
   return stages[stage] ?? "not_listed";
 }
 
+// DealStage enum order (no VERIFIED):
+//   0 = LISTED, 1 = FUNDED, 2 = DELIVERED, 3 = CONFIRMED,
+//   4 = DISPUTED, 5 = RESOLVED, 6 = REFUNDED, 7 = CANCELLED
 export type DealStage =
   | "not_listed"
   | "listed"
@@ -235,9 +271,10 @@ export type DealStage =
   | "released"
   | "disputed"
   | "resolved"
-  | "refunded";
+  | "refunded"
+  | "cancelled";
 
 export function mapDealStage(stage: number): DealStage {
-  const stages: DealStage[] = ["not_listed", "listed", "funds_locked", "asset_transferred", "released", "disputed", "resolved", "refunded"];
+  const stages: DealStage[] = ["listed", "funds_locked", "asset_transferred", "released", "disputed", "resolved", "refunded", "cancelled"];
   return stages[stage] ?? "not_listed";
 }
