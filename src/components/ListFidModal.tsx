@@ -12,51 +12,51 @@ import {
 } from "@/lib/contract";
 import { parseUnits, type Address } from "viem";
 
-const FC_DELIVERABLE_OPTIONS = [
-  { key: "fid", label: "FID transfer (on-chain)" },
-  { key: "wallet", label: "Connected wallet handover" },
-  { key: "recovery", label: "Recovery address update" },
-  { key: "channel", label: "Channel ownership transfer" },
-  { key: "keys", label: "Signer key rotation" },
-  { key: "storage", label: "Storage units transfer" },
-  { key: "casts", label: "Cast history export" },
-] as const;
-
 export default function ListFidModal({ onClose }: { onClose: () => void }) {
   const { address } = useWallet();
-  const [fid, setFid] = useState("");
   const [handle, setHandle] = useState("");
-  const [channel, setChannel] = useState("");
   const [followers, setFollowers] = useState("");
   const [price, setPrice] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-  const [deliverables, setDeliverables] = useState<Record<string, boolean>>({});
-  const [description, setDescription] = useState("");
+  const [fetchingProfile, setFetchingProfile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState("");
 
-  const toggleDeliverable = (key: string) =>
-    setDeliverables((p) => ({ ...p, [key]: !p[key] }));
+  const normalizedHandle = handle.replace(/^@/, "").trim();
+  const profileUrl = normalizedHandle ? `https://warpcast.com/${normalizedHandle}` : "";
+
+  const fetchProfilePreview = async () => {
+    if (!profileUrl || imageUrl) return imageUrl;
+    setFetchingProfile(true);
+    try {
+      const res = await fetch(`/api/og-preview?url=${encodeURIComponent(profileUrl)}`);
+      const json = await res.json().catch(() => ({}));
+      if (json.image) {
+        setImageUrl(json.image);
+        return String(json.image);
+      }
+    } catch {
+      // Listing can still proceed; profile URL is included in metadata.
+    } finally {
+      setFetchingProfile(false);
+    }
+    return "";
+  };
 
   const submitListing = async () => {
     if (!address) return;
     setSubmitting(true);
     setError("");
     try {
-      const selectedDeliverables = FC_DELIVERABLE_OPTIONS.filter(
-        (d) => deliverables[d.key],
-      ).map((d) => d.label);
+      const profileImage = await fetchProfilePreview();
       const metadata = {
-        fid: Number(fid),
-        handle: handle.replace(/^@/, ""),
-        channel: channel.replace(/^\//, "") || "general",
+        handle: normalizedHandle,
+        profileUrl,
         followers: Number(followers || 0),
         price: Number(price),
-        image: imageUrl,
-        description,
-        deliverables: selectedDeliverables,
-        kind: "Farcaster FID",
+        image: profileImage || imageUrl,
+        kind: "Farcaster account",
         createdAt: new Date().toISOString(),
       };
       const metaHash = hashMetadata(metadata);
@@ -72,25 +72,24 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sellerAddress: address,
-          title: handle.startsWith("@") ? handle.slice(1) : handle,
-          description:
-            description ||
-            `Farcaster FID ${fid}${channel ? ` in /${channel}` : ""}`,
+          title: normalizedHandle,
+          description: `Farcaster account @${normalizedHandle}`,
           price: Number(price),
           chainId: 8453,
           contractAddress: getEscrowAddress(),
           contractListingId,
           txHash,
           data: {
-            fid: Number(fid),
-            handle: handle.replace(/^@/, ""),
-            imageUrl,
-            channel: channel.replace(/^\//, "") || "general",
+            fid: 0,
+            handle: normalizedHandle,
+            imageUrl: profileImage || imageUrl,
+            profileUrl,
+            channel: "",
             followers: Number(followers || 0),
             casts_30d: 0,
             rev_30d: 0,
             power_badge: false,
-            includes: selectedDeliverables,
+            includes: ["Account transfer"],
             metadataHash: metaHash,
           },
         }),
@@ -98,7 +97,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
       const json = await res.json();
       if (!res.ok)
         throw new Error(json.error || "Unable to submit FID listing");
-      setDone("Listed on-chain. Buyers can fund escrow and confirm terms directly with the seller.");
+      setDone("Listed. Buyers can fund escrow and confirm transfer with the seller.");
     } catch (err) {
       setError(parseContractError(err));
     } finally {
@@ -115,7 +114,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
       >
         <div className="modal-h">
           <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>
-            List Farcaster FID
+            List Farcaster account
           </h3>
           <button className="btn ghost sm" onClick={onClose}>
             <Icon.x />
@@ -133,30 +132,13 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
         >
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="col" style={{ gap: 4 }}>
-              <span className="label">FID</span>
-              <input
-                className="input mono"
-                value={fid}
-                onChange={(e) => setFid(e.target.value)}
-                placeholder="12345"
-              />
-            </div>
-            <div className="col" style={{ gap: 4 }}>
-              <span className="label">Handle</span>
+              <span className="label">Account</span>
               <input
                 className="input"
                 value={handle}
                 onChange={(e) => setHandle(e.target.value)}
+                onBlur={fetchProfilePreview}
                 placeholder="@founder"
-              />
-            </div>
-            <div className="col" style={{ gap: 4 }}>
-              <span className="label">Primary channel</span>
-              <input
-                className="input"
-                value={channel}
-                onChange={(e) => setChannel(e.target.value)}
-                placeholder="/crypto"
               />
             </div>
             <div className="col" style={{ gap: 4 }}>
@@ -179,65 +161,12 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
                 placeholder="8.5"
               />
             </div>
-            <div className="col" style={{ gap: 4 }}>
-              <span className="label">Profile image URL</span>
-              <input
-                className="input"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
-              />
+            <div className="metric" style={{ padding: 12 }}>
+              <span className="lab">Profile</span>
+              <span className="val" style={{ fontSize: 13 }}>
+                {fetchingProfile ? "Fetching..." : profileUrl || "Add account"}
+              </span>
             </div>
-          </div>
-          <div className="col" style={{ gap: 6 }}>
-            <span className="label">
-              Deliverables ({Object.values(deliverables).filter(Boolean).length}{" "}
-              selected)
-            </span>
-            <div className="grid grid-2" style={{ gap: 6 }}>
-              {FC_DELIVERABLE_OPTIONS.map((d) => (
-                <label
-                  key={d.key}
-                  style={{
-                    padding: "8px 10px",
-                    border: deliverables[d.key]
-                      ? "1px solid var(--accent)"
-                      : "1px solid var(--line)",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    background: deliverables[d.key]
-                      ? "rgba(127,157,197,0.08)"
-                      : "transparent",
-                    fontSize: 12.5,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={!!deliverables[d.key]}
-                    onChange={() => toggleDeliverable(d.key)}
-                    style={{ accentColor: "var(--accent)" }}
-                  />
-                  {d.label}
-                </label>
-              ))}
-            </div>
-          </div>
-          <div className="col" style={{ gap: 4 }}>
-            <span className="label">Description</span>
-            <textarea
-              className="input"
-              style={{
-                minHeight: 50,
-                resize: "vertical",
-                padding: "10px 12px",
-              }}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What comes with this FID?"
-            />
           </div>
           {error && (
             <div className="warn-banner" style={{ color: "var(--risk)" }}>
@@ -276,9 +205,9 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
                 className="btn primary lg"
                 style={{ flex: 1 }}
                 onClick={submitListing}
-                disabled={submitting || !fid || !handle || !price}
+                disabled={submitting || !normalizedHandle || !price}
               >
-                {submitting ? "Signing & listing…" : "List FID"}
+                {submitting ? "Signing..." : "List account"}
               </button>
             ) : (
               <button

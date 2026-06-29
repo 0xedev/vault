@@ -1340,6 +1340,12 @@ select:focus-visible {
   align-items: center;
   gap: 12px;
 }
+.modal-f .btn {
+  min-height: 40px;
+  height: auto;
+  padding: 0 16px;
+  white-space: normal;
+}
 
 /* misc */
 .kv {
@@ -2716,6 +2722,7 @@ select:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  order: 1;
 }
 .mobile-feed-head {
   display: flex;
@@ -2812,6 +2819,7 @@ select:focus-visible {
   flex-direction: column;
   gap: 12px;
   margin-top: 24px;
+  order: 2;
 }
 .mobile-categories-list {
   display: flex;

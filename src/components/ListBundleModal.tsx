@@ -138,9 +138,9 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 620, maxHeight: "85vh", overflowY: "auto" }}>
-        <div className="row between" style={{ marginBottom: 18 }}>
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 620, maxWidth: "100%" }}>
+        <div className="modal-h">
           <div>
             <div className="eyebrow">Create Bundle Listing</div>
             <h2 className="serif" style={{ fontSize: 22, margin: "4px 0 0" }}>Bundled asset sale</h2>
@@ -148,7 +148,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
           <button className="btn ghost sm" onClick={onClose} aria-label="Close"><Icon.x /></button>
         </div>
 
-        <div className="col" style={{ gap: 14 }}>
+        <div className="modal-b col" style={{ gap: 14 }}>
           <div>
             <span className="label">Bundle name</span>
             <input
@@ -280,12 +280,13 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
 
           {error && <div className="warn-banner" style={{ fontSize: 12, color: "var(--risk)" }}>{error}</div>}
 
-          <div className="row" style={{ gap: 8 }}>
-            <button className="btn" style={{ flex: 1 }} onClick={onClose} disabled={submitting}>Cancel</button>
-            <button className="btn primary lg" style={{ flex: 1 }} onClick={handleSubmit} disabled={submitting || !canSubmit}>
-              {submitting ? "Signing…" : `List bundle for ${totalPrice.toFixed(4)} USDC`}
-            </button>
-          </div>
+        </div>
+
+        <div className="modal-f">
+          <button className="btn" style={{ flex: "1 1 160px" }} onClick={onClose} disabled={submitting}>Cancel</button>
+          <button className="btn primary" style={{ flex: "1 1 180px" }} onClick={handleSubmit} disabled={submitting || !canSubmit}>
+            {submitting ? "Signing..." : "Create bundle"}
+          </button>
         </div>
       </div>
     </div>

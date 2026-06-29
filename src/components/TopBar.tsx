@@ -1,18 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import VaultMark from "./VaultMark";
 import Icon from "./icons";
 import { useWallet } from "./WalletProvider";
 
-const topNavItems: [string, string][] = [
-  ["/market",    "NFT Loans"],
-  ["/miniapps",  "Mini Apps"],
-  ["/x",         "X Accounts"],
-  ["/farcaster", "Farcaster"],
-  ["/clanker",   "Clanker"],
-  ["/deals",     "Profile"],
+const topNavItems = [
+  { href: "/market", label: "NFT Loans", match: "/market" },
+  { href: "/miniapps", label: "Mini Apps", match: "/miniapps" },
+  { href: "/x", label: "X Accounts", match: "/x" },
+  { href: "/farcaster", label: "Farcaster", match: "/farcaster" },
+  { href: "/clanker", label: "Clanker", match: "/clanker" },
+  { href: "/market?tab=bundles", label: "Bundles", match: "/market", tab: "bundles" },
+  { href: "/deals", label: "Profile", match: "/deals" },
 ];
 
 function formatIdentity(address: string | null) {
@@ -25,6 +26,8 @@ function formatIdentity(address: string | null) {
 
 export default function TopBar({ onMenu }: { onMenu: () => void }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab");
   const {
     address,
     isAuthenticated,
@@ -45,15 +48,21 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
           <span className="name hide-mobile">Baseshire Hethaway<em></em></span>
         </Link>
         <nav className="topnav">
-          {topNavItems.map(([href, label]) => (
-            <Link
-              key={href}
-              href={href}
-              className={"tab" + (pathname === href || pathname.startsWith(href + "/") ? " active" : "")}
-            >
-              {label}
-            </Link>
-          ))}
+          {topNavItems.map((item) => {
+            const isActive =
+              item.tab
+                ? pathname === item.match && activeTab === item.tab
+                : pathname === item.match || pathname.startsWith(item.match + "/");
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={"tab" + (isActive ? " active" : "")}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       </div>
       <div className="row" style={{ gap: 10 }}>

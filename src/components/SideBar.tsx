@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "./icons";
 
 interface SidebarItem {
   sec?: string;
   k?: string;
+  href?: string;
+  tab?: string;
   t?: string;
   icon?: React.ReactNode;
   badge?: string;
@@ -19,6 +21,7 @@ const items: SidebarItem[] = [
   { k: "/x",         t: "X Accounts",        icon: <Icon.xlogo/>,  badge: "118" },
   { k: "/farcaster", t: "Farcaster",         icon: <Icon.cast/>,   badge: "44" },
   { k: "/clanker",   t: "Clanker Tokens",    icon: <Icon.token/>,  badge: "12" },
+  { k: "/market", href: "/market?tab=bundles", tab: "bundles", t: "Bundles",  icon: <Icon.shield/> },
   { sec: "Account" },
   { k: "/deals",     t: "Profile",           icon: <Icon.escrow/>, badge: "6" },
   { sec: "About" },
@@ -27,6 +30,8 @@ const items: SidebarItem[] = [
 
 export default function SideBar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get("tab");
 
   return (
     <aside className={"sidebar" + (open ? " open" : "")}>
@@ -34,22 +39,24 @@ export default function SideBar({ open, onClose }: { open: boolean; onClose: () 
         <Icon.x />
       </button>
 
-      {items.map((it, i) =>
-        it.sec ? (
-          <div className="side-h" key={"s"+i}>{it.sec}</div>
-        ) : (
+      {items.map((it, i) => {
+        if (it.sec) return <div className="side-h" key={"s"+i}>{it.sec}</div>;
+        const isActive = it.tab
+          ? pathname === it.k && activeTab === it.tab
+          : (pathname === it.k || pathname.startsWith(it.k! + "/")) && activeTab !== "bundles";
+        return (
           <Link
-            key={it.k}
-            href={it.k!}
-            className={"side-link" + (pathname === it.k || pathname.startsWith(it.k! + "/") ? " active" : "")}
+            key={it.href || it.k}
+            href={it.href || it.k!}
+            className={"side-link" + (isActive ? " active" : "")}
             onClick={onClose}
           >
             <span className="icn">{it.icon}</span>
             <span>{it.t}</span>
             {it.badge && <span className="badge">{it.badge}</span>}
           </Link>
-        )
-      )}
+        );
+      })}
       <div style={{ flex: 1 }}/>
       <div className="card" style={{ padding: 12, marginTop: 20 }}>
         <div className="row" style={{ gap: 8, marginBottom: 6 }}>

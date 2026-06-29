@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import LoanCard from "@/components/LoanCard";
 import Dropdown from "@/components/Dropdown";
@@ -665,6 +666,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function MarketplacePage() {
+  const searchParams = useSearchParams();
   const [activeMarket, setActiveMarket] = useState<MarketTab>("all");
   const [loans, setLoans] = useState<Loan[]>([]);
   const [miniApps, setMiniApps] = useState<MiniApp[]>([]);
@@ -682,6 +684,13 @@ export default function MarketplacePage() {
   const [chainLoading, setChainLoading] = useState(false);
   const [showOnChain, setShowOnChain] = useState(false);
   const { isConnected, connect, isConnecting, address } = useWallet();
+
+  useEffect(() => {
+    const tab = searchParams.get("tab") as MarketTab | null;
+    if (tab && marketTabs.some((item) => item.key === tab)) {
+      queueMicrotask(() => setActiveMarket(tab));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     Promise.allSettled([
@@ -902,7 +911,7 @@ export default function MarketplacePage() {
         )}
         {activeMarket === "clanker" && (
           <Link href="/clanker" className="btn primary">
-            List your Clanker token
+            Open Clanker market
           </Link>
         )}
         {activeMarket === "bundles" && (

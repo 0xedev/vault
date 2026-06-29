@@ -20,6 +20,7 @@ import type {
   XAccount,
   FarcasterAccount,
   ClankerToken,
+  BundleListing,
 } from "@/lib/data";
 
 type MobileOpportunity = {
@@ -37,6 +38,7 @@ const feedFilters = [
   { value: "Loans", label: "NFT Loans" },
   { value: "Mini Apps", label: "Apps & Websites" },
   { value: "Social", label: "Social Identity" },
+  { value: "Bundles", label: "Bundles" },
 ];
 
 function Sparkline() {
@@ -181,6 +183,7 @@ export default function LandingPage() {
   const [xAccounts, setXAccounts] = useState<XAccount[]>([]);
   const [farcaster, setFarcaster] = useState<FarcasterAccount[]>([]);
   const [clanker, setClanker] = useState<ClankerToken[]>([]);
+  const [bundles, setBundles] = useState<BundleListing[]>([]);
   const [loading, setLoading] = useState(true);
   const { isConnected, isConnecting, connect } = useWallet();
 
@@ -211,12 +214,18 @@ export default function LandingPage() {
         if (!r.ok) throw new Error(json.error);
         return (json.data || []) as ClankerToken[];
       }),
+      fetch("/api/marketplace/bundles").then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error);
+        return (json.data || []) as BundleListing[];
+      }),
     ]).then((results) => {
       if (results[0].status === "fulfilled") setLoans(results[0].value);
       if (results[1].status === "fulfilled") setMiniApps(results[1].value);
       if (results[2].status === "fulfilled") setXAccounts(results[2].value);
       if (results[3].status === "fulfilled") setFarcaster(results[3].value);
       if (results[4].status === "fulfilled") setClanker(results[4].value);
+      if (results[5].status === "fulfilled") setBundles(results[5].value);
       setLoading(false);
     });
   }, []);
@@ -227,7 +236,8 @@ export default function LandingPage() {
     miniApps.length +
     xAccounts.length +
     farcaster.length +
-    clanker.length;
+    clanker.length +
+    bundles.length;
   const activeLoans = loans.filter((l) => l.status === "funded").length;
   const allOpportunities = [
     ...loans.slice(0, 4).map((l) => ({
@@ -299,6 +309,26 @@ export default function LandingPage() {
         </span>
       ),
     })),
+    ...bundles.slice(0, 4).map((bundle) => ({
+      href: "/market",
+      market: "Bundle",
+      title: bundle.name,
+      meta: `${bundle.assets.length} assets · ${bundle.currency || "USDC"}`,
+      value: `${bundle.totalPrice} Ξ`,
+      color: "#0EA5E9",
+      icon: (
+        <span
+          className="feed-image"
+          style={{
+            backgroundImage: bundle.imageUrl
+              ? `url("${bundle.imageUrl}")`
+              : "linear-gradient(135deg, #0035A8, #0EA5E9)",
+          }}
+        >
+          {!bundle.imageUrl && <Icon.shield />}
+        </span>
+      ),
+    })),
   ].filter(Boolean) as MobileOpportunity[];
 
   const opportunityRows = allOpportunities.filter((o) => {
@@ -307,6 +337,7 @@ export default function LandingPage() {
     if (feedFilter === "Mini Apps") return o.market === "Mini app";
     if (feedFilter === "Social")
       return o.market === "X account" || o.market === "Farcaster";
+    if (feedFilter === "Bundles") return o.market === "Bundle";
     return true;
   });
   const selectedFeedFilter =
@@ -377,6 +408,7 @@ export default function LandingPage() {
               <Link href="/x">X accounts</Link>
               <Link href="/farcaster">Farcaster</Link>
               <Link href="/clanker">Clanker</Link>
+              <Link href="/market">Bundles</Link>
               <Link href="/market" className="market-carousel-cta">
                 List an asset <Icon.arrow />
               </Link>
@@ -392,8 +424,7 @@ export default function LandingPage() {
                 <div>
                   <strong>No live listings yet.</strong>
                   <span>
-                    List the first asset on the active contract to publish it
-                    here.
+                    List the first asset to publish it here.
                   </span>
                   <Link href="/market" className="market-empty-cta">
                     Create listing <Icon.arrow />
@@ -645,6 +676,21 @@ export default function LandingPage() {
                 </span>
               </div>
             </Link>
+
+            <Link href="/market?tab=bundles" className="mobile-category-card">
+              <div className="mobile-category-img-container">
+                <Image src="/logo.png" alt="Bundles" fill sizes="160px" />
+              </div>
+              <div className="mobile-category-info">
+                <h3>Bundles</h3>
+                <span className="mobile-category-badge">
+                  {bundles.length} active
+                </span>
+                <span className="mobile-category-cta">
+                  View bundles <Icon.arrow />
+                </span>
+              </div>
+            </Link>
           </div>
         </section>
         <section className="mobile-feed">
@@ -702,8 +748,7 @@ export default function LandingPage() {
               <div className="mobile-feed-empty">
                 <strong>No live listings yet.</strong>
                 <span>
-                  List the first asset on the active contract to publish it
-                  here.
+                  List the first asset to publish it here.
                 </span>
               </div>
             ) : (

@@ -15,10 +15,10 @@ const dbKindMap: Record<string, string> = {
   bundles: "bundle",
 };
 
-const marketplaceListingSchema = z.object({
+export const marketplaceListingSchema = z.object({
   sellerAddress: z.string().startsWith("0x").length(42).optional(),
   title: z.string().min(2),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   price: z.number().positive(),
   data: z.record(z.string(), z.unknown()).default({}),
   chainId: z.number().int().positive().optional(),
