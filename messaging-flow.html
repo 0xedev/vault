@@ -1,1027 +1,626 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vault Messaging Flow — Baseshire Hethaway</title>
-    <style>
-      :root {
-        --bg: #ffffff;
-        --bg-2: #f8fafc;
-        --surface: #0035a8;
-        --surface-2: #e2e8f0;
-        --line: rgba(0, 82, 255, 0.08);
-        --line-strong: rgba(0, 82, 255, 0.16);
-        --ink: #0f172a;
-        --ink-2: #1e293b;
-        --ink-3: #475569;
-        --ink-4: #64748b;
-        --accent: #0052ff;
-        --accent-ink: #ffffff;
-        --warn: #f59e0b;
-        --risk: #ef4444;
-        --mono:
-          "JetBrains Mono", "Berkeley Mono", "IBM Plex Mono", ui-monospace,
-          monospace;
-        --sans: "Geist", "Inter Tight", -apple-system, system-ui, sans-serif;
-        --serif:
-          "Instrument Serif", "GT Super", "Tiempos Headline", Georgia, serif;
-      }
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      body {
-        font-family: var(--sans);
-        background: var(--bg);
-        color: var(--ink);
-        padding: 48px 24px;
-      }
-      .container {
-        max-width: 1100px;
-        margin: 0 auto;
-      }
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vault Messaging Flow — Baseshire Hethaway</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-2: #f8fafc;
+    --surface: #f1f5f9;
+    --surface-2: #e2e8f0;
+    --line: rgba(0,82,255,0.08);
+    --line-strong: rgba(0,82,255,0.16);
+    --ink: #0f172a;
+    --ink-2: #1e293b;
+    --ink-3: #475569;
+    --ink-4: #64748b;
+    --accent: #0052ff;
+    --accent-ink: #ffffff;
+    --warn: #f59e0b;
+    --risk: #ef4444;
+    --mono: "JetBrains Mono","Berkeley Mono","IBM Plex Mono",ui-monospace,monospace;
+    --sans: "Geist","Inter Tight",-apple-system,system-ui,sans-serif;
+    --serif: "Instrument Serif","GT Super","Tiempos Headline",Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    padding: 48px 24px;
+  }
+  .container { max-width:1100px; margin:0 auto; }
 
-      /* Header */
-      header {
-        border-bottom: 1px solid var(--line);
-        padding-bottom: 24px;
-        margin-bottom: 40px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-      }
-      header .logo {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-        background: var(--accent);
-        color: var(--accent-ink);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: var(--serif);
-        font-size: 18px;
-        font-weight: 600;
-      }
-      header h1 {
-        font-family: var(--serif);
-        font-size: 28px;
-        font-weight: 400;
-      }
-      header h1 em {
-        font-style: italic;
-        color: var(--accent);
-      }
-      .eyebrow {
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: var(--ink-4);
-        font-weight: 600;
-      }
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+    display:flex; align-items:center; gap:16px;
+  }
+  header .logo {
+    width:36px; height:36px; border-radius:8px;
+    background: var(--accent); color: var(--accent-ink);
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--serif); font-size:18px; font-weight:600;
+  }
+  header h1 { font-family: var(--serif); font-size:28px; font-weight:400; }
+  header h1 em { font-style:italic; color: var(--accent); }
+  .eyebrow { font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color: var(--ink-4); font-weight:600; }
 
-      /* Step flow */
-      .flow {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-      }
-      .step {
-        display: flex;
-        gap: 20px;
-        position: relative;
-        padding: 24px 0;
-      }
-      .step:not(:last-child)::after {
-        content: "";
-        position: absolute;
-        left: 20px;
-        top: 64px;
-        bottom: -2px;
-        width: 2px;
-        background: repeating-linear-gradient(
-          to bottom,
-          var(--accent) 0 4px,
-          transparent 4px 12px
-        );
-      }
-      .step-num {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-        background: var(--surface);
-        border: 1px solid var(--line-strong);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-family: var(--mono);
-        font-size: 14px;
-        font-weight: 600;
-        color: var(--accent);
-        flex-shrink: 0;
-        z-index: 1;
-      }
-      .step-body {
-        flex: 1;
-        padding-top: 6px;
-      }
-      .step-body h3 {
-        font-size: 16px;
-        font-weight: 600;
-        margin-bottom: 6px;
-      }
-      .step-body p {
-        font-size: 13px;
-        color: var(--ink-3);
-        line-height: 1.6;
-      }
+  /* Step flow */
+  .flow { display:flex; flex-direction:column; gap:0; }
+  .step {
+    display:flex; gap:20px; position:relative;
+    padding: 24px 0;
+  }
+  .step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 20px; top: 64px; bottom: -2px;
+    width:2px;
+    background: repeating-linear-gradient(to bottom, var(--accent) 0 4px, transparent 4px 12px);
+  }
+  .step-num {
+    width:42px; height:42px; border-radius:12px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    display: flex; align-items:center; justify-content:center;
+    font-family: var(--mono); font-size:14px; font-weight:600;
+    color: var(--accent);
+    flex-shrink:0;
+    z-index:1;
+  }
+  .step-body { flex:1; padding-top:6px; }
+  .step-body h3 { font-size:16px; font-weight:600; margin-bottom:6px; }
+  .step-body p  { font-size:13px; color: var(--ink-3); line-height:1.6; }
 
-      /* Cards */
-      .cards {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        margin-top: 12px;
-      }
-      .card {
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 14px 16px;
-      }
-      .card h4 {
-        font-family: var(--mono);
-        font-size: 12px;
-        color: var(--ink-4);
-        margin-bottom: 8px;
-        font-weight: 500;
-      }
-      .card.server {
-        border-left: 3px solid var(--accent);
-      }
-      .card.client {
-        border-left: 3px solid var(--ink-4);
-      }
-      .card.db {
-        border-left: 3px solid var(--warn);
-      }
+  /* Cards */
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .card h4 {
+    font-family: var(--mono); font-size:12px;
+    color: var(--ink-4); margin-bottom:8px; font-weight:500;
+  }
+  .card.server { border-left: 3px solid var(--accent); }
+  .card.client { border-left: 3px solid var(--ink-4); }
+  .card.db     { border-left: 3px solid var(--warn); }
 
-      /* Code blocks */
-      code {
-        display: block;
-        font-family: var(--mono);
-        font-size: 11px;
-        line-height: 1.55;
-        color: var(--ink-2);
-        background: var(--bg);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 10px 12px;
-        margin-top: 6px;
-        overflow-x: auto;
-        white-space: pre;
-      }
-      .hl {
-        color: var(--accent);
-        font-weight: 600;
-      }
-      .h2 {
-        color: var(--warn);
-      }
-      .h3 {
-        color: var(--risk);
-      }
-      .cm {
-        color: var(--ink-4);
-      }
+  /* Code blocks */
+  code {
+    display:block;
+    font-family: var(--mono);
+    font-size:11px;
+    line-height:1.55;
+    color: var(--ink-2);
+    background: var(--bg);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 12px;
+    margin-top:6px;
+    overflow-x:auto;
+    white-space:pre;
+  }
+  .hl { color: var(--accent); font-weight:600; }
+  .h2 { color: var(--warn); }
+  .h3 { color: var(--risk); }
+  .cm { color: var(--ink-4); }
 
-      /* Timeline */
-      .timeline {
-        display: flex;
-        gap: 0;
-        margin-top: 12px;
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        overflow: hidden;
-      }
-      .timeline > div {
-        flex: 1;
-        padding: 12px 14px;
-        font-size: 12px;
-        text-align: center;
-        border-right: 1px solid var(--line);
-        font-family: var(--mono);
-      }
-      .timeline > div:last-child {
-        border-right: 0;
-      }
-      .timeline .label {
-        font-size: 10px;
-        color: var(--ink-4);
-        display: block;
-        margin-bottom: 4px;
-      }
-      .timeline .t-client {
-        background: var(--surface);
-      }
-      .timeline .t-server {
-        background: color-mix(in oklab, var(--accent) 8%, var(--bg));
-      }
+  /* Timeline */
+  .timeline {
+    display:flex; gap:0; margin-top:12px;
+    border:1px solid var(--line); border-radius:12px;
+    overflow:hidden;
+  }
+  .timeline > div {
+    flex:1; padding:12px 14px; font-size:12px;
+    text-align:center;
+    border-right:1px solid var(--line);
+    font-family: var(--mono);
+  }
+  .timeline > div:last-child { border-right:0; }
+  .timeline .label { font-size:10px; color: var(--ink-4); display:block; margin-bottom:4px; }
+  .timeline .t-client { background: var(--surface); }
+  .timeline .t-server { background: color-mix(in oklab, var(--accent) 8%, var(--bg)); }
 
-      /* Bubble preview */
-      .chat-preview {
-        margin-top: 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .bubble {
-        max-width: 78%;
-        padding: 10px 12px;
-        border-radius: 12px;
-        font-size: 13px;
-        line-height: 1.45;
-        background: var(--surface);
-        border: 1px solid var(--line);
-      }
-      .bubble.me {
-        background: color-mix(in oklab, var(--accent) 22%, transparent);
-        border-color: color-mix(in oklab, var(--accent) 35%, transparent);
-        align-self: flex-end;
-      }
-      .bubble .who {
-        font-size: 11px;
-        color: var(--ink-4);
-        margin-bottom: 4px;
-        font-family: var(--mono);
-      }
+  /* Bubble preview */
+  .chat-preview { margin-top:14px; display:flex; flex-direction:column; gap:8px; }
+  .bubble {
+    max-width: 78%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.45;
+    background: var(--surface);
+    border: 1px solid var(--line);
+  }
+  .bubble.me {
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+    border-color: color-mix(in oklab, var(--accent) 35%, transparent);
+    align-self: flex-end;
+  }
+  .bubble .who {
+    font-size: 11px; color: var(--ink-4);
+    margin-bottom: 4px; font-family: var(--mono);
+  }
 
-      /* Encrypt/decrypt visual */
-      .crypto-viz {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin: 10px 0;
-        font-family: var(--mono);
-        font-size: 11px;
-      }
-      .crypto-viz .box {
-        padding: 6px 10px;
-        border-radius: 8px;
-        background: var(--surface);
-        border: 1px solid var(--line);
-        color: var(--ink-2);
-      }
-      .crypto-viz .arrow {
-        color: var(--accent);
-        font-size: 16px;
-      }
-      .crypto-viz .padlock {
-        color: var(--warn);
-      }
+  /* Encrypt/decrypt visual */
+  .crypto-viz {
+    display:flex; align-items:center; gap:10px;
+    margin:10px 0; font-family: var(--mono); font-size:11px;
+  }
+  .crypto-viz .box {
+    padding:6px 10px; border-radius:8px;
+    background: var(--surface); border:1px solid var(--line);
+    color: var(--ink-2);
+  }
+  .crypto-viz .arrow { color: var(--accent); font-size:16px; }
+  .crypto-viz .padlock { color: var(--warn); }
 
-      /* Two-column section */
-      .two-col {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
-      }
-      @media (max-width: 720px) {
-        .two-col {
-          grid-template-columns: 1fr;
-        }
-        .cards {
-          grid-template-columns: 1fr;
-        }
-      }
+  /* Two-column section */
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  @media (max-width:720px) { .two-col { grid-template-columns:1fr; } .cards { grid-template-columns:1fr; } }
 
-      /* Footer */
-      footer {
-        margin-top: 48px;
-        padding-top: 24px;
-        border-top: 1px solid var(--line);
-        font-size: 12px;
-        color: var(--ink-4);
-        text-align: center;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <header>
-        <div class="logo">V</div>
-        <div>
-          <span class="eyebrow">System Architecture</span>
-          <h1>Message Flow — <em>Send &rarr; Appear</em></h1>
+  /* Footer */
+  footer {
+    margin-top:48px; padding-top:24px;
+    border-top:1px solid var(--line);
+    font-size:12px; color: var(--ink-4);
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="logo">V</div>
+  <div>
+    <span class="eyebrow">System Architecture</span>
+    <h1>Message Flow — <em>Send &rarr; Appear</em></h1>
+  </div>
+</header>
+
+<div class="flow">
+
+  <!-- STEP 1: User types & sends -->
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h3>User types a message and hits Enter (or clicks Send)</h3>
+      <p>Happens in <code style="display:inline;padding:1px 6px;margin:0">DealRoom</code> component — <span style="font-family:var(--mono);font-size:11px">src/app/(user)/deals/page.tsx:363</span></p>
+
+      <div class="cards">
+        <div class="card client">
+          <h4>Client — DealRoom</h4>
+          <code>const sendMsg = async () => {
+  if (!draft.trim() || sending) return;
+  setSending(true);
+  const res = await fetch(
+    `/api/deals/<span class="hl">${deal.id}</span>/messages`, {
+      method: "POST",
+      credentials: "include",       <span class="cm">// session cookie</span>
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        actorAddress: address,      <span class="cm">// wallet addr (ignored if non‑admin)</span>
+        body: <span class="hl">draft</span>              <span class="cm">// raw text, max 5000 chars</span>
+      }),
+    });
+  const json = await res.json();
+  if (json.data) {
+    setMessages(prev => [...prev, json.data]);  <span class="cm">// optimistic append</span>
+  }
+  setDraft("");
+}</code>
         </div>
-      </header>
-
-      <div class="flow">
-        <!-- STEP 1: User types & sends -->
-        <div class="step">
-          <div class="step-num">1</div>
-          <div class="step-body">
-            <h3>User types a message and hits Enter (or clicks Send)</h3>
-            <p>
-              Happens in
-              <code style="display: inline; padding: 1px 6px; margin: 0"
-                >DealRoom</code
-              >
-              component —
-              <span style="font-family: var(--mono); font-size: 11px"
-                >src/app/(user)/deals/page.tsx:363</span
-              >
-            </p>
-
-            <div class="cards">
-              <div class="card client">
-                <h4>Client — DealRoom</h4>
-                <code
-                  >const sendMsg = async () => { if (!draft.trim() || sending)
-                  return; setSending(true); const res = await fetch(
-                  `/api/deals/<span class="hl">${deal.id}</span>/messages`, {
-                  method: "POST", credentials: "include",
-                  <span class="cm">// session cookie</span> headers: {
-                  "Content-Type": "application/json" }, body: JSON.stringify({
-                  actorAddress: address,
-                  <span class="cm">// wallet addr (ignored if non‑admin)</span>
-                  body: <span class="hl">draft</span>
-                  <span class="cm">// raw text, max 5000 chars</span> }), });
-                  const json = await res.json(); if (json.data) {
-                  setMessages(prev => [...prev, json.data]);
-                  <span class="cm">// optimistic append</span> } setDraft("");
-                  }</code
-                >
-              </div>
-              <div class="card">
-                <h4>What the user sees</h4>
-                <div
-                  style="
-                    font-size: 13px;
-                    color: var(--ink-3);
-                    line-height: 1.6;
-                    margin-bottom: 10px;
-                  "
-                >
-                  Typing area at the bottom of the Deal Room chat card. Press
-                  <kbd
-                    style="
-                      padding: 1px 5px;
-                      border: 1px solid var(--line);
-                      border-radius: 4px;
-                      font-family: var(--mono);
-                      font-size: 11px;
-                    "
-                    >Enter</kbd
-                  >
-                  to send.
-                </div>
-                <div
-                  style="
-                    background: var(--bg);
-                    border: 1px solid var(--line);
-                    border-radius: 10px;
-                    padding: 10px 12px;
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                  "
-                >
-                  <input
-                    style="
-                      flex: 1;
-                      border: 0;
-                      outline: 0;
-                      font-size: 13px;
-                      font-family: var(--sans);
-                      background: transparent;
-                      color: var(--ink);
-                    "
-                    placeholder="Send a message…"
-                    readonly
-                    value="Hey, I just transferred the assets."
-                  />
-                  <div
-                    style="
-                      width: 28px;
-                      height: 28px;
-                      border-radius: 8px;
-                      background: var(--accent);
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      color: var(--accent-ink);
-                      font-size: 12px;
-                    "
-                  >
-                    &rarr;
-                  </div>
-                </div>
-              </div>
-            </div>
+        <div class="card">
+          <h4>What the user sees</h4>
+          <div style="font-size:13px;color:var(--ink-3);line-height:1.6;margin-bottom:10px">
+            Typing area at the bottom of the Deal Room chat card. Press <kbd style="padding:1px 5px;border:1px solid var(--line);border-radius:4px;font-family:var(--mono);font-size:11px">Enter</kbd> to send.
           </div>
-        </div>
-
-        <!-- STEP 2: API receives request -->
-        <div class="step">
-          <div class="step-num">2</div>
-          <div class="step-body">
-            <h3>API route validates, authenticates & authorizes</h3>
-            <p>
-              Happens in the
-              <span style="font-family: var(--mono); font-size: 11px"
-                >POST /api/deals/[id]/messages</span
-              >
-              handler —
-              <span style="font-family: var(--mono); font-size: 11px"
-                >src/app/api/deals/[id]/messages/route.ts:48</span
-              >
-            </p>
-
-            <div class="cards">
-              <div class="card server">
-                <h4>Server — POST handler</h4>
-                <code
-                  ><span class="cm">// 1. Parse & validate</span>
-                  const parsed = sendSchema.safeParse(await req.json());
-                  <span class="cm">// body: z.string().min(1).max(5000)</span>
-
-                  <span class="cm"
-                    >// 2. Auth + CSRF + rate-limit (requireUser calls
-                    mutationGuard)</span
-                  >
-                  const auth = await <span class="hl">requireUser</span>(req);
-                  <span class="cm"
-                    >// Checks: session cookie → sessions table → TTL
-                    expiry</span
-                  >
-                  <span class="cm"
-                    >// POST mutates: CSRF origin check, rate-limit 30/min per
-                    IP</span
-                  >
-
-                  <span class="cm"
-                    >// 3. Resolve actor address (non‑admin = forced to session
-                    user)</span
-                  >
-                  const actorAddress =
-                  <span class="hl">actorAddressForRequest</span>(auth.user,
-                  parsed.data.actorAddress);
-                  <span class="cm"
-                    >// Admin can override; non‑admin always gets their own
-                    address</span
-                  >
-
-                  <span class="cm"
-                    >// 4. Verify actor is buyer OR seller of this escrow</span
-                  >
-                  SELECT id FROM escrows WHERE id =
-                  <span class="h2">${escrowId}</span> AND (buyer_address =
-                  <span class="h2">${actorAddress}</span> OR seller_address =
-                  <span class="h2">${actorAddress}</span>) LIMIT 1;
-                  <span class="cm"
-                    >// Returns 404 if user isn't a participant</span
-                  ></code
-                >
-              </div>
-              <div class="card client">
-                <h4>What the user experiences</h4>
-                <ul
-                  style="
-                    font-size: 13px;
-                    color: var(--ink-3);
-                    line-height: 1.8;
-                    padding-left: 16px;
-                  "
-                >
-                  <li>
-                    No visual feedback while pending (button greys out via
-                    <code
-                      style="display: inline; font-size: 11px; padding: 1px 4px"
-                      >sending</code
-                    >
-                    state)
-                  </li>
-                  <li>If unauthenticated &rarr; 401 error silently caught</li>
-                  <li>
-                    If not a deal participant &rarr; 404 error silently caught
-                  </li>
-                  <li>If rate-limited &rarr; 429 error silently caught</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 3: Encryption -->
-        <div class="step">
-          <div class="step-num">3</div>
-          <div class="step-body">
-            <h3>Message is encrypted server-side with AES‑256‑GCM</h3>
-            <p>
-              Happens in
-              <span style="font-family: var(--mono); font-size: 11px"
-                >src/lib/crypto.ts</span
-              >
-              — per‑deal key derivation + random IV + authenticated encryption.
-            </p>
-
-            <div class="cards">
-              <div class="card server">
-                <h4>Server — encryptMessage()</h4>
-                <code
-                  ><span class="cm"
-                    >// Key = scrypt(MASTER_SECRET, escrowId, 32)</span
-                  >
-                  const key =
-                  <span class="hl">scryptSync</span
-                  >(process.env.MESSAGE_ENCRYPTION_KEY, escrowId, 32);
-
-                  <span class="cm"
-                    >// IV = crypto.randomBytes(12) — unique per message</span
-                  >
-                  const iv = randomBytes(12);
-
-                  <span class="cm">// AES-256-GCM: encrypt + authenticate</span>
-                  const cipher = createCipheriv("aes-256-gcm", key, iv); const
-                  encrypted = cipher.update(plaintext, "utf8") + cipher.final();
-                  const authTag = cipher.getAuthTag();
-                  <span class="cm">// 16‑byte GMAC</span>
-
-                  <span class="cm"
-                    >// Store as: IV(12b) + authTag(16b) + ciphertext →
-                    base64</span
-                  >
-                  const combined = concat(iv, authTag, encrypted); return
-                  combined.toString("base64");</code
-                >
-              </div>
-              <div class="card">
-                <h4>What happens under the hood</h4>
-                <div class="crypto-viz">
-                  <div class="box">
-                    Plaintext<br />"Hey, I just<br />transferred<br />the
-                    assets."
-                  </div>
-                  <span class="arrow">&rarr;</span>
-                  <div class="box" style="border-color: var(--warn)">
-                    <span class="padlock">&#x1f512;</span>
-                    scrypt<br />(secret,<br />escrowId)
-                  </div>
-                  <span class="arrow">&rarr;</span>
-                  <div class="box">AES‑256<br />GCM</div>
-                  <span class="arrow">&rarr;</span>
-                  <div
-                    class="box"
-                    style="
-                      background: var(--ink-2);
-                      color: var(--accent-ink);
-                      border-color: var(--ink-2);
-                    "
-                  >
-                    Ciphertext<br /><span style="font-size: 10px; opacity: 0.7"
-                      >base64 blob</span
-                    >
-                  </div>
-                </div>
-                <p
-                  style="font-size: 11px; color: var(--ink-4); margin-top: 10px"
-                >
-                  <strong>Key isolation:</strong> Each escrow gets a unique
-                  derived key via scrypt(MESSAGE_ENCRYPTION_KEY, escrowId).
-                  <br />
-                  <strong>Authenticated:</strong> GCM provides both
-                  confidentiality and integrity. Tampering is detected at
-                  decrypt time. <br />
-                  <strong>Random IV:</strong> Every message gets its own 96‑bit
-                  IV, so identical plaintexts produce different ciphertexts.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 4: DB Insert -->
-        <div class="step">
-          <div class="step-num">4</div>
-          <div class="step-body">
-            <h3>Ciphertext is persisted to PostgreSQL</h3>
-            <p>
-              Stored in the
-              <span style="font-family: var(--mono); font-size: 11px"
-                >deal_messages</span
-              >
-              table via Neon serverless Postgres —
-              <span style="font-family: var(--mono); font-size: 11px"
-                >drizzle/0002_early_glorian.sql</span
-              >
-            </p>
-
-            <div class="cards">
-              <div class="card db">
-                <h4>Database — deal_messages table</h4>
-                <code
-                  >INSERT INTO deal_messages ( id,
-                  <span class="cm">-- "M-1769357947123"</span> escrow_id,
-                  <span class="cm">-- "E-1769357890123"</span> sender_address,
-                  <span class="cm">-- "0x9a4f...4567"</span> body
-                  <span class="cm">-- base64‑encoded encrypted blob</span>
-                  ) VALUES (
-                  <span class="h2">${id}</span>,
-                  <span class="h2">${escrowId}</span>,
-                  <span class="h2">${actorAddress}</span>,
-                  <span class="h2">${ciphertext}</span>
-                  );</code
-                >
-                <div
-                  style="
-                    margin-top: 10px;
-                    font-size: 11px;
-                    color: var(--ink-4);
-                    line-height: 1.6;
-                  "
-                >
-                  <strong>Schema:</strong>
-                  <code
-                    style="display: inline; font-size: 11px; padding: 1px 4px"
-                    >id TEXT PK | escrow_id TEXT FK&rarr;escrows |
-                    sender_address TEXT FK&rarr;users | body TEXT | created_at
-                    TIMESTAMP</code
-                  ><br />
-                  <strong>Not indexed</strong> on
-                  <code
-                    style="display: inline; font-size: 11px; padding: 1px 4px"
-                    >(escrow_id, created_at)</code
-                  >
-                  — fine for MVP load.
-                </div>
-              </div>
-              <div class="card">
-                <h4>What's actually stored</h4>
-                <div
-                  style="
-                    font-size: 11px;
-                    font-family: var(--mono);
-                    color: var(--ink-2);
-                    background: var(--bg);
-                    border: 1px solid var(--line);
-                    border-radius: 8px;
-                    padding: 10px;
-                    word-break: break-all;
-                    line-height: 1.6;
-                  "
-                >
-                  <span style="color: var(--ink-4)">body =</span>
-                  "A8f2jK9xM3pQ7vR1yW5zB..."
-                </div>
-                <p
-                  style="font-size: 11px; color: var(--ink-4); margin-top: 8px"
-                >
-                  The database never sees the plaintext. Even with direct DB
-                  access, messages are unreadable without the
-                  MESSAGE_ENCRYPTION_KEY environment variable.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 5: Response + Optimistic UI -->
-        <div class="step">
-          <div class="step-num">5</div>
-          <div class="step-body">
-            <h3>
-              Server responds with plaintext — client appends optimistically
-            </h3>
-            <p>
-              The POST returns the message as plaintext (decrypted server-side
-              before sending). Client adds it to the messages array immediately.
-            </p>
-
-            <div class="cards">
-              <div class="card server">
-                <h4>Server — POST response (201 Created)</h4>
-                <code
-                  >return NextResponse.json({ data: { id:
-                  <span class="hl">"M-1769357947123"</span>, sender:
-                  <span class="hl">"0x9a4f...4567"</span>,
-                  <span class="cm">// shortAddress</span> senderAddress:
-                  <span class="hl">"0x9a4fb5c12e...4567"</span>, body:
-                  <span class="hl">"Hey, I just transferred..."</span>,
-                  <span class="cm">// plaintext!</span> createdAt:
-                  <span class="hl">"2026-06-26T10:43:47.883Z"</span>, me:
-                  <span class="hl">true</span> } }, { status: 201 });</code
-                >
-              </div>
-              <div class="card client">
-                <h4>Client — optimistic append</h4>
-                <code
-                  >const json = await res.json(); if (json.data) {
-                  setMessages(prev => [...prev, json.data]); }
-                  setDraft("");</code
-                >
-                <div class="chat-preview">
-                  <div class="bubble me">
-                    <div class="who">0x9a4f...4567 · 10:44</div>
-                    Hey, I just transferred the assets.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 6: Polling -->
-        <div class="step">
-          <div class="step-num">6</div>
-          <div class="step-body">
-            <h3>Counterparty sees the message via 5‑second polling</h3>
-            <p>
-              The DealRoom runs a
-              <code style="display: inline; font-size: 11px; padding: 1px 4px"
-                >setInterval</code
-              >
-              that fetches the latest 200 messages every 5 seconds —
-              <span style="font-family: var(--mono); font-size: 11px"
-                >src/app/(user)/deals/page.tsx:162</span
-              >
-            </p>
-
-            <div class="two-col">
-              <div>
-                <div class="card client">
-                  <h4>Client — polling useEffect</h4>
-                  <code
-                    >useEffect(() => { const query = address ?
-                    `?walletAddress=${encodeURIComponent(address)}` : ""; const
-                    load = () => { fetch(`/api/deals/<span class="hl"
-                      >${deal.id}</span
-                    >/messages${query}`) .then(r => r.json()) .then(json =>
-                    setMessages(json.data || [])) .catch(() => {}); }; load();
-                    <span class="cm">// initial fetch</span> const interval =
-                    setInterval(load, <span class="hl">5000</span>);
-                    <span class="cm">// every 5s</span> return () =>
-                    clearInterval(interval);
-                    <span class="cm">// cleanup on unmount</span> }, [address,
-                    deal.id]);</code
-                  >
-                </div>
-              </div>
-              <div>
-                <div class="card server">
-                  <h4>Server — GET handler (decrypt & return)</h4>
-                  <code
-                    ><span class="cm">// 1. Auth (no CSRF on GET)</span>
-                    const auth = await requireUser(req);
-
-                    <span class="cm">// 2. Verify deal access</span>
-                    SELECT id FROM escrows WHERE ... AND (buyer_address = actor
-                    OR seller_address = actor);
-
-                    <span class="cm">// 3. Fetch messages (capped at 200)</span>
-                    SELECT * FROM deal_messages WHERE escrow_id =
-                    <span class="h2">${escrowId}</span>
-                    ORDER BY created_at ASC LIMIT 200;
-
-                    <span class="cm">// 4. Decrypt each message</span>
-                    rows.map(r => ({ body:
-                    <span class="hl">decryptMessage</span>(escrowId, r.body),
-                    me: r.sender_address === actorAddress, ... }));</code
-                  >
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 7: Decryption (detail) -->
-        <div class="step">
-          <div class="step-num">7</div>
-          <div class="step-body">
-            <h3>Decryption: the reverse of step 3</h3>
-            <p>
-              Happens server-side inside
-              <code style="display: inline; font-size: 11px; padding: 1px 4px"
-                >decryptMessage()</code
-              >
-              —
-              <span style="font-family: var(--mono); font-size: 11px"
-                >src/lib/crypto.ts:25</span
-              >
-            </p>
-
-            <div class="cards">
-              <div class="card server">
-                <h4>Server — decryptMessage()</h4>
-                <code
-                  ><span class="cm">// Re-derive the same key</span> const key =
-                  <span class="hl">scryptSync</span
-                  >(process.env.MESSAGE_ENCRYPTION_KEY, escrowId, 32);
-
-                  <span class="cm">// Split the combined blob</span>
-                  const combined = Buffer.from(ciphertext, "base64"); const iv =
-                  combined.subarray(0, 12);
-                  <span class="cm">// first 12 bytes</span> const authTag =
-                  combined.subarray(12, 28);
-                  <span class="cm">// next 16 bytes</span> const encrypted =
-                  combined.subarray(28);
-                  <span class="cm">// rest is ciphertext</span>
-
-                  <span class="cm"
-                    >// AES-256-GCM decrypt + verify auth tag</span
-                  >
-                  const decipher = createDecipheriv("aes-256-gcm", key, iv);
-                  decipher.setAuthTag(authTag);
-                  <span class="cm">// will throw if tampered</span>
-                  return decipher.update(encrypted) + decipher.final();
-                  <span class="cm"
-                    >// Returns original plaintext — only if auth tag
-                    matches</span
-                  ></code
-                >
-              </div>
-              <div class="card">
-                <h4>What could go wrong</h4>
-                <div
-                  style="font-size: 12px; color: var(--ink-3); line-height: 1.7"
-                >
-                  <div
-                    style="
-                      display: flex;
-                      gap: 8px;
-                      align-items: flex-start;
-                      margin-bottom: 10px;
-                    "
-                  >
-                    <span style="color: var(--risk); font-size: 16px"
-                      >&#x26A0;</span
-                    >
-                    <span
-                      ><strong>Tampered ciphertext</strong> &mdash;
-                      <code style="display: inline; font-size: 11px"
-                        >decipher.setAuthTag()</code
-                      >
-                      will throw, caught by the
-                      <code style="display: inline; font-size: 11px"
-                        >try/catch</code
-                      >
-                      in the route handler &rarr; displays "<code
-                        style="display: inline; font-size: 11px"
-                        >[encrypted message]</code
-                      >"</span
-                    >
-                  </div>
-                  <div
-                    style="
-                      display: flex;
-                      gap: 8px;
-                      align-items: flex-start;
-                      margin-bottom: 10px;
-                    "
-                  >
-                    <span style="color: var(--warn); font-size: 16px"
-                      >&#x26A0;</span
-                    >
-                    <span
-                      ><strong>Missing MESSAGE_ENCRYPTION_KEY</strong> &mdash;
-                      <code style="display: inline; font-size: 11px"
-                        >deriveKey()</code
-                      >
-                      throws immediately, all message operations fail (by
-                      design)</span
-                    >
-                  </div>
-                  <div style="display: flex; gap: 8px; align-items: flex-start">
-                    <span style="color: var(--accent); font-size: 16px"
-                      >&#x2139;</span
-                    >
-                    <span
-                      ><strong>Wrong escrowId</strong> &mdash; key derivation
-                      produces a different key, decryption fails with auth tag
-                      mismatch (GCM authenticated encryption detects this)</span
-                    >
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- STEP 8: Full chat UI -->
-        <div class="step">
-          <div class="step-num">8</div>
-          <div class="step-body">
-            <h3>The full chat appears — both sides see all messages</h3>
-            <p>
-              Messages render inside the Deal Room chat card. Your messages
-              align right (blue tint); counterparty messages align left (grey).
-            </p>
-
-            <div class="cards">
-              <div class="card client">
-                <h4>Rendered chat UI</h4>
-                <div class="chat-preview">
-                  <div class="bubble me">
-                    <div class="who">0x9a4f...4567 · 10:43</div>
-                    Is the NFT still in your wallet?
-                  </div>
-                  <div class="bubble">
-                    <div class="who">0x7b3c...8912 · 10:43</div>
-                    Yes, you can verify on Etherscan.
-                  </div>
-                  <div class="bubble me">
-                    <div class="who">0x9a4f...4567 · 10:44</div>
-                    Great, I'll release the funds now.
-                  </div>
-                  <div class="bubble">
-                    <div class="who">0x7b3c...8912 · 10:45</div>
-                    Received, thanks!
-                  </div>
-                </div>
-              </div>
-              <div class="card">
-                <h4>Component structure</h4>
-                <code
-                  ><span class="cm"
-                    >&lt;!-- src/app/(user)/deals/page.tsx:534 --&gt;</span
-                  >
-                  &lt;div className="card" style={{ height: 480 }}&gt; &lt;div
-                  className="row between"&gt; &lt;span
-                  className="eyebrow"&gt;Deal Room Chat&lt;/span&gt; &lt;span
-                  className="muted-2"&gt; End-to-end encrypted ·
-                  <span class="hl">2 participants</span> &lt;/span&gt;
-                  &lt;/div&gt; &lt;div style={{ overflowY: "auto" }}&gt;
-                  {messages.map(m =&gt; ( &lt;div style={{ alignItems: m.me ?
-                  "flex-end" : "flex-start" }}&gt; &lt;div className={"bubble" +
-                  (m.me ? " me" : "")}&gt; &lt;div className="who"&gt;
-                  {m.sender} · {formatTime(m.createdAt)} &lt;/div&gt; {m.body}
-                  &lt;/div&gt; &lt;/div&gt; ))} &lt;/div&gt; &lt;div
-                  className="row" style={{ borderTop, paddingTop }}&gt;
-                  &lt;input onKeyDown={e =&gt; e.key === "Enter" && sendMsg() }
-                  /&gt; &lt;button onClick={sendMsg}&gt;Send&lt;/button&gt;
-                  &lt;/div&gt; &lt;/div&gt;</code
-                >
-              </div>
-            </div>
+          <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;gap:8px;align-items:center">
+            <input style="flex:1;border:0;outline:0;font-size:13px;font-family:var(--sans);background:transparent;color:var(--ink)" placeholder="Send a message…" readonly value="Hey, I just transferred the assets.">
+            <div style="width:28px;height:28px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:var(--accent-ink);font-size:12px">&rarr;</div>
           </div>
         </div>
       </div>
-      <!-- .flow -->
-
-      <!-- Summary timeline -->
-      <div style="margin-top: 40px">
-        <span class="eyebrow" style="display: block; margin-bottom: 12px"
-          >End‑to‑end timeline</span
-        >
-        <div class="timeline">
-          <div class="t-client">
-            <span class="label">CLIENT</span>
-            User types<br />Enter key
-          </div>
-          <div class="t-client">
-            <span class="label">CLIENT</span>
-            fetch()<br />POST /messages
-          </div>
-          <div class="t-server">
-            <span class="label">SERVER</span>
-            Auth +<br />Validation
-          </div>
-          <div class="t-server">
-            <span class="label">SERVER</span>
-            encryptMessage()<br />AES-256-GCM
-          </div>
-          <div class="t-server">
-            <span class="label">DB</span>
-            INSERT<br />deal_messages
-          </div>
-          <div class="t-server">
-            <span class="label">SERVER</span>
-            Respond 201<br />plaintext
-          </div>
-          <div class="t-client">
-            <span class="label">CLIENT</span>
-            Optimistic<br />append
-          </div>
-          <div style="background: var(--surface-2)">
-            <span class="label" style="color: var(--accent)">POLLING</span>
-            setInterval<br />every 5s
-          </div>
-          <div class="t-server">
-            <span class="label">SERVER</span>
-            GET /messages<br />decryptMessage()
-          </div>
-          <div class="t-client">
-            <span class="label">CLIENT</span>
-            setMessages()<br />re-render
-          </div>
-        </div>
-      </div>
-
-      <footer>
-        Baseshire Hethaway — Vault Messaging Architecture — June 2026
-      </footer>
     </div>
-  </body>
+  </div>
+
+  <!-- STEP 2: API receives request -->
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h3>API route validates, authenticates & authorizes</h3>
+      <p>Happens in the <span style="font-family:var(--mono);font-size:11px">POST /api/deals/[id]/messages</span> handler — <span style="font-family:var(--mono);font-size:11px">src/app/api/deals/[id]/messages/route.ts:48</span></p>
+
+      <div class="cards">
+        <div class="card server">
+          <h4>Server — POST handler</h4>
+          <code><span class="cm">// 1. Parse & validate</span>
+const parsed = sendSchema.safeParse(await req.json());
+<span class="cm">// body: z.string().min(1).max(5000)</span>
+
+<span class="cm">// 2. Auth + CSRF + rate-limit (requireUser calls mutationGuard)</span>
+const auth = await <span class="hl">requireUser</span>(req);
+<span class="cm">// Checks: session cookie → sessions table → TTL expiry</span>
+<span class="cm">// POST mutates: CSRF origin check, rate-limit 30/min per IP</span>
+
+<span class="cm">// 3. Resolve actor address (non‑admin = forced to session user)</span>
+const actorAddress = <span class="hl">actorAddressForRequest</span>(auth.user, parsed.data.actorAddress);
+<span class="cm">// Admin can override; non‑admin always gets their own address</span>
+
+<span class="cm">// 4. Verify actor is buyer OR seller of this escrow</span>
+SELECT id FROM escrows WHERE id = <span class="h2">${escrowId}</span>
+  AND (buyer_address = <span class="h2">${actorAddress}</span> OR seller_address = <span class="h2">${actorAddress}</span>)
+  LIMIT 1;
+<span class="cm">// Returns 404 if user isn't a participant</span></code>
+        </div>
+        <div class="card client">
+          <h4>What the user experiences</h4>
+          <ul style="font-size:13px;color:var(--ink-3);line-height:1.8;padding-left:16px">
+            <li>No visual feedback while pending (button greys out via <code style="display:inline;font-size:11px;padding:1px 4px">sending</code> state)</li>
+            <li>If unauthenticated &rarr; 401 error silently caught</li>
+            <li>If not a deal participant &rarr; 404 error silently caught</li>
+            <li>If rate-limited &rarr; 429 error silently caught</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Encryption -->
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h3>Message is encrypted server-side with AES‑256‑GCM</h3>
+      <p>Happens in <span style="font-family:var(--mono);font-size:11px">src/lib/crypto.ts</span> — per‑deal key derivation + random IV + authenticated encryption.</p>
+
+      <div class="cards">
+        <div class="card server">
+          <h4>Server — encryptMessage()</h4>
+          <code><span class="cm">// Key = scrypt(MASTER_SECRET, escrowId, 32)</span>
+const key = <span class="hl">scryptSync</span>(process.env.MESSAGE_ENCRYPTION_KEY, escrowId, 32);
+
+<span class="cm">// IV = crypto.randomBytes(12) — unique per message</span>
+const iv = randomBytes(12);
+
+<span class="cm">// AES-256-GCM: encrypt + authenticate</span>
+const cipher = createCipheriv("aes-256-gcm", key, iv);
+const encrypted = cipher.update(plaintext, "utf8") + cipher.final();
+const authTag = cipher.getAuthTag();  <span class="cm">// 16‑byte GMAC</span>
+
+<span class="cm">// Store as: IV(12b) + authTag(16b) + ciphertext → base64</span>
+const combined = concat(iv, authTag, encrypted);
+return combined.toString("base64");</code>
+        </div>
+        <div class="card">
+          <h4>What happens under the hood</h4>
+          <div class="crypto-viz">
+            <div class="box">Plaintext<br>"Hey, I just<br>transferred<br>the assets."</div>
+            <span class="arrow">&rarr;</span>
+            <div class="box" style="border-color:var(--warn)">
+              <span class="padlock">&#x1f512;</span> scrypt<br>(secret,<br>escrowId)
+            </div>
+            <span class="arrow">&rarr;</span>
+            <div class="box">AES‑256<br>GCM</div>
+            <span class="arrow">&rarr;</span>
+            <div class="box" style="background:var(--ink-2);color:var(--accent-ink);border-color:var(--ink-2)">
+              Ciphertext<br><span style="font-size:10px;opacity:0.7">base64 blob</span>
+            </div>
+          </div>
+          <p style="font-size:11px;color:var(--ink-4);margin-top:10px">
+            <strong>Key isolation:</strong> Each escrow gets a unique derived key via scrypt(MESSAGE_ENCRYPTION_KEY, escrowId). <br>
+            <strong>Authenticated:</strong> GCM provides both confidentiality and integrity. Tampering is detected at decrypt time. <br>
+            <strong>Random IV:</strong> Every message gets its own 96‑bit IV, so identical plaintexts produce different ciphertexts.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: DB Insert -->
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h3>Ciphertext is persisted to PostgreSQL</h3>
+      <p>Stored in the <span style="font-family:var(--mono);font-size:11px">deal_messages</span> table via Neon serverless Postgres — <span style="font-family:var(--mono);font-size:11px">drizzle/0002_early_glorian.sql</span></p>
+
+      <div class="cards">
+        <div class="card db">
+          <h4>Database — deal_messages table</h4>
+          <code>INSERT INTO deal_messages (
+  id,              <span class="cm">-- "M-1769357947123"</span>
+  escrow_id,       <span class="cm">-- "E-1769357890123"</span>
+  sender_address,  <span class="cm">-- "0x9a4f...4567"</span>
+  body             <span class="cm">-- base64‑encoded encrypted blob</span>
+) VALUES (
+  <span class="h2">${id}</span>,
+  <span class="h2">${escrowId}</span>,
+  <span class="h2">${actorAddress}</span>,
+  <span class="h2">${ciphertext}</span>
+);</code>
+          <div style="margin-top:10px;font-size:11px;color:var(--ink-4);line-height:1.6">
+            <strong>Schema:</strong> <code style="display:inline;font-size:11px;padding:1px 4px">id TEXT PK | escrow_id TEXT FK&rarr;escrows | sender_address TEXT FK&rarr;users | body TEXT | created_at TIMESTAMP</code><br>
+            <strong>Not indexed</strong> on <code style="display:inline;font-size:11px;padding:1px 4px">(escrow_id, created_at)</code> — fine for MVP load.
+          </div>
+        </div>
+        <div class="card">
+          <h4>What's actually stored</h4>
+          <div style="font-size:11px;font-family:var(--mono);color:var(--ink-2);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;word-break:break-all;line-height:1.6">
+            <span style="color:var(--ink-4)">body =</span> "A8f2jK9xM3pQ7vR1yW5zB..."
+          </div>
+          <p style="font-size:11px;color:var(--ink-4);margin-top:8px">
+            The database never sees the plaintext. Even with direct DB access, messages are unreadable without the MESSAGE_ENCRYPTION_KEY environment variable.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5: Response + Optimistic UI -->
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <h3>Server responds with plaintext — client appends optimistically</h3>
+      <p>The POST returns the message as plaintext (decrypted server-side before sending). Client adds it to the messages array immediately.</p>
+
+      <div class="cards">
+        <div class="card server">
+          <h4>Server — POST response (201 Created)</h4>
+          <code>return NextResponse.json({
+  data: {
+    id:            <span class="hl">"M-1769357947123"</span>,
+    sender:        <span class="hl">"0x9a4f...4567"</span>,       <span class="cm">// shortAddress</span>
+    senderAddress: <span class="hl">"0x9a4fb5c12e...4567"</span>,
+    body:          <span class="hl">"Hey, I just transferred..."</span>,  <span class="cm">// plaintext!</span>
+    createdAt:     <span class="hl">"2026-06-26T10:43:47.883Z"</span>,
+    me:            <span class="hl">true</span>
+  }
+}, { status: 201 });</code>
+        </div>
+        <div class="card client">
+          <h4>Client — optimistic append</h4>
+          <code>const json = await res.json();
+if (json.data) {
+  setMessages(prev => [...prev, json.data]);
+}
+setDraft("");</code>
+          <div class="chat-preview">
+            <div class="bubble me">
+              <div class="who">0x9a4f...4567 · 10:44</div>
+              Hey, I just transferred the assets.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 6: Polling -->
+  <div class="step">
+    <div class="step-num">6</div>
+    <div class="step-body">
+      <h3>Counterparty sees the message via 5‑second polling</h3>
+      <p>The DealRoom runs a <code style="display:inline;font-size:11px;padding:1px 4px">setInterval</code> that fetches the latest 200 messages every 5 seconds — <span style="font-family:var(--mono);font-size:11px">src/app/(user)/deals/page.tsx:162</span></p>
+
+      <div class="two-col">
+        <div>
+          <div class="card client">
+            <h4>Client — polling useEffect</h4>
+            <code>useEffect(() => {
+  const query = address
+    ? `?walletAddress=${encodeURIComponent(address)}` : "";
+  const load = () => {
+    fetch(`/api/deals/<span class="hl">${deal.id}</span>/messages${query}`)
+      .then(r => r.json())
+      .then(json => setMessages(json.data || []))
+      .catch(() => {});
+  };
+  load();                           <span class="cm">// initial fetch</span>
+  const interval = setInterval(load, <span class="hl">5000</span>);  <span class="cm">// every 5s</span>
+  return () => clearInterval(interval);  <span class="cm">// cleanup on unmount</span>
+}, [address, deal.id]);</code>
+          </div>
+        </div>
+        <div>
+          <div class="card server">
+            <h4>Server — GET handler (decrypt & return)</h4>
+            <code><span class="cm">// 1. Auth (no CSRF on GET)</span>
+const auth = await requireUser(req);
+
+<span class="cm">// 2. Verify deal access</span>
+SELECT id FROM escrows WHERE ... AND
+  (buyer_address = actor OR seller_address = actor);
+
+<span class="cm">// 3. Fetch messages (capped at 200)</span>
+SELECT * FROM deal_messages
+  WHERE escrow_id = <span class="h2">${escrowId}</span>
+  ORDER BY created_at ASC LIMIT 200;
+
+<span class="cm">// 4. Decrypt each message</span>
+rows.map(r => ({
+  body: <span class="hl">decryptMessage</span>(escrowId, r.body),
+  me: r.sender_address === actorAddress,
+  ...
+}));</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 7: Decryption (detail) -->
+  <div class="step">
+    <div class="step-num">7</div>
+    <div class="step-body">
+      <h3>Decryption: the reverse of step 3</h3>
+      <p>Happens server-side inside <code style="display:inline;font-size:11px;padding:1px 4px">decryptMessage()</code> — <span style="font-family:var(--mono);font-size:11px">src/lib/crypto.ts:25</span></p>
+
+      <div class="cards">
+        <div class="card server">
+          <h4>Server — decryptMessage()</h4>
+          <code><span class="cm">// Re-derive the same key</span>
+const key = <span class="hl">scryptSync</span>(process.env.MESSAGE_ENCRYPTION_KEY, escrowId, 32);
+
+<span class="cm">// Split the combined blob</span>
+const combined = Buffer.from(ciphertext, "base64");
+const iv      = combined.subarray(0, 12);       <span class="cm">// first 12 bytes</span>
+const authTag = combined.subarray(12, 28);      <span class="cm">// next 16 bytes</span>
+const encrypted = combined.subarray(28);         <span class="cm">// rest is ciphertext</span>
+
+<span class="cm">// AES-256-GCM decrypt + verify auth tag</span>
+const decipher = createDecipheriv("aes-256-gcm", key, iv);
+decipher.setAuthTag(authTag);                    <span class="cm">// will throw if tampered</span>
+return decipher.update(encrypted) + decipher.final();
+<span class="cm">// Returns original plaintext — only if auth tag matches</span></code>
+        </div>
+        <div class="card">
+          <h4>What could go wrong</h4>
+          <div style="font-size:12px;color:var(--ink-3);line-height:1.7">
+            <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px">
+              <span style="color:var(--risk);font-size:16px">&#x26A0;</span>
+              <span><strong>Tampered ciphertext</strong> &mdash; <code style="display:inline;font-size:11px">decipher.setAuthTag()</code> will throw, caught by the <code style="display:inline;font-size:11px">try/catch</code> in the route handler &rarr; displays "<code style="display:inline;font-size:11px">[encrypted message]</code>"</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px">
+              <span style="color:var(--warn);font-size:16px">&#x26A0;</span>
+              <span><strong>Missing MESSAGE_ENCRYPTION_KEY</strong> &mdash; <code style="display:inline;font-size:11px">deriveKey()</code> throws immediately, all message operations fail (by design)</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:flex-start">
+              <span style="color:var(--accent);font-size:16px">&#x2139;</span>
+              <span><strong>Wrong escrowId</strong> &mdash; key derivation produces a different key, decryption fails with auth tag mismatch (GCM authenticated encryption detects this)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 8: Full chat UI -->
+  <div class="step">
+    <div class="step-num">8</div>
+    <div class="step-body">
+      <h3>The full chat appears — both sides see all messages</h3>
+      <p>Messages render inside the Deal Room chat card. Your messages align right (blue tint); counterparty messages align left (grey).</p>
+
+      <div class="cards">
+        <div class="card client">
+          <h4>Rendered chat UI</h4>
+          <div class="chat-preview">
+            <div class="bubble me">
+              <div class="who">0x9a4f...4567 · 10:43</div>
+              Is the NFT still in your wallet?
+            </div>
+            <div class="bubble">
+              <div class="who">0x7b3c...8912 · 10:43</div>
+              Yes, you can verify on Etherscan.
+            </div>
+            <div class="bubble me">
+              <div class="who">0x9a4f...4567 · 10:44</div>
+              Great, I'll release the funds now.
+            </div>
+            <div class="bubble">
+              <div class="who">0x7b3c...8912 · 10:45</div>
+              Received, thanks!
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h4>Component structure</h4>
+          <code><span class="cm">&lt;!-- src/app/(user)/deals/page.tsx:534 --&gt;</span>
+&lt;div className="card" style={{ height: 480 }}&gt;
+  &lt;div className="row between"&gt;
+    &lt;span className="eyebrow"&gt;Deal Room Chat&lt;/span&gt;
+    &lt;span className="muted-2"&gt;
+      End-to-end encrypted · <span class="hl">2 participants</span>
+    &lt;/span&gt;
+  &lt;/div&gt;
+  &lt;div style={{ overflowY: "auto" }}&gt;
+    {messages.map(m =&gt; (
+      &lt;div style={{
+        alignItems: m.me ? "flex-end" : "flex-start"
+      }}&gt;
+        &lt;div className={"bubble" + (m.me ? " me" : "")}&gt;
+          &lt;div className="who"&gt;
+            {m.sender} · {formatTime(m.createdAt)}
+          &lt;/div&gt;
+          {m.body}
+        &lt;/div&gt;
+      &lt;/div&gt;
+    ))}
+  &lt;/div&gt;
+  &lt;div className="row" style={{ borderTop, paddingTop }}&gt;
+    &lt;input onKeyDown={e =&gt;
+      e.key === "Enter" && sendMsg()
+    } /&gt;
+    &lt;button onClick={sendMsg}&gt;Send&lt;/button&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</code>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .flow -->
+
+<!-- Summary timeline -->
+<div style="margin-top:40px">
+  <span class="eyebrow" style="display:block;margin-bottom:12px">End‑to‑end timeline</span>
+  <div class="timeline">
+    <div class="t-client">
+      <span class="label">CLIENT</span>
+      User types<br>Enter key
+    </div>
+    <div class="t-client">
+      <span class="label">CLIENT</span>
+      fetch()<br>POST /messages
+    </div>
+    <div class="t-server">
+      <span class="label">SERVER</span>
+      Auth +<br>Validation
+    </div>
+    <div class="t-server">
+      <span class="label">SERVER</span>
+      encryptMessage()<br>AES-256-GCM
+    </div>
+    <div class="t-server">
+      <span class="label">DB</span>
+      INSERT<br>deal_messages
+    </div>
+    <div class="t-server">
+      <span class="label">SERVER</span>
+      Respond 201<br>plaintext
+    </div>
+    <div class="t-client">
+      <span class="label">CLIENT</span>
+      Optimistic<br>append
+    </div>
+    <div style="background:var(--surface-2)">
+      <span class="label" style="color:var(--accent)">POLLING</span>
+      setInterval<br>every 5s
+    </div>
+    <div class="t-server">
+      <span class="label">SERVER</span>
+      GET /messages<br>decryptMessage()
+    </div>
+    <div class="t-client">
+      <span class="label">CLIENT</span>
+      setMessages()<br>re-render
+    </div>
+  </div>
+</div>
+
+<footer>
+  Baseshire Hethaway — Vault Messaging Architecture — June 2026
+</footer>
+
+</div>
+</body>
 </html>
