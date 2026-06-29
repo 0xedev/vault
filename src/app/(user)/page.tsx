@@ -390,10 +390,10 @@ export default function LandingPage() {
                   <NFTArt seed={420} />
                 </div>
                 <div>
-                  <strong>No approved listings yet.</strong>
+                  <strong>No live listings yet.</strong>
                   <span>
-                    List the first asset, then approve it from admin to publish
-                    it here.
+                    List the first asset on the active contract to publish it
+                    here.
                   </span>
                   <Link href="/market" className="market-empty-cta">
                     Create listing <Icon.arrow />
@@ -700,9 +700,9 @@ export default function LandingPage() {
           <div className="mobile-feed-list">
             {opportunityRows.length === 0 ? (
               <div className="mobile-feed-empty">
-                <strong>No approved listings yet.</strong>
+                <strong>No live listings yet.</strong>
                 <span>
-                  List the first asset, then approve it from admin to publish it
+                  List the first asset on the active contract to publish it
                   here.
                 </span>
               </div>

@@ -4,6 +4,7 @@ import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
 import { mapLoanListing } from "@/lib/marketplace";
 import { actorAddressForRequest, forbidden, requireUser } from "@/lib/auth";
 import { readListing, readRepaymentDue, readDeadline, readOfferCount, mapListingStage } from "@/lib/contract";
+import { activeListingContractAddress } from "@/lib/listing-contracts";
 
 export async function GET(
   req: NextRequest,
@@ -59,8 +60,9 @@ export async function GET(
   // Fallback to database
   const db = getDatabase();
   if (!db) return databaseRequired();
+  const activeContract = await activeListingContractAddress("nft_loan");
 
-  const rows = await db`SELECT * FROM listings WHERE id = ${id} AND moderation_status = 'approved' AND status <> 'cancelled'` as Record<string, unknown>[];
+  const rows = await db`SELECT * FROM listings WHERE id = ${id} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract}` as Record<string, unknown>[];
   if (rows.length === 0) return NextResponse.json({ error: "Listing not found" }, { status: 404 });
 
   const data = mapLoanListing(rows[0]);

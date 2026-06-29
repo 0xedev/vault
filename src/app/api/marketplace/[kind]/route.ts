@@ -4,6 +4,7 @@ import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
 import { mapClankerListing, mapFarcasterListing, mapLoanListing, mapMiniAppListing, mapXAccountListing, mapBundleListing } from "@/lib/marketplace";
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { verifyClankerTokenOwnership } from "@/lib/clanker";
+import { activeListingContractAddress } from "@/lib/listing-contracts";
 
 const dbKindMap: Record<string, string> = {
   "nft-loans": "nft_loan",
@@ -36,6 +37,7 @@ export async function GET(
 
   const dbKind = dbKindMap[kind];
   if (!dbKind) return NextResponse.json({ error: "Unknown marketplace kind" }, { status: 404 });
+  const activeContract = await activeListingContractAddress(dbKind);
 
   let rows: Record<string, unknown>[];
 
@@ -59,11 +61,12 @@ export async function GET(
       WHERE l.marketplace = 'bundle'
         AND l.moderation_status = 'approved'
         AND l.status <> 'cancelled'
+        AND lower(l.contract_address) = ${activeContract}
       GROUP BY l.id
       ORDER BY l.created_at DESC
     ` as Record<string, unknown>[];
   } else {
-    rows = await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' ORDER BY created_at DESC` as Record<string, unknown>[];
+    rows = await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC` as Record<string, unknown>[];
   }
 
   const data =
@@ -92,6 +95,10 @@ export async function POST(
   if (!parsed.success) return badRequest("Invalid marketplace listing", parsed.error.flatten());
 
   const db = auth.db;
+  const activeContract = await activeListingContractAddress(dbKind);
+  if (!parsed.data.contractAddress || parsed.data.contractAddress.toLowerCase() !== activeContract) {
+    return badRequest("Listing must be created against the active Vault escrow contract.");
+  }
   const sellerAddress = actorAddressForRequest(auth.user, parsed.data.sellerAddress);
   if (kind === "clanker") {
     const tokenAddress = String(parsed.data.data.tokenAddress || "");

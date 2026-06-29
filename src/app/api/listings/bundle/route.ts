@@ -4,6 +4,7 @@ import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
 import { mapBundleListing } from "@/lib/marketplace";
 import type { BundleAsset } from "@/lib/data";
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
+import { activeListingContractAddress } from "@/lib/listing-contracts";
 
 const bundleAssetSchema = z.object({
   kind: z.enum(["nft_loan", "mini_app", "x_account", "farcaster", "clanker"]),
@@ -34,12 +35,14 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const limit = parseInt(url.searchParams.get("limit") || "20");
   const offset = parseInt(url.searchParams.get("offset") || "0");
+  const activeContract = await activeListingContractAddress("bundle");
 
   const countResult = await db`
     SELECT COUNT(*) AS total FROM listings
     WHERE marketplace = 'bundle'
       AND moderation_status = 'approved'
       AND status <> 'cancelled'
+      AND lower(contract_address) = ${activeContract}
   ` as Record<string, unknown>[];
 
   const rows = await db`
@@ -61,6 +64,7 @@ export async function GET(req: NextRequest) {
     WHERE l.marketplace = 'bundle'
       AND l.moderation_status = 'approved'
       AND l.status <> 'cancelled'
+      AND lower(l.contract_address) = ${activeContract}
     GROUP BY l.id
     ORDER BY l.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
@@ -81,6 +85,7 @@ export async function POST(req: NextRequest) {
   const db = auth.db;
   const data = parsed.data;
   const sellerAddress = actorAddressForRequest(auth.user, data.sellerAddress);
+  const activeContract = await activeListingContractAddress("bundle");
   const id = data.id || `B-${Date.now()}`;
 
   const collateralData = JSON.stringify({
@@ -96,7 +101,7 @@ export async function POST(req: NextRequest) {
   await db`INSERT INTO users (address) VALUES (${sellerAddress}) ON CONFLICT (address) DO NOTHING`;
 
   await db`INSERT INTO listings (id, seller_address, marketplace, title, description, price, collateral_data, status, moderation_status, is_bundle, chain_id, contract_address, contract_listing_id, tx_hash, tx_status)
-    VALUES (${id}, ${sellerAddress}, 'bundle', ${data.name}, ${data.description || null}, ${data.totalPrice}, ${collateralData}, 'active', 'approved', 'true', ${data.chainId || null}, ${data.contractAddress || null}, ${data.contractListingId || null}, ${data.txHash || null}, ${data.txHash ? "pending" : "offchain"})`;
+    VALUES (${id}, ${sellerAddress}, 'bundle', ${data.name}, ${data.description || null}, ${data.totalPrice}, ${collateralData}, 'active', 'approved', 'true', ${data.chainId || null}, ${activeContract}, ${data.contractListingId || null}, ${data.txHash || null}, ${data.txHash ? "pending" : "offchain"})`;
 
   for (let i = 0; i < data.assets.length; i++) {
     const asset = data.assets[i];

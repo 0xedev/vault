@@ -3,7 +3,8 @@ import { z } from "zod";
 import { badRequest, getDatabase, jsonRecord } from "@/lib/api";
 import { mapLoanListing } from "@/lib/marketplace";
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
-import { readAllListings, mapListingStage } from "@/lib/contract";
+import { getNftAddress, readAllListings, mapListingStage } from "@/lib/contract";
+import { activeListingContractAddress } from "@/lib/listing-contracts";
 import type { Loan } from "@/lib/data";
 
 const listingSchema = z.object({
@@ -36,6 +37,8 @@ export async function GET(req: NextRequest) {
   // On-chain mode — read from contract, reconcile to DB
   if (chain) {
     try {
+      const vaultNftAddress = await getNftAddress();
+      const activeContract = vaultNftAddress.toLowerCase();
       const onChain = await readAllListings();
       const onChainIds = onChain.map(({ id }) => id.toString());
       const dbEnrich: Record<string, Record<string, unknown>> = {};
@@ -44,6 +47,7 @@ export async function GET(req: NextRequest) {
           SELECT * FROM listings
           WHERE contract_listing_id = ANY(${onChainIds})
             AND marketplace = 'nft_loan'
+            AND lower(contract_address) = ${activeContract}
         ` as Record<string, unknown>[];
         for (const r of matchRows) {
           dbEnrich[String(r.contract_listing_id)] = r;
@@ -66,12 +70,13 @@ export async function GET(req: NextRequest) {
             status: "open",
             value: 0,
             imageUrl: "",
+            nftContract: data.nftContract,
           });
 
           await db`INSERT INTO users (address) VALUES (${data.borrower}) ON CONFLICT (address) DO NOTHING`;
           const inserted = await db`
             INSERT INTO listings (id, seller_address, marketplace, title, price, collateral_data, status, moderation_status, chain_id, contract_address, contract_listing_id, tx_hash, tx_status)
-            VALUES (${dbId}, ${data.borrower}, 'nft_loan', ${title}, ${Number(data.principal) / 1e6}, ${collateralData}, 'active', 'approved', 8453, ${data.nftContract}, ${contractListingId}, NULL, 'offchain')
+            VALUES (${dbId}, ${data.borrower}, 'nft_loan', ${title}, ${Number(data.principal) / 1e6}, ${collateralData}, 'active', 'approved', 8453, ${vaultNftAddress}, ${contractListingId}, NULL, 'offchain')
             RETURNING *
           ` as Record<string, unknown>[];
           if (inserted.length > 0) dbEnrich[contractListingId] = inserted[0];
@@ -109,7 +114,8 @@ export async function GET(req: NextRequest) {
           imageUrl: String(dbCollateral?.imageUrl || ""),
           sellerAddress: dbRow ? String(dbRow.seller_address) : data.borrower,
           chainId: 8453,
-          contractAddress: data.nftContract,
+          contractAddress: vaultNftAddress,
+          nftContract: data.nftContract,
           contractListingId,
           onChain: true,
         };
@@ -126,10 +132,11 @@ export async function GET(req: NextRequest) {
 
   // Default: DB listings only (fast path)
   if (!db) return NextResponse.json({ data: [], total: 0 });
+  const activeContract = await activeListingContractAddress("nft_loan");
 
   const rows = (status === "all"
-    ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
-    : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+    ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+    : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
   ) as Record<string, unknown>[];
 
   const total = parseInt(rows[0]?.total_count as string || "0");
@@ -155,6 +162,10 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data;
   const sellerAddress = actorAddressForRequest(auth.user, data.seller);
+  const activeContract = await activeListingContractAddress("nft_loan");
+  if (!data.contractAddress || data.contractAddress.toLowerCase() !== activeContract) {
+    return badRequest("Listing must be created against the active VaultNFT contract.");
+  }
   const id = data.id || `L-${Date.now()}`;
   const collateralData = JSON.stringify({
     collection: data.collection,

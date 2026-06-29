@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { databaseRequired, getDatabase } from "@/lib/api";
 import { mapDigitalDeal } from "@/lib/marketplace";
 import { readAllDeals, mapDealStage } from "@/lib/contract";
+import { activeListingContractAddress } from "@/lib/listing-contracts";
 
 export async function GET() {
   const db = getDatabase();
   if (!db) return databaseRequired();
+  const activeContract = await activeListingContractAddress("mini_app");
 
-  const rows = await db`SELECT * FROM listings WHERE marketplace IN ('mini_app', 'x_account', 'farcaster', 'otc') AND moderation_status = 'approved' AND status <> 'cancelled' ORDER BY created_at DESC LIMIT 20` as Record<string, unknown>[];
+  const rows = await db`SELECT * FROM listings WHERE marketplace IN ('mini_app', 'x_account', 'farcaster', 'otc') AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC LIMIT 20` as Record<string, unknown>[];
   const data = rows.map(mapDigitalDeal);
 
   try {

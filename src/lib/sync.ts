@@ -1,7 +1,7 @@
 import { decodeEventLog, parseAbi } from "viem";
 import { base } from "viem/chains";
 import { getDatabase, databaseRequired } from "@/lib/api";
-import { getNftAddress, getDealsAddress, getPublicClient } from "@/lib/contract";
+import { getEscrowAddress, getNftAddress, getDealsAddress, getPublicClient } from "@/lib/contract";
 import { logger } from "@/lib/logger";
 
 const SYNC_EVENT_ABI = parseAbi([
@@ -49,6 +49,7 @@ export async function syncEscrowEvents() {
   if (!db) return { response: databaseRequired() };
 
   const chainId = base.id;
+  const escrowAddr = getEscrowAddress();
   const nftAddr = await getNftAddress();
   const dealsAddr = await getDealsAddress();
   const client = getPublicClient();
@@ -62,6 +63,8 @@ export async function syncEscrowEvents() {
   let totalEvents = 0;
 
   for (const contractAddress of [nftAddr, dealsAddr]) {
+    const contractAddressLower = contractAddress.toLowerCase();
+    const dbContractAddress = contractAddressLower === dealsAddr.toLowerCase() ? escrowAddr : contractAddress;
     const cursorId = `${chainId}:${contractAddress.toLowerCase()}`;
     const cursorRows = await db`SELECT last_synced_block FROM sync_cursors WHERE id = ${cursorId} LIMIT 1` as Record<string, unknown>[];
     const lastSynced = BigInt(String(cursorRows[0]?.last_synced_block || "0"));
@@ -92,7 +95,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "Listed") {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           if (listingId) {
-            await db`UPDATE listings SET contract_listing_id = ${listingId}, tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+            await db`UPDATE listings SET contract_listing_id = ${listingId}, contract_address = ${dbContractAddress}, tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -105,7 +108,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "OfferAccepted") {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           if (listingId) {
-            await db`UPDATE listings SET status = 'funded', updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+            await db`UPDATE listings SET status = 'funded', collateral_data = jsonb_set(COALESCE(collateral_data::jsonb, '{}'::jsonb), '{status}', '"funded"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId} AND lower(contract_address) = ${contractAddressLower}`;
           }
           await db`UPDATE offers SET status = 'accepted', tx_status = 'confirmed' WHERE tx_hash = ${txHash}`;
           handled = true;
@@ -114,7 +117,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "Repaid") {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           if (listingId) {
-            await db`UPDATE listings SET status = 'completed', collateral_data = jsonb_set(collateral_data::jsonb, '{status}', '"repaid"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+            await db`UPDATE listings SET status = 'completed', collateral_data = jsonb_set(COALESCE(collateral_data::jsonb, '{}'::jsonb), '{status}', '"repaid"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId} AND lower(contract_address) = ${contractAddressLower}`;
           }
           handled = true;
         }
@@ -122,7 +125,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "Disputed") {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           if (listingId) {
-            await db`UPDATE listings SET status = 'disputed', collateral_data = jsonb_set(collateral_data::jsonb, '{status}', '"disputed"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+            await db`UPDATE listings SET status = 'disputed', collateral_data = jsonb_set(COALESCE(collateral_data::jsonb, '{}'::jsonb), '{status}', '"disputed"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId} AND lower(contract_address) = ${contractAddressLower}`;
           }
           handled = true;
         }
@@ -130,7 +133,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "Resolved") {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           if (listingId) {
-            await db`UPDATE listings SET status = 'completed', updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+            await db`UPDATE listings SET status = 'completed', updated_at = NOW() WHERE contract_listing_id = ${listingId} AND lower(contract_address) = ${contractAddressLower}`;
           }
           handled = true;
         }
@@ -138,7 +141,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "DealListed") {
           const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
           if (dealId) {
-            await db`UPDATE listings SET contract_listing_id = COALESCE(contract_listing_id, ${dealId}), tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+            await db`UPDATE listings SET contract_listing_id = COALESCE(contract_listing_id, ${dealId}), contract_address = ${dbContractAddress}, tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -146,7 +149,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "MiniAppListed") {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           if (listingId) {
-            await db`UPDATE listings SET contract_listing_id = COALESCE(contract_listing_id, ${listingId}), tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+            await db`UPDATE listings SET contract_listing_id = COALESCE(contract_listing_id, ${listingId}), contract_address = ${dbContractAddress}, tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -154,7 +157,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "DealFunded") {
           const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
           if (dealId) {
-            await db`UPDATE escrows SET contract_listing_id = COALESCE(contract_listing_id, ${dealId}), stage = 'funds_locked', tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
+            await db`UPDATE escrows SET contract_listing_id = COALESCE(contract_listing_id, ${dealId}), contract_address = ${dbContractAddress}, stage = 'funds_locked', tx_status = 'confirmed', updated_at = NOW() WHERE tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -162,7 +165,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "DealDelivered") {
           const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
           if (dealId) {
-            await db`UPDATE escrows SET stage = 'asset_transferred', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+            await db`UPDATE escrows SET stage = 'asset_transferred', tx_status = 'confirmed', updated_at = NOW() WHERE (contract_listing_id = ${dealId} AND lower(contract_address) = ${String(dbContractAddress).toLowerCase()}) OR tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -170,7 +173,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "DealConfirmed") {
           const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
           if (dealId) {
-            await db`UPDATE escrows SET stage = 'released', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+            await db`UPDATE escrows SET stage = 'released', tx_status = 'confirmed', updated_at = NOW() WHERE (contract_listing_id = ${dealId} AND lower(contract_address) = ${String(dbContractAddress).toLowerCase()}) OR tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -178,7 +181,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "DealDisputed") {
           const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
           if (dealId) {
-            await db`UPDATE escrows SET stage = 'disputed', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+            await db`UPDATE escrows SET stage = 'disputed', tx_status = 'confirmed', updated_at = NOW() WHERE (contract_listing_id = ${dealId} AND lower(contract_address) = ${String(dbContractAddress).toLowerCase()}) OR tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -188,7 +191,7 @@ export async function syncEscrowEvents() {
           const sellerAmount = eventArg(decoded.args, "sellerAmount");
           if (dealId) {
             const stage = (Number(sellerAmount || 0) === 0) ? "refunded" : "released";
-            await db`UPDATE escrows SET stage = ${stage}, tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+            await db`UPDATE escrows SET stage = ${stage}, tx_status = 'confirmed', updated_at = NOW() WHERE (contract_listing_id = ${dealId} AND lower(contract_address) = ${String(dbContractAddress).toLowerCase()}) OR tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -196,7 +199,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "DealRefunded") {
           const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
           if (dealId) {
-            await db`UPDATE escrows SET stage = 'refunded', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+            await db`UPDATE escrows SET stage = 'refunded', tx_status = 'confirmed', updated_at = NOW() WHERE (contract_listing_id = ${dealId} AND lower(contract_address) = ${String(dbContractAddress).toLowerCase()}) OR tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -204,7 +207,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "Cancelled") {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           if (listingId) {
-            await db`UPDATE listings SET status = 'cancelled', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+            await db`UPDATE listings SET status = 'cancelled', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${listingId} AND lower(contract_address) = ${contractAddressLower}`;
           }
           handled = true;
         }
@@ -213,7 +216,7 @@ export async function syncEscrowEvents() {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           const lender = eventArg(decoded.args, "lender");
           if (listingId && lender) {
-            await db`UPDATE offers SET status = 'withdrawn', tx_status = 'confirmed' WHERE listing_id = (SELECT id FROM listings WHERE contract_listing_id = ${listingId}) AND lender_address = ${String(lender)}`;
+            await db`UPDATE offers SET status = 'withdrawn', tx_status = 'confirmed' WHERE listing_id = (SELECT id FROM listings WHERE contract_listing_id = ${listingId} AND lower(contract_address) = ${contractAddressLower} LIMIT 1) AND offerer_address = ${String(lender).toLowerCase()}`;
           }
           handled = true;
         }
@@ -221,7 +224,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "DefaultClaimed") {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           if (listingId) {
-            await db`UPDATE listings SET status = 'defaulted', collateral_data = jsonb_set(collateral_data::jsonb, '{status}', '"defaulted"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+            await db`UPDATE listings SET status = 'funded', collateral_data = jsonb_set(COALESCE(collateral_data::jsonb, '{}'::jsonb), '{status}', '"default"'::jsonb, true), updated_at = NOW() WHERE contract_listing_id = ${listingId} AND lower(contract_address) = ${contractAddressLower}`;
           }
           handled = true;
         }
@@ -229,7 +232,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "ListingUpdated") {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           if (listingId) {
-            await db`UPDATE listings SET tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+            await db`UPDATE listings SET tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${listingId} AND lower(contract_address) = ${contractAddressLower}`;
           }
           handled = true;
         }
@@ -237,7 +240,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "DealCancelled") {
           const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
           if (dealId) {
-            await db`UPDATE escrows SET stage = 'cancelled', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+            await db`UPDATE escrows SET stage = 'cancelled', tx_status = 'confirmed', updated_at = NOW() WHERE (contract_listing_id = ${dealId} AND lower(contract_address) = ${String(dbContractAddress).toLowerCase()}) OR tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -245,7 +248,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "DealDeadlineExtended") {
           const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
           if (dealId) {
-            await db`UPDATE escrows SET tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+            await db`UPDATE escrows SET tx_status = 'confirmed', updated_at = NOW() WHERE (contract_listing_id = ${dealId} AND lower(contract_address) = ${String(dbContractAddress).toLowerCase()}) OR tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -267,7 +270,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "DealOfferAccepted") {
           const dealId = bigNumberishToString(eventArg(decoded.args, "dealId"));
           if (dealId) {
-            await db`UPDATE escrows SET stage = 'funds_locked', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${dealId} OR tx_hash = ${txHash}`;
+            await db`UPDATE escrows SET stage = 'funds_locked', tx_status = 'confirmed', updated_at = NOW() WHERE (contract_listing_id = ${dealId} AND lower(contract_address) = ${String(dbContractAddress).toLowerCase()}) OR tx_hash = ${txHash}`;
           }
           handled = true;
         }
@@ -275,7 +278,7 @@ export async function syncEscrowEvents() {
         if (decoded.eventName === "MiniAppCancelled") {
           const listingId = bigNumberishToString(eventArg(decoded.args, "listingId"));
           if (listingId) {
-            await db`UPDATE listings SET status = 'cancelled', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${listingId}`;
+            await db`UPDATE listings SET status = 'cancelled', tx_status = 'confirmed', updated_at = NOW() WHERE contract_listing_id = ${listingId} AND lower(contract_address) = ${String(dbContractAddress).toLowerCase()}`;
           }
           handled = true;
         }
