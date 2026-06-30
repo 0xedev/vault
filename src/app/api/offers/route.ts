@@ -4,10 +4,15 @@ import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase, jsonArray, jsonRecord, shortAddress } from "@/lib/api";
 import { actorAddressForRequest, forbidden, requireUser } from "@/lib/auth";
 import { getDealsAddress, getNftAddress, getPublicClient } from "@/lib/contract";
+import { copyListingMessagesToDeal } from "@/lib/listing-messages";
 import {
   buildSignedDealOfferTypedData,
   buildSignedLoanOfferTypedData,
 } from "@/lib/signed-offers";
+
+type OffersDb = NonNullable<ReturnType<typeof getDatabase>>;
+
+let signedOffersSchemaPromise: Promise<void> | null = null;
 
 const offerSchema = z.object({
   listingId: z.string().min(1),
@@ -40,6 +45,21 @@ function expiryFrom(data: z.infer<typeof offerSchema>) {
 
 function offerKind(marketplace: string) {
   return marketplace === "nft_loan" ? "nft_loan" : "deal";
+}
+
+function ensureSignedOffersSchema(db: OffersDb) {
+  signedOffersSchemaPromise ||= (async () => {
+    await db`ALTER TABLE "offers" ADD COLUMN IF NOT EXISTS "offer_type" text DEFAULT 'signed' NOT NULL`;
+    await db`ALTER TABLE "offers" ADD COLUMN IF NOT EXISTS "signature" text`;
+    await db`ALTER TABLE "offers" ADD COLUMN IF NOT EXISTS "nonce" text`;
+    await db`ALTER TABLE "offers" ADD COLUMN IF NOT EXISTS "typed_data" jsonb`;
+    await db`ALTER TABLE "offers" ADD COLUMN IF NOT EXISTS "marketplace" text`;
+    await db`ALTER TABLE "offers" ADD COLUMN IF NOT EXISTS "contract_listing_id" text`;
+  })().catch((err) => {
+    signedOffersSchemaPromise = null;
+    throw err;
+  });
+  return signedOffersSchemaPromise;
 }
 
 async function targetContract(marketplace: string, rowContract?: unknown) {
@@ -89,6 +109,7 @@ async function buildTypedDataForListing(args: {
 export async function GET(req: NextRequest) {
   const db = getDatabase();
   if (!db) return databaseRequired();
+  await ensureSignedOffersSchema(db);
 
   const url = new URL(req.url);
   const listingId = url.searchParams.get("listingId");
@@ -141,6 +162,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return badRequest("Invalid offer", parsed.error.flatten());
 
   const db = auth.db;
+  await ensureSignedOffersSchema(db);
   const listingRows = await db`SELECT * FROM listings WHERE id = ${parsed.data.listingId} AND status = 'active' LIMIT 1` as Record<string, unknown>[];
   if (listingRows.length === 0) return NextResponse.json({ error: "Listing not found or not active" }, { status: 404 });
 
@@ -227,6 +249,7 @@ export async function PATCH(req: NextRequest) {
   const actorAddress = actorAddressForRequest(auth.user, parsed.data.actorAddress);
 
   const db = auth.db;
+  await ensureSignedOffersSchema(db);
   const rows = await db`
     SELECT o.*, l.seller_address, l.marketplace, l.contract_address AS listing_contract_address, l.title, l.price, l.collateral_data, l.is_bundle
     FROM offers o
@@ -306,6 +329,12 @@ export async function PATCH(req: NextRequest) {
             ${deliverables.length > 0 ? JSON.stringify(deliverables) : null}
           )
         `;
+        await copyListingMessagesToDeal({
+          db,
+          listingId: asString(row.listing_id),
+          buyerAddress: asString(row.offerer_address),
+          escrowId,
+        });
       }
     }
   }

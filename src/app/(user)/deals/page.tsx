@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
+import ListingMessageModal from "@/components/ListingMessageModal";
 import StatusPill from "@/components/StatusPill";
 import { useRole } from "@/components/RoleProvider";
 import { useWallet } from "@/components/WalletProvider";
@@ -992,6 +993,7 @@ export default function DealsPage() {
   const [dealDetail, setDealDetail] = useState<DealDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [profileListings, setProfileListings] = useState<ProfileListing[]>([]);
+  const [profileMessageListing, setProfileMessageListing] = useState<ProfileListing | null>(null);
   const [outgoingOffers, setOutgoingOffers] = useState<ProfileOffer[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [listingNotice, setListingNotice] = useState("");
@@ -1283,6 +1285,7 @@ export default function DealsPage() {
                       <summary className="btn sm">Manage</summary>
                       <div>
                         <Link href={listing.href}>View listing</Link>
+                        <button type="button" onClick={() => setProfileMessageListing(listing)}>Messages</button>
                         <button type="button" onClick={() => cancelListing(listing)}>Cancel listing</button>
                       </div>
                     </details>
@@ -1443,6 +1446,16 @@ export default function DealsPage() {
             </table>
           )}
         </div>
+      )}
+      {profileMessageListing && (
+        <ListingMessageModal
+          listing={{
+            id: profileMessageListing.id,
+            title: profileMessageListing.title,
+            sellerAddress: address || undefined,
+          }}
+          onClose={() => setProfileMessageListing(null)}
+        />
       )}
     </main>
   );

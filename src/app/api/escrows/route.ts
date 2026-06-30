@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, relativeDeadline, shortAddress, stageLabel } from "@/lib/api";
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
+import { copyListingMessagesToDeal } from "@/lib/listing-messages";
 
 const escrowSchema = z.object({
   listingId: z.string().min(1).optional(),
@@ -77,6 +78,13 @@ export async function POST(req: NextRequest) {
     VALUES (${id}, ${data.listingId || null}, ${buyerAddress}, ${data.sellerAddress}, ${data.amount}, ${data.currency}, 'pending_payment', ${data.chainId || null}, ${data.contractAddress || null}, ${data.contractListingId || null}, ${data.txHash || null}, ${data.txHash ? "pending" : "offchain"}, ${deliverablesJson})`;
   await db`INSERT INTO transactions (id, escrow_id, listing_id, from_address, to_address, amount, currency, tx_type, tx_hash, chain_id, status)
     VALUES (${`T-${Date.now()}`}, ${id}, ${data.listingId || null}, ${buyerAddress}, ${data.sellerAddress}, ${data.amount}, ${data.currency}, 'escrow_funded', ${data.txHash || null}, ${data.chainId || null}, ${data.txHash ? "pending" : "offchain"})`;
+
+  await copyListingMessagesToDeal({
+    db,
+    listingId: data.listingId,
+    buyerAddress,
+    escrowId: id,
+  });
 
   return NextResponse.json({ data: { id } }, { status: 201 });
 }

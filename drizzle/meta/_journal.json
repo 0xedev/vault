@@ -64,6 +64,20 @@
       "when": 1780928000000,
       "tag": "0008_messaging_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782849000000,
+      "tag": "0009_signed_offers",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782851000000,
+      "tag": "0010_listing_messages",
+      "breakpoints": true
     }
   ]
 }

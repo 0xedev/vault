@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import ListFidModal from "@/components/ListFidModal";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
+import ListingMessageModal from "@/components/ListingMessageModal";
 import BackButton from "@/components/BackButton";
 import type { FarcasterAccount } from "@/lib/data";
 import { fmtCompact, fmtUSDC } from "@/lib/utils";
@@ -26,6 +27,7 @@ export default function FarcasterPage() {
   const [listing, setListing] = useState(false);
   const [buying, setBuying] = useState("");
   const [offerListing, setOfferListing] = useState<FarcasterAccount | null>(null);
+  const [messageListing, setMessageListing] = useState<FarcasterAccount | null>(null);
 
   useEffect(() => {
     fetch("/api/marketplace/farcaster")
@@ -104,10 +106,7 @@ export default function FarcasterPage() {
       await connect();
       return;
     }
-    if (account.sellerAddress) {
-      await navigator.clipboard?.writeText(account.sellerAddress).catch(() => {});
-    }
-    setError("Seller wallet copied. Full deal-room chat opens after a purchase or accepted offer.");
+    setMessageListing(account);
   };
 
   return (
@@ -124,9 +123,11 @@ export default function FarcasterPage() {
           </h1>
         </div>
         <div className="row" style={{ gap: 18, alignItems: "center" }}>
-          <div className="col right" style={{ gap: 1 }}>
-            <span className="smallcaps">Open listings</span>
-            <span className="mono" style={{ fontSize: 14 }}>{accounts.length}</span>
+          <div className="market-inline-stats">
+            <span><strong>{accounts.length}</strong> listings</span>
+            <span><strong>{accounts.filter((account) => account.power_badge).length}</strong> power</span>
+            <span><strong>{fmtCompact(accounts[Math.floor(accounts.length / 2)]?.followers || 0)}</strong> median followers</span>
+            <span><strong>{(accounts.reduce((a, b) => a + b.price, 0) / (accounts.length || 1)).toFixed(1)}</strong> avg USDC</span>
           </div>
           <button className="btn primary" onClick={() => isConnected ? setListing(true) : connect()}>
             {isConnected ? "List FID" : "Connect to list"}
@@ -161,7 +162,6 @@ export default function FarcasterPage() {
       </div>
 
       {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : <>
-
       <div className="grid grid-3">
         {displayedAccounts.map(a => {
           const isOwnListing = a.sellerAddress?.toLowerCase() === address?.toLowerCase();
@@ -209,11 +209,6 @@ export default function FarcasterPage() {
         })}
       </div>
 
-      <div className="grid grid-3" style={{ marginTop: 18 }}>
-        <div className="metric"><span className="lab">Avg sale price</span><span className="val">{(accounts.reduce((a, b) => a + b.price, 0) / (accounts.length || 1)).toFixed(1)} USDC</span><span className="delta">listed inventory</span></div>
-        <div className="metric"><span className="lab">Power badge</span><span className="val">{accounts.filter((account) => account.power_badge).length}</span><span className="delta">live listings</span></div>
-        <div className="metric"><span className="lab">Median followers listed</span><span className="val">{fmtCompact(accounts[Math.floor(accounts.length / 2)]?.followers || 0)}</span><span className="delta">from current inventory</span></div>
-      </div>
       </>}
       {offerListing && (
         <SubmitDealOfferModal
@@ -227,6 +222,16 @@ export default function FarcasterPage() {
             chainId: offerListing.chainId,
           }}
           onClose={() => setOfferListing(null)}
+        />
+      )}
+      {messageListing && (
+        <ListingMessageModal
+          listing={{
+            id: messageListing.id,
+            title: `@${messageListing.handle}`,
+            sellerAddress: messageListing.sellerAddress,
+          }}
+          onClose={() => setMessageListing(null)}
         />
       )}
     </main>

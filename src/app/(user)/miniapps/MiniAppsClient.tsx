@@ -5,6 +5,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
+import ListingMessageModal from "@/components/ListingMessageModal";
 import { appColor, fmtCompact, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
@@ -278,6 +279,7 @@ export default function MiniAppsPage() {
   const [error, setError] = useState("");
   const [buying, setBuying] = useState("");
   const [offerListing, setOfferListing] = useState<MiniApp | null>(null);
+  const [messageListing, setMessageListing] = useState<MiniApp | null>(null);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("dau");
 
@@ -349,6 +351,14 @@ export default function MiniAppsPage() {
     }
   };
 
+  const messageSeller = async (app: MiniApp) => {
+    if (!isConnected || !address) {
+      await connect();
+      return;
+    }
+    setMessageListing(app);
+  };
+
   return (
     <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row between" style={{ alignItems: "center", marginBottom: 22, gap: 24, rowGap: 16, flexWrap: "wrap" }}>
@@ -359,7 +369,11 @@ export default function MiniAppsPage() {
           </h1>
         </div>
         <div className="row" style={{ gap: 18, alignItems: "center", flex: "0 0 auto", flexWrap: "wrap" }}>
-          <div className="col right" style={{ gap: 1 }}><span className="smallcaps">Open listings</span><span className="mono" style={{ fontSize: 14 }}>{apps.length}</span></div>
+          <div className="market-inline-stats">
+            <span><strong>{apps.length}</strong> listings</span>
+            <span><strong>{fmtCompact(apps.reduce((a, b) => a + b.dau, 0) / (apps.length || 1))}</strong> avg DAU</span>
+            <span><strong>{fmtUSDC(apps.reduce((a, b) => a + b.mrr, 0))}</strong> MRR</span>
+          </div>
           <button className="btn primary" onClick={() => isConnected ? setShowListModal(true) : connect()}>
             {isConnected ? "List Mini App" : "Connect to list"}
           </button>
@@ -390,9 +404,12 @@ export default function MiniAppsPage() {
       </div>
 
       {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : (
+        <>
         <div className="grid grid-3">
-          {displayedApps.map(a => (
-            <article key={a.id} className="loan-card" style={a.id === selectedId ? { borderColor: "var(--accent)" } : undefined}>
+          {displayedApps.map(a => {
+            const isOwnListing = a.sellerAddress?.toLowerCase() === address?.toLowerCase();
+            return (
+            <article key={a.id} className="loan-card market-action-card" style={a.id === selectedId ? { borderColor: "var(--accent)" } : undefined}>
               <div style={{ position: "relative", aspectRatio: "16/10", background: `linear-gradient(135deg, ${appColor(a.id, 0)}, ${appColor(a.id, 1)})`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                 {a.imageUrl ? (
                   <img src={a.imageUrl} alt={a.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -412,15 +429,22 @@ export default function MiniAppsPage() {
                 <span className="meta">Asking</span>
                 <span className="mono" style={{ fontSize: 16 }}>{fmtUSDC(a.price)} <span style={{ color: "var(--ink-3)", fontSize: 12 }}>USDC</span></span>
               </div>
-              <button className="btn primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()} style={{ width: "100%", justifyContent: "center" }}>
-                {buying === a.id ? "Funding escrow..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Your listing" : "Buy with escrow"}
-              </button>
-              <button className="btn" onClick={() => setOfferListing(a)} disabled={a.sellerAddress?.toLowerCase() === address?.toLowerCase()} style={{ width: "100%", justifyContent: "center" }}>
-                Submit offer
-              </button>
+              <div className="market-card-actions">
+                <button className="btn primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || isOwnListing}>
+                  {buying === a.id ? "Funding..." : isOwnListing ? "Your listing" : "Buy now"}
+                </button>
+                <button className="btn" onClick={() => setOfferListing(a)} disabled={isOwnListing}>
+                  Propose offer
+                </button>
+                <button className="btn ghost" onClick={() => messageSeller(a)} disabled={isOwnListing}>
+                  Msg seller
+                </button>
+              </div>
             </article>
-          ))}
+            );
+          })}
         </div>
+        </>
       )}
       {offerListing && (
         <SubmitDealOfferModal
@@ -434,6 +458,16 @@ export default function MiniAppsPage() {
             chainId: offerListing.chainId,
           }}
           onClose={() => setOfferListing(null)}
+        />
+      )}
+      {messageListing && (
+        <ListingMessageModal
+          listing={{
+            id: messageListing.id,
+            title: messageListing.name,
+            sellerAddress: messageListing.sellerAddress,
+          }}
+          onClose={() => setMessageListing(null)}
         />
       )}
     </main>

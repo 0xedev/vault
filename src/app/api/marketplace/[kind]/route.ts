@@ -69,6 +69,8 @@ export async function GET(
         AND l.moderation_status = 'approved'
         AND l.status <> 'cancelled'
         AND lower(l.seller_address) = ${sellerAddress}
+        AND lower(l.contract_address) = ${activeContract}
+        AND l.contract_listing_id IS NOT NULL
       GROUP BY l.id
       ORDER BY l.created_at DESC
     ` as Record<string, unknown>[]
@@ -97,7 +99,7 @@ export async function GET(
     ` as Record<string, unknown>[];
   } else {
     rows = sellerAddress
-      ? await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} ORDER BY created_at DESC` as Record<string, unknown>[]
+      ? await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC` as Record<string, unknown>[]
       : await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC` as Record<string, unknown>[];
   }
 

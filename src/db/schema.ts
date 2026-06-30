@@ -219,6 +219,17 @@ export const dealMessages = pgTable("deal_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const listingMessages = pgTable("listing_messages", {
+  id: text("id").primaryKey(),
+  listingId: text("listing_id").references(() => listings.id).notNull(),
+  buyerAddress: text("buyer_address").references(() => users.address).notNull(),
+  sellerAddress: text("seller_address").references(() => users.address).notNull(),
+  senderAddress: text("sender_address").references(() => users.address).notNull(),
+  body: text("body").notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const verificationAttempts = pgTable("verification_attempts", {
   id: text("id").primaryKey(),
   verificationId: text("verification_id").references(() => verifications.id),

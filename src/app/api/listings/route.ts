@@ -142,8 +142,8 @@ export async function GET(req: NextRequest) {
   if (parsedSellerAddress?.success) {
     const sellerAddress = parsedSellerAddress.data.toLowerCase();
     rows = (status === "all"
-      ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
-      : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} AND lower(seller_address) = ${sellerAddress} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+      ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+      : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
     ) as Record<string, unknown>[];
   } else {
     rows = (status === "all"

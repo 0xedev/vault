@@ -3542,6 +3542,109 @@ select:focus-visible {
 .market-card-actions .btn:first-child {
   grid-column: 1 / -1;
 }
+.market-action-card {
+  position: relative;
+}
+.market-inline-stats {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 560px;
+}
+.market-inline-stats span {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink-4);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.market-inline-stats strong {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.ghost-hit-area {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.market-action-card > :not(.ghost-hit-area) {
+  position: relative;
+  z-index: 1;
+}
+.listing-message-body {
+  min-height: 340px;
+}
+.listing-message-scroll {
+  height: 340px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+}
+.listing-message {
+  max-width: 82%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-self: flex-start;
+}
+.listing-message.me {
+  align-self: flex-end;
+  text-align: right;
+}
+.listing-message small {
+  color: var(--ink-4);
+  font-size: 10.5px;
+}
+.listing-message span {
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.listing-message.me span {
+  background: color-mix(in oklab, var(--accent) 16%, var(--surface));
+  border-color: color-mix(in oklab, var(--accent) 30%, var(--line));
+}
+.listing-thread-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.listing-thread-list button {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  text-align: left;
+  color: var(--ink);
+}
+.listing-thread-list span,
+.listing-thread-list small {
+  color: var(--ink-4);
+  font-size: 12px;
+}
 
 /* ============ DROPDOWN ============ */
 .dropdown-trigger {

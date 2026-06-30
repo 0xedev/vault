@@ -5,6 +5,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
+import ListingMessageModal from "@/components/ListingMessageModal";
 import BackButton from "@/components/BackButton";
 import ListClankerModal from "@/components/ListClankerModal";
 import { useWallet } from "@/components/WalletProvider";
@@ -34,6 +35,7 @@ export default function ClankerPage() {
   const [listing, setListing] = useState(false);
   const [selectedToken, setSelectedToken] = useState<ClankerToken | null>(null);
   const [offerToken, setOfferToken] = useState<ClankerToken | null>(null);
+  const [messageToken, setMessageToken] = useState<ClankerToken | null>(null);
   const [buying, setBuying] = useState("");
   const [openAfterAuth, setOpenAfterAuth] = useState(false);
 
@@ -123,6 +125,14 @@ export default function ClankerPage() {
     }
   };
 
+  const messageSeller = async (token: ClankerToken) => {
+    if (!isSignedIn || !address) {
+      await connect();
+      return;
+    }
+    setMessageToken(token);
+  };
+
   const totalLocked = tokens.reduce((s, t) => s + (t.vaultedAmount || 0), 0);
   const totalFees = tokens.reduce((s, t) => s + (t.feeEarnings || 0), 0);
 
@@ -131,19 +141,18 @@ export default function ClankerPage() {
   return (
     <main id="main-content" role="main" aria-label="Main content" className="main">
       <BackButton />
-      <div className="row between" style={{ marginBottom: 22 }}>
-        <div>
+      <div className="row between" style={{ marginBottom: 22, gap: 18, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <div className="eyebrow">Clanker Tokens</div>
           <h1 className="h2" style={{ margin: "8px 0 0" }}>Deployer ownership marketplace</h1>
           <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>Buy & sell Clanker-deployed token supply, vaulted allocations, and fee rights.</p>
         </div>
-      </div>
-
-      <div className="grid grid-4" style={{ marginBottom: 24 }}>
-        <div className="metric"><span className="lab">Listings</span><span className="val">{tokens.length}</span><span className="delta">{tokens.filter(t => t.verified).length} ownership-confirmed</span></div>
-        <div className="metric"><span className="lab">Total vaulted</span><span className="val">{totalLocked.toLocaleString()}</span><span className="delta">tokens locked in vault</span></div>
-        <div className="metric"><span className="lab">Accrued fees</span><span className="val">{totalFees.toLocaleString()}</span><span className="delta">claimable fees across all</span></div>
-        <div className="metric"><span className="lab">Chain</span><span className="val">Base</span><span className="delta">Uniswap v4 + Clanker</span></div>
+        <div className="market-inline-stats">
+          <span><strong>{tokens.length}</strong> listings</span>
+          <span><strong>{tokens.filter(t => t.verified).length}</strong> verified</span>
+          <span><strong>{fmtCompact(totalLocked)}</strong> vaulted</span>
+          <span><strong>{fmtCompact(totalFees)}</strong> fees</span>
+        </div>
       </div>
 
       <div className="row between" style={{ marginBottom: 14 }}>
@@ -164,8 +173,12 @@ export default function ClankerPage() {
         </div>
       ) : (
         <div className="grid grid-3" style={{ gap: 16 }}>
-          {tokens.map((t) => (
-            <div key={t.id} className="card" style={{ padding: 16, cursor: "pointer", ...(t.id === selectedId ? { borderColor: "var(--accent)" } : {}) }} onClick={() => setSelectedToken(t)}>
+          {tokens.map((t) => {
+            const isOwnListing = t.sellerAddress?.toLowerCase() === address?.toLowerCase();
+            const isPendingSync = !t.contractListingId;
+            return (
+            <div key={t.id} className="card market-action-card" style={{ padding: 16, ...(t.id === selectedId ? { borderColor: "var(--accent)" } : {}) }}>
+              <button className="ghost-hit-area" type="button" onClick={() => setSelectedToken(t)} aria-label={`View ${t.name}`} />
               <div className="row" style={{ gap: 10, marginBottom: 10 }}>
                 {t.imageUrl ? (
                   <img src={t.imageUrl} alt={t.name} style={{ width: 40, height: 40, borderRadius: 20, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -192,8 +205,20 @@ export default function ClankerPage() {
                   💰 {t.feeEarnings.toLocaleString()} fees accrued
                 </div>
               )}
+              <div className="market-card-actions" style={{ marginTop: 12, position: "relative", zIndex: 1 }}>
+                <button className="btn primary" onClick={() => fundEscrow(t)} disabled={buying === t.id || isOwnListing || isPendingSync}>
+                  {buying === t.id ? "Funding..." : isOwnListing ? "Your listing" : isPendingSync ? "Pending sync" : "Buy now"}
+                </button>
+                <button className="btn" onClick={() => setOfferToken(t)} disabled={isOwnListing || isPendingSync}>
+                  Propose offer
+                </button>
+                <button className="btn ghost" onClick={() => messageSeller(t)} disabled={isOwnListing}>
+                  Msg seller
+                </button>
+              </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -255,6 +280,16 @@ export default function ClankerPage() {
             chainId: offerToken.chainId,
           }}
           onClose={() => setOfferToken(null)}
+        />
+      )}
+      {messageToken && (
+        <ListingMessageModal
+          listing={{
+            id: messageToken.id,
+            title: `${messageToken.name} (${messageToken.symbol})`,
+            sellerAddress: messageToken.sellerAddress,
+          }}
+          onClose={() => setMessageToken(null)}
         />
       )}
 
