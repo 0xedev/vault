@@ -883,12 +883,12 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
     clankerResult,
     bundlesResult,
   ] = await Promise.allSettled([
-    fetch("/api/listings", { credentials: "include" }).then((r) => r.json()),
-    fetch("/api/marketplace/mini-apps", { credentials: "include" }).then((r) => r.json()),
-    fetch("/api/marketplace/x-accounts", { credentials: "include" }).then((r) => r.json()),
-    fetch("/api/marketplace/farcaster", { credentials: "include" }).then((r) => r.json()),
-    fetch("/api/marketplace/clanker", { credentials: "include" }).then((r) => r.json()),
-    fetch("/api/marketplace/bundles", { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/listings?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/marketplace/mini-apps?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/marketplace/x-accounts?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/marketplace/farcaster?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/marketplace/clanker?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/marketplace/bundles?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
   ]);
 
   const dataFrom = <T,>(result: PromiseSettledResult<{ data?: T[] }>) =>
@@ -1079,16 +1079,6 @@ export default function DealsPage() {
       )
     : stageFiltered;
 
-  /* -- export -- */
-  const exportCsv = () => {
-    const csv = "id,kind,party,asset,amount,stage,deadline\n" +
-      filt.map(e => `${e.id},${e.kind},${e.party},${e.asset},${e.amount},${e.stage},${e.deadline}`).join("\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = "deals.csv";
-    a.click();
-  };
-
   const cancelListing = async (listing: ProfileListing) => {
     if (!window.confirm(`Cancel ${listing.title}?`)) return;
     setListingNotice("");
@@ -1212,13 +1202,7 @@ export default function DealsPage() {
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22 }}>
         <div>
           <div className="eyebrow">Profile</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>
-            {fmtUSDC(totalLocked)} USDC locked · {active.length} active
-          </h1>
-        </div>
-        <div className="row" style={{ gap: 10 }}>
-          <button className="btn" onClick={exportCsv}>Export CSV</button>
-          <Link href="/market" className="btn primary">New deal</Link>
+          <h1 className="h2" style={{ marginTop: 8 }}>My deals</h1>
         </div>
       </div>
 

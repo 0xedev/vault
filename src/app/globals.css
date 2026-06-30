@@ -3524,6 +3524,24 @@ select:focus-visible {
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
 }
+.farcaster-card {
+  min-height: 250px;
+}
+.farcaster-avatar {
+  border-radius: 10px;
+  background: linear-gradient(135deg, #7c5cff, #16a085);
+}
+.market-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.market-card-actions .btn {
+  width: 100%;
+}
+.market-card-actions .btn:first-child {
+  grid-column: 1 / -1;
+}
 
 /* ============ DROPDOWN ============ */
 .dropdown-trigger {

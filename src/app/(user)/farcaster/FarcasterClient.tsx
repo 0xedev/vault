@@ -99,6 +99,17 @@ export default function FarcasterPage() {
     }
   };
 
+  const messageSeller = async (account: FarcasterAccount) => {
+    if (!isConnected || !address) {
+      await connect();
+      return;
+    }
+    if (account.sellerAddress) {
+      await navigator.clipboard?.writeText(account.sellerAddress).catch(() => {});
+    }
+    setError("Seller wallet copied. Full deal-room chat opens after a purchase or accepted offer.");
+  };
+
   return (
     <main id="main-content" role="main" aria-label="Main content" className="main">
       <BackButton />
@@ -151,57 +162,51 @@ export default function FarcasterPage() {
 
       {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : <>
 
-      <div className="card" style={{ overflow: "hidden" }}>
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>FID</th><th>Handle</th><th>Channel</th>
-              <th className="right">Followers</th><th className="right">Casts / 30d</th>
-              <th className="right">Channel rev</th><th>Status</th><th className="right">Price</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayedAccounts.map(a => (
-              <tr key={a.id} style={{ cursor: "pointer", ...(a.id === selectedId ? { outline: "1px solid var(--accent)", outlineOffset: -1 } : {}) }}>
-                <td className="mono" style={{ color: "var(--ink)" }}>
-                  #{a.fid}
-                </td>
-                <td>
-                  <div className="row" style={{ gap: 8 }}>
-                    <div className="x-avatar" style={{ width: 26, height: 26, fontSize: 11, background: a.imageUrl ? "transparent" : "linear-gradient(135deg, #8A63D2, #a67ee5)", color: "#fff" }}>
-                      {a.imageUrl ? (
-                        <img src={a.imageUrl} alt={`@${a.handle} avatar`} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                      ) : (
-                        a.handle.slice(0, 2).toUpperCase()
-                      )}
-                    </div>
-                    <span style={{ fontSize: 13 }}>@{a.handle}</span>
+      <div className="grid grid-3">
+        {displayedAccounts.map(a => {
+          const isOwnListing = a.sellerAddress?.toLowerCase() === address?.toLowerCase();
+          return (
+            <article key={a.id} className="x-card farcaster-card" style={a.id === selectedId ? { borderColor: "var(--accent)" } : undefined}>
+              <div className="x-head">
+                <div className="x-avatar farcaster-avatar">
+                  {a.imageUrl ? (
+                    <img src={a.imageUrl} alt={`@${a.handle} avatar`} style={{ width: "100%", height: "100%", borderRadius: 10, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                  ) : (
+                    a.handle.slice(0, 2).toUpperCase()
+                  )}
+                </div>
+                <div className="col" style={{ gap: 2, flex: 1, minWidth: 0 }}>
+                  <div className="row" style={{ gap: 6, alignItems: "center" }}>
+                    <span style={{ fontSize: 15, fontWeight: 500 }} className="trunc">@{a.handle}</span>
+                    {a.power_badge && <span className="pill gold"><span className="pdot" />Power</span>}
                   </div>
-                </td>
-                <td className="muted">/{a.channel}</td>
-                <td className="right mono">{fmtCompact(a.followers)}</td>
-                <td className="right mono">{a.casts_30d}</td>
-                <td className="right mono">{a.rev_30d > 0 ? `${fmtUSDC(a.rev_30d)} USDC` : <span className="muted-2">—</span>}</td>
-                <td>
-                  <div className="row" style={{ gap: 4 }}>
-                    {a.power_badge && <span className="pill" style={{ background: "color-mix(in oklab, var(--gold) 14%, transparent)", color: "var(--gold)", borderColor: "color-mix(in oklab, var(--gold) 30%, transparent)" }}><span className="pdot" style={{ background: "var(--gold)" }}/>Power</span>}
-                  </div>
-                </td>
-                <td className="right mono" style={{ color: "var(--ink)" }}>{a.price} USDC</td>
-                <td className="right">
-                  <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
-                    <button className="btn sm primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()}>
-                      {buying === a.id ? "Funding..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Yours" : "Buy"}
-                    </button>
-                    <button className="btn sm" onClick={() => setOfferListing(a)} disabled={a.sellerAddress?.toLowerCase() === address?.toLowerCase()}>
-                      Offer
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <span className="muted-2" style={{ fontSize: 11.5 }}>FID #{a.fid}{a.channel ? ` · /${a.channel}` : ""}</span>
+                </div>
+                <img src="/farcaster.png" alt="" style={{ width: 24, height: 24, opacity: 0.72 }} />
+              </div>
+              <div className="x-stats">
+                <div className="col" style={{ gap: 1 }}><span className="meta">Followers</span><span className="amt mono" style={{ fontSize: 14 }}>{fmtCompact(a.followers)}</span></div>
+                <div className="col" style={{ gap: 1 }}><span className="meta">Casts / 30d</span><span className="amt mono" style={{ fontSize: 14 }}>{a.casts_30d}</span></div>
+                <div className="col" style={{ gap: 1 }}><span className="meta">Revenue</span><span className="amt mono" style={{ fontSize: 14 }}>{a.rev_30d > 0 ? fmtUSDC(a.rev_30d) : "0"}</span></div>
+              </div>
+              <div className="row between" style={{ borderTop: "1px solid var(--line)", paddingTop: 12, marginTop: "auto" }}>
+                <span className="meta">Asking</span>
+                <span className="mono" style={{ fontSize: 16 }}>{fmtUSDC(a.price)} <span style={{ color: "var(--ink-3)", fontSize: 12 }}>USDC</span></span>
+              </div>
+              <div className="market-card-actions">
+                <button className="btn primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || isOwnListing}>
+                  {buying === a.id ? "Funding..." : isOwnListing ? "Your listing" : "Buy now"}
+                </button>
+                <button className="btn" onClick={() => setOfferListing(a)} disabled={isOwnListing}>
+                  Propose offer
+                </button>
+                <button className="btn ghost" onClick={() => messageSeller(a)} disabled={isOwnListing}>
+                  Msg seller
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </div>
 
       <div className="grid grid-3" style={{ marginTop: 18 }}>

@@ -6,6 +6,8 @@ import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { verifyClankerTokenOwnership } from "@/lib/clanker";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
 
+const walletAddressSchema = z.string().startsWith("0x").length(42);
+
 const dbKindMap: Record<string, string> = {
   "nft-loans": "nft_loan",
   "mini-apps": "mini_app",
@@ -28,7 +30,7 @@ export const marketplaceListingSchema = z.object({
 });
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ kind: string }> }
 ) {
   const { kind } = await params;
@@ -38,11 +40,39 @@ export async function GET(
   const dbKind = dbKindMap[kind];
   if (!dbKind) return NextResponse.json({ error: "Unknown marketplace kind" }, { status: 404 });
   const activeContract = await activeListingContractAddress(dbKind);
+  const url = new URL(req.url);
+  const sellerAddressParam = url.searchParams.get("sellerAddress");
+  const parsedSellerAddress = sellerAddressParam ? walletAddressSchema.safeParse(sellerAddressParam) : null;
+  const sellerAddress = parsedSellerAddress?.success ? parsedSellerAddress.data.toLowerCase() : "";
 
   let rows: Record<string, unknown>[];
 
   if (dbKind === "bundle") {
-    rows = await db`
+    rows = sellerAddress
+      ? await db`
+      SELECT
+        l.*,
+        COALESCE(
+          jsonb_agg(
+            jsonb_build_object(
+              'id', la.id,
+              'assetType', la.asset_type,
+              'assetData', la.asset_data,
+              'position', la.position
+            ) ORDER BY la.position
+          ) FILTER (WHERE la.id IS NOT NULL),
+          '[]'::jsonb
+        ) AS listing_assets_data
+      FROM listings l
+      LEFT JOIN listing_assets la ON la.listing_id = l.id
+      WHERE l.marketplace = 'bundle'
+        AND l.moderation_status = 'approved'
+        AND l.status <> 'cancelled'
+        AND lower(l.seller_address) = ${sellerAddress}
+      GROUP BY l.id
+      ORDER BY l.created_at DESC
+    ` as Record<string, unknown>[]
+      : await db`
       SELECT
         l.*,
         COALESCE(
@@ -66,7 +96,9 @@ export async function GET(
       ORDER BY l.created_at DESC
     ` as Record<string, unknown>[];
   } else {
-    rows = await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC` as Record<string, unknown>[];
+    rows = sellerAddress
+      ? await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} ORDER BY created_at DESC` as Record<string, unknown>[]
+      : await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC` as Record<string, unknown>[];
   }
 
   const data =
