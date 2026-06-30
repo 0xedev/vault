@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, shortAddress } from "@/lib/api";
-import { actorAddressForRequest, requireUser } from "@/lib/auth";
+import { actorAddressForRequest, isEvmAddress, requireUser, type AuthUser } from "@/lib/auth";
 import { decryptMessage, encryptMessage } from "@/lib/crypto";
 import { ensureListingMessagesSchema, listingThreadKey } from "@/lib/listing-messages";
 
@@ -27,6 +27,15 @@ function mapMessage(row: Record<string, unknown>, actorAddress: string, listingI
   };
 }
 
+function requireMatchingWallet(user: AuthUser, walletAddress: unknown) {
+  if (user.role === "admin" || !isEvmAddress(user.address) || !isEvmAddress(walletAddress)) return null;
+  if (user.address === walletAddress.toLowerCase()) return null;
+  return NextResponse.json(
+    { error: "Sign in with the connected wallet before messaging this seller." },
+    { status: 401 },
+  );
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -38,6 +47,8 @@ export async function GET(
   await ensureListingMessagesSchema(db);
 
   const url = new URL(req.url);
+  const mismatch = requireMatchingWallet(auth.user, url.searchParams.get("walletAddress"));
+  if (mismatch) return mismatch;
   const actorAddress = actorAddressForRequest(auth.user, url.searchParams.get("walletAddress"));
   const buyerParam = url.searchParams.get("buyerAddress");
 
@@ -122,6 +133,8 @@ export async function POST(
   const parsed = sendSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid message", parsed.error.flatten());
 
+  const mismatch = requireMatchingWallet(auth.user, parsed.data.actorAddress);
+  if (mismatch) return mismatch;
   const actorAddress = actorAddressForRequest(auth.user, parsed.data.actorAddress).toLowerCase();
   const listingRows = await db`
     SELECT id, seller_address FROM listings WHERE id = ${listingId} AND status <> 'cancelled' LIMIT 1

@@ -37,7 +37,7 @@ function shortAddress(address?: string) {
 }
 
 export default function ListingMessageModal({ listing, onClose }: Props) {
-  const { address, isConnected, isConnecting, connect } = useWallet();
+  const { address, sessionAddress, isConnected, isConnecting, connect } = useWallet();
   const [messages, setMessages] = useState<ListingMessage[]>([]);
   const [threads, setThreads] = useState<ListingThread[]>([]);
   const [selectedBuyer, setSelectedBuyer] = useState("");
@@ -49,6 +49,14 @@ export default function ListingMessageModal({ listing, onClose }: Props) {
   const isSeller = useMemo(
     () => Boolean(address && listing.sellerAddress && address.toLowerCase() === listing.sellerAddress.toLowerCase()),
     [address, listing.sellerAddress],
+  );
+  const hasSessionForWallet = useMemo(
+    () => Boolean(
+      address &&
+      sessionAddress &&
+      (!sessionAddress.startsWith("0x") || sessionAddress.toLowerCase() === address.toLowerCase()),
+    ),
+    [address, sessionAddress],
   );
 
   const loadMessages = React.useCallback((buyerAddress?: string) => {
@@ -75,6 +83,10 @@ export default function ListingMessageModal({ listing, onClose }: Props) {
 
   const sendMessage = async () => {
     if (!address || !draft.trim()) return;
+    if (!hasSessionForWallet) {
+      await connect();
+      return;
+    }
     if (isSeller && !selectedBuyer) {
       setError("Select a buyer thread before replying.");
       return;
@@ -119,6 +131,13 @@ export default function ListingMessageModal({ listing, onClose }: Props) {
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Connect your wallet to start a private pre-deal conversation.</p>
             <button className="btn primary" onClick={connect} disabled={isConnecting}>
               {isConnecting ? "Connecting..." : "Connect wallet"}
+            </button>
+          </div>
+        ) : !hasSessionForWallet ? (
+          <div className="modal-b col" style={{ gap: 14 }}>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>Sign in with your connected wallet to start a private pre-deal conversation.</p>
+            <button className="btn primary" onClick={connect} disabled={isConnecting}>
+              {isConnecting ? "Signing in..." : "Sign in"}
             </button>
           </div>
         ) : (
