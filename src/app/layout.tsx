@@ -6,6 +6,21 @@ import "./globals.css";
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 const instrumentSerif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument-serif" });
 const jetBrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
+const siteUrl = "https://baseshirehethaway.com";
+const defaultMiniAppEmbed = JSON.stringify({
+  version: "1",
+  imageUrl: `${siteUrl}/logo.png`,
+  button: {
+    title: "Browse marketplace",
+    action: {
+      type: "launch_frame",
+      name: "Baseshire Hethaway",
+      url: siteUrl,
+      splashImageUrl: `${siteUrl}/logo.png`,
+      splashBackgroundColor: "#0052ff",
+    },
+  },
+});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -31,6 +46,9 @@ export const metadata: Metadata = {
     title: "Baseshire Hethaway — Crypto Conglomerate",
     description: "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
   },
+  other: {
+    "fc:miniapp": defaultMiniAppEmbed,
+  },
   robots: { index: true, follow: true },
 };
 
@@ -42,20 +60,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="fc:miniapp" content={JSON.stringify({
-          version: "1",
-          imageUrl: "https://baseshirehethaway.com/logo.png",
-          button: {
-            title: "Browse marketplace",
-            action: {
-              type: "launch_frame",
-              name: "Baseshire Hethaway",
-              url: "https://baseshirehethaway.com",
-              splashImageUrl: "https://baseshirehethaway.com/logo.png",
-              splashBackgroundColor: "#0052ff",
-            },
-          },
-        })} />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
