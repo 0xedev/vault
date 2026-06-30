@@ -107,7 +107,7 @@ export default function FarcasterPage() {
             <div className="eyebrow">Farcaster FID Marketplace</div>
           </div>
           <h1 className="h2" style={{ marginTop: 8 }}>
-            Transfer <em style={{ fontFamily: "var(--display)", fontStyle: "italic" }}>Farcaster FIDs</em> on-chain in one transaction.
+            Buy &amp; sell <em style={{ fontFamily: "var(--display)", fontStyle: "italic" }}>Farcaster accounts</em> on-chain.
           </h1>
         </div>
         <div className="row" style={{ gap: 18, alignItems: "center" }}>

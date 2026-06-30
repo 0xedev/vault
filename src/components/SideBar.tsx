@@ -17,6 +17,7 @@ interface SidebarItem {
 }
 
 const items: SidebarItem[] = [
+  { k: "/",          t: "Home",               icon: <Icon.home/> },
   { sec: "Marketplaces" },
   { k: "/market",    t: "NFT Loans",         icon: <Icon.market/> },
   { k: "/miniapps",  t: "Mini Apps",         icon: <Icon.app/> },
@@ -50,7 +51,9 @@ export default function SideBar({ open, onClose }: { open: boolean; onClose: () 
         );
         const isActive = it.tab
           ? pathname === it.k && activeTab === it.tab
-          : (pathname === it.k || pathname.startsWith(it.k! + "/")) && activeTab !== "bundles";
+          : it.k === "/"
+            ? pathname === "/"
+            : (pathname === it.k || pathname.startsWith(it.k! + "/")) && activeTab !== "bundles";
         return (
           <Link
             key={it.href || it.k}

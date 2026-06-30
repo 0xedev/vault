@@ -24,6 +24,7 @@ const ASSET_KINDS: { kind: BundleAssetKind; icon: React.ReactNode }[] = [
 ];
 
 interface BundleFormAsset {
+  uid: string;
   kind: BundleAssetKind;
   label: string;
   detail: string;
@@ -31,8 +32,9 @@ interface BundleFormAsset {
   data: Record<string, unknown>;
 }
 
-function emptyAsset(kind: BundleAssetKind = "clanker"): BundleFormAsset {
-  return { kind, label: "", detail: "", price: 0, data: {} };
+let _uid = 0;
+function emptyAsset(kind: BundleAssetKind = "nft_loan"): BundleFormAsset {
+  return { uid: `asset-${_uid++}`, kind, label: "", detail: "", price: 0, data: {} };
 }
 
 interface Props {
@@ -233,7 +235,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
 
             <div className="col" style={{ gap: 10 }}>
               {assets.map((asset, i) => (
-                <Card key={i} className="bundle-form-asset" style={{ padding: 12 }}>
+                <Card key={asset.uid} className="bundle-form-asset" style={{ padding: 12 }}>
                   <div className="row between" style={{ marginBottom: 8 }}>
                     <div className="row" style={{ gap: 8, alignItems: "center" }}>
                       <Select value={asset.kind} onValueChange={(value) => updateAsset(i, { kind: value as BundleAssetKind, data: {} })}>

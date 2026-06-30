@@ -789,10 +789,11 @@ select:focus-visible {
   gap: 12px;
 }
 .market-listing-card {
-  min-width: 0;
+  min-width: 220px;
   min-height: 174px;
   display: flex;
   flex-direction: column;
+  flex: 1;
   gap: 8px;
   padding: 14px;
   border: 1px solid var(--line);
@@ -1051,11 +1052,12 @@ select:focus-visible {
 }
 .market-asset-carousel-item {
   flex: 0 0 min(292px, 82vw);
-  min-width: 0;
+  min-width: 240px;
   padding-left: 14px;
 }
 .market-asset-carousel-item > * {
   height: 100%;
+  display: flex;
 }
 .market-float-card {
   position: relative;

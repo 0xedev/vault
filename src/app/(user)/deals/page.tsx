@@ -894,8 +894,11 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
   const dataFrom = <T,>(result: PromiseSettledResult<{ data?: T[] }>) =>
     result.status === "fulfilled" ? result.value.data || [] : [];
 
-  const mine = <T extends { sellerAddress?: string }>(items: T[]) =>
-    items.filter((item) => item.sellerAddress?.toLowerCase() === seller);
+  const mine = <T extends { sellerAddress?: string; borrower?: string }>(items: T[]) =>
+    items.filter((item) =>
+      item.sellerAddress?.toLowerCase() === seller ||
+      item.borrower?.toLowerCase() === seller
+    );
 
   const listings = [
     ...mine(dataFrom<ProfileLoan>(loansResult)).map((listing) => ({
