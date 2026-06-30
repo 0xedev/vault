@@ -2,6 +2,11 @@
 
 import React, { useState } from "react";
 import Icon from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
@@ -144,9 +149,9 @@ export default function ListMiniAppModal({ onClose }: Props) {
           <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>
             List Mini App
           </h3>
-          <button className="btn ghost sm" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose}>
             <Icon.x />
-          </button>
+          </Button>
         </div>
         <div
           className="modal-b"
@@ -159,9 +164,9 @@ export default function ListMiniAppModal({ onClose }: Props) {
           }}
         >
           <div className="col" style={{ gap: 4 }}>
-            <span className="label">Project Name</span>
-            <input
-              className="input"
+            <Label htmlFor="mini-name">Project Name</Label>
+            <Input
+              id="mini-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. On-Chain Poker"
@@ -169,9 +174,9 @@ export default function ListMiniAppModal({ onClose }: Props) {
           </div>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div>
-              <span className="label">Live URL</span>
-              <input
-                className="input"
+              <Label htmlFor="mini-url">Live URL</Label>
+              <Input
+                id="mini-url"
                 value={url}
                 onChange={(e) => {
                   setUrl(e.target.value);
@@ -186,9 +191,9 @@ export default function ListMiniAppModal({ onClose }: Props) {
               )}
             </div>
             <div>
-              <span className="label">Repo URL</span>
-              <input
-                className="input"
+              <Label htmlFor="mini-repo">Repo URL</Label>
+              <Input
+                id="mini-repo"
                 value={repo}
                 onChange={(e) => setRepo(e.target.value)}
                 placeholder="https://github.com/owner/repo"
@@ -197,18 +202,20 @@ export default function ListMiniAppModal({ onClose }: Props) {
           </div>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div>
-              <span className="label">DAU</span>
-              <input
-                className="input mono"
+              <Label htmlFor="mini-dau">DAU</Label>
+              <Input
+                id="mini-dau"
+                className="mono"
                 value={dau}
                 onChange={(e) => setDau(e.target.value)}
                 placeholder="1234"
               />
             </div>
             <div>
-              <span className="label">MRR (USDC)</span>
-              <input
-                className="input mono"
+              <Label htmlFor="mini-mrr">MRR (USDC)</Label>
+              <Input
+                id="mini-mrr"
+                className="mono"
                 value={mrr}
                 onChange={(e) => setMrr(e.target.value)}
                 placeholder="0.5"
@@ -216,9 +223,10 @@ export default function ListMiniAppModal({ onClose }: Props) {
             </div>
           </div>
           <div className="col" style={{ gap: 4 }}>
-            <span className="label">Asking price (USDC)</span>
-            <input
-              className="input mono"
+            <Label htmlFor="mini-price">Asking price (USDC)</Label>
+            <Input
+              id="mini-price"
+              className="mono"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="5.0"
@@ -226,10 +234,10 @@ export default function ListMiniAppModal({ onClose }: Props) {
           </div>
 
           <div className="col" style={{ gap: 6 }}>
-            <span className="label">
+            <Label>
               Deliverables ({Object.values(deliverables).filter(Boolean).length}{" "}
               selected)
-            </span>
+            </Label>
             <div className="grid grid-2" style={{ gap: 6 }}>
               {DELIVERABLE_OPTIONS.map((d) => (
                 <label
@@ -250,11 +258,9 @@ export default function ListMiniAppModal({ onClose }: Props) {
                     gap: 8,
                   }}
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={!!deliverables[d.key]}
                     onChange={() => toggleDeliverable(d.key)}
-                    style={{ accentColor: "var(--accent)" }}
                   />
                   {d.label}
                 </label>
@@ -268,14 +274,7 @@ export default function ListMiniAppModal({ onClose }: Props) {
           )}
 
           {done && (
-            <div
-              className="card"
-              style={{
-                padding: 14,
-                background: "rgba(127,157,197,0.08)",
-                border: "1px solid var(--line)",
-              }}
-            >
+            <Card style={{ padding: 14, background: "rgba(127,157,197,0.08)", border: "1px solid var(--line)" }}>
               <div
                 className="pill funded"
                 style={{ width: "fit-content", marginBottom: 10 }}
@@ -283,21 +282,19 @@ export default function ListMiniAppModal({ onClose }: Props) {
                 <span className="pdot" />
                 {done}
               </div>
-            </div>
+            </Card>
           )}
 
           <div className="modal-f">
-            <button className="btn" style={{ flex: 1 }} onClick={onClose}>
+            <Button variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              className="btn primary lg"
-              style={{ flex: 1 }}
+            </Button>
+            <Button
               onClick={handleSubmit}
               disabled={submitting || !name || !price || !url}
             >
               {submitting ? "Signing & listing…" : "List Mini App"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

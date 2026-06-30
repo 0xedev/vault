@@ -2,6 +2,9 @@
 
 import React, { useState } from "react";
 import Icon from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
@@ -87,9 +90,9 @@ export default function ListXModal({ onClose }: { onClose: () => void }) {
           <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>
             List X account
           </h3>
-          <button className="btn ghost sm" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose}>
             <Icon.x />
-          </button>
+          </Button>
         </div>
         <div
           className="modal-b col"
@@ -97,9 +100,9 @@ export default function ListXModal({ onClose }: { onClose: () => void }) {
         >
           {/* Simplified inputs */}
           <div>
-            <span className="label">Handle</span>
-            <input
-              className="input"
+            <Label htmlFor="x-handle">Handle</Label>
+            <Input
+              id="x-handle"
               value={handle}
               onChange={(e) => setHandle(e.target.value)}
               placeholder="@handle"
@@ -107,18 +110,20 @@ export default function ListXModal({ onClose }: { onClose: () => void }) {
           </div>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div>
-              <span className="label">Followers</span>
-              <input
-                className="input mono"
+              <Label htmlFor="x-followers">Followers</Label>
+              <Input
+                id="x-followers"
+                className="mono"
                 type="number"
                 value={followers}
                 onChange={(e) => setFollowers(e.target.value)}
               />
             </div>
             <div>
-              <span className="label">Price (USDC)</span>
-              <input
-                className="input mono"
+              <Label htmlFor="x-price">Price (USDC)</Label>
+              <Input
+                id="x-price"
+                className="mono"
                 type="number"
                 step="0.1"
                 value={price}
@@ -132,16 +137,15 @@ export default function ListXModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
           <div className="modal-f">
-            <button className="btn" onClick={onClose}>
+            <Button variant="outline" onClick={onClose}>
               Close
-            </button>
-            <button
-              className="btn primary"
+            </Button>
+            <Button
               disabled={submitting || !handle || !price}
               onClick={submitListing}
             >
               {submitting ? "Signing & listing…" : "List account"}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

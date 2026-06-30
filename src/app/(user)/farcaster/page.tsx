@@ -7,6 +7,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import ListFidModal from "@/components/ListFidModal";
+import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import type { FarcasterAccount } from "@/lib/data";
 import { fmtCompact, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
@@ -25,6 +26,7 @@ export default function FarcasterPage() {
   const [filter, setFilter] = useState("all");
   const [listing, setListing] = useState(false);
   const [buying, setBuying] = useState("");
+  const [offerListing, setOfferListing] = useState<FarcasterAccount | null>(null);
 
   useEffect(() => {
     fetch("/api/marketplace/farcaster")
@@ -187,9 +189,14 @@ export default function FarcasterPage() {
                 </td>
                 <td className="right mono" style={{ color: "var(--ink)" }}>{a.price} USDC</td>
                 <td className="right">
-                  <button className="btn sm primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()}>
-                    {buying === a.id ? "Funding..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Yours" : "Buy"}
-                  </button>
+                  <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>
+                    <button className="btn sm primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()}>
+                      {buying === a.id ? "Funding..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Yours" : "Buy"}
+                    </button>
+                    <button className="btn sm" onClick={() => setOfferListing(a)} disabled={a.sellerAddress?.toLowerCase() === address?.toLowerCase()}>
+                      Offer
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -203,6 +210,20 @@ export default function FarcasterPage() {
         <div className="metric"><span className="lab">Median followers listed</span><span className="val">{fmtCompact(accounts[Math.floor(accounts.length / 2)]?.followers || 0)}</span><span className="delta">from current inventory</span></div>
       </div>
       </>}
+      {offerListing && (
+        <SubmitDealOfferModal
+          listing={{
+            id: offerListing.id,
+            title: `@${offerListing.handle}`,
+            price: offerListing.price,
+            sellerAddress: offerListing.sellerAddress,
+            contractListingId: offerListing.contractListingId,
+            contractAddress: offerListing.contractAddress,
+            chainId: offerListing.chainId,
+          }}
+          onClose={() => setOfferListing(null)}
+        />
+      )}
     </main>
   );
 }

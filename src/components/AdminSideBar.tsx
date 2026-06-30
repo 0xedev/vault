@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "./icons";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 interface SidebarItem {
   sec?: string;
@@ -30,11 +33,11 @@ export default function AdminSideBar({ open, onClose }: { open: boolean; onClose
 
   return (
     <aside className={"sidebar admin-sidebar" + (open ? " open" : "")}>
-      <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
+      <Button variant="ghost" size="icon" className="sidebar-close" onClick={onClose} aria-label="Close menu">
         <Icon.x />
-      </button>
+      </Button>
       {items.map((it, i) => it.sec
-        ? <div className="side-h" key={"s"+i}>{it.sec}</div>
+        ? <div key={"s"+i}>{i > 0 && <Separator style={{ margin: "14px 0" }} />}<div className="side-h">{it.sec}</div></div>
         : (
           <Link
             key={it.k}
@@ -49,7 +52,7 @@ export default function AdminSideBar({ open, onClose }: { open: boolean; onClose
         )
       )}
       <div style={{ flex: 1 }}/>
-      <div className="card" style={{ padding: 12, marginTop: 20, borderColor: "color-mix(in oklab, var(--risk) 30%, transparent)" }}>
+      <Card style={{ padding: 12, marginTop: 20, borderColor: "color-mix(in oklab, var(--risk) 30%, transparent)" }}>
         <div className="row" style={{ gap: 8, marginBottom: 6 }}>
           <Icon.shield style={{ color: "var(--risk)" }}/>
           <span className="smallcaps" style={{ color: "var(--risk)" }}>Admin · L4</span>
@@ -57,7 +60,7 @@ export default function AdminSideBar({ open, onClose }: { open: boolean; onClose
         <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.4 }}>
           All actions are logged + signed. <a className="lnk" href="#">Policies ↗</a>
         </div>
-      </div>
+      </Card>
     </aside>
   );
 }

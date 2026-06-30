@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "./icons";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 interface SidebarItem {
   sec?: string;
@@ -34,12 +37,17 @@ export default function SideBar({ open, onClose }: { open: boolean; onClose: () 
 
   return (
     <aside className={"sidebar" + (open ? " open" : "")}>
-      <button className="sidebar-close" onClick={onClose} aria-label="Close menu">
+      <Button variant="ghost" size="icon" className="sidebar-close" onClick={onClose} aria-label="Close menu">
         <Icon.x />
-      </button>
+      </Button>
 
       {items.map((it, i) => {
-        if (it.sec) return <div className="side-h" key={"s"+i}>{it.sec}</div>;
+        if (it.sec) return (
+          <div key={"s"+i}>
+            {i > 0 && <Separator style={{ margin: "14px 0" }} />}
+            <div className="side-h">{it.sec}</div>
+          </div>
+        );
         const isActive = it.tab
           ? pathname === it.k && activeTab === it.tab
           : (pathname === it.k || pathname.startsWith(it.k! + "/")) && activeTab !== "bundles";
@@ -56,7 +64,7 @@ export default function SideBar({ open, onClose }: { open: boolean; onClose: () 
         );
       })}
       <div style={{ flex: 1 }}/>
-      <div className="card" style={{ padding: 12, marginTop: 20 }}>
+      <Card style={{ padding: 12, marginTop: 20 }}>
         <div className="row" style={{ gap: 8, marginBottom: 6 }}>
           <Icon.shield/>
           <span className="smallcaps" style={{ color: "var(--ink-2)" }}>Protected</span>
@@ -64,7 +72,7 @@ export default function SideBar({ open, onClose }: { open: boolean; onClose: () 
         <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.4 }}>
           Funds + collateral held in audited escrow. <a className="lnk" href="#">Read terms ↗</a>
         </div>
-      </div>
+      </Card>
     </aside>
   );
 }

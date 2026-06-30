@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Signed EIP-712 Offers Across NFT Loans and P2P Markets</title>
+    <style>
+      body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #0f172a; background: #f8fafc; line-height: 1.6; }
+      main { max-width: 920px; margin: 0 auto; padding: 48px 20px; }
+      section { margin: 22px 0; padding: 22px; border: 1px solid rgba(0, 53, 168, 0.14); border-radius: 12px; background: white; }
+      h1, h2 { line-height: 1.1; }
+      h1 { margin: 0 0 10px; font-size: clamp(32px, 6vw, 56px); color: #0035a8; }
+      h2 { margin: 0 0 12px; font-size: 22px; }
+      code { padding: 2px 6px; border-radius: 6px; background: #eef2ff; }
+      li { margin: 6px 0; }
+      .lead { margin: 0; max-width: 760px; color: #475569; font-size: 18px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Signed EIP-712 Offers</h1>
+      <p class="lead">Submitting an offer signs typed data and does not lock USDC. Direct fixed-price buy still funds escrow immediately. Acceptance verifies the signed offer on-chain and then follows the correct product flow.</p>
+
+      <section>
+        <h2>Core Flow</h2>
+        <ul>
+          <li>NFT loan offers are signed by lenders and accepted by borrowers on-chain.</li>
+          <li>P2P market offers are signed by buyers and accepted by sellers on-chain.</li>
+          <li>P2P accepted offers lock buyer USDC in escrow. Seller payout still waits for delivery and buyer confirmation.</li>
+          <li>Offer nonces can be cancelled on-chain to invalidate signatures.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Contracts</h2>
+        <ul>
+          <li><code>VaultNFT.acceptSignedOffer</code> verifies a <code>SignedLoanOffer</code>, pulls USDC from lender, pays borrower minus platform fee, and activates the loan.</li>
+          <li><code>VaultDeals.acceptSignedDealOffer</code> verifies a <code>SignedDealOffer</code>, pulls USDC from buyer into escrow, and moves the deal to funded delivery flow.</li>
+          <li><code>cancelOfferNonce</code> and <code>cancelOfferNonces</code> mark signer nonces as unavailable.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>API and Storage</h2>
+        <ul>
+          <li><code>offers</code> stores <code>offer_type</code>, <code>signature</code>, <code>nonce</code>, <code>expires_at</code>, <code>typed_data</code>, <code>marketplace</code>, and <code>contract_listing_id</code>.</li>
+          <li><code>POST /api/offers</code> rebuilds typed data server-side and verifies signatures with <code>viem</code>.</li>
+          <li><code>PATCH /api/offers</code> requires a confirmed accept transaction hash for accepted offers and creates funded escrow rows for P2P markets.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Frontend</h2>
+        <ul>
+          <li>NFT detail submit-offer signs EIP-712 data instead of depositing USDC.</li>
+          <li>Mini Apps, X, Farcaster, Clanker, and Bundles expose signed offer submission beside direct escrow buy.</li>
+          <li>Profile shows incoming offers under active listings with Accept and Reject controls.</li>
+          <li>Profile shows outgoing offers with Cancel, using on-chain nonce cancellation where possible.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import AdminTopBar from "@/components/AdminTopBar";
 import AdminSideBar from "@/components/AdminSideBar";
 import TweaksPanel from "@/components/TweaksPanel";
-import { ThemeProvider } from "@/components/ThemeProvider";
+import ThemeProvider from "@/components/ThemeProvider";
 import { useWallet, WalletProvider } from "@/components/WalletProvider";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

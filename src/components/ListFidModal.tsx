@@ -2,6 +2,10 @@
 
 import React, { useState } from "react";
 import Icon from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
@@ -116,9 +120,9 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
           <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>
             List Farcaster account
           </h3>
-          <button className="btn ghost sm" onClick={onClose}>
+          <Button variant="ghost" size="icon" onClick={onClose}>
             <Icon.x />
-          </button>
+          </Button>
         </div>
         <div
           className="modal-b"
@@ -132,9 +136,9 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
         >
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="col" style={{ gap: 4 }}>
-              <span className="label">Account</span>
-              <input
-                className="input"
+              <Label htmlFor="fid-account">Account</Label>
+              <Input
+                id="fid-account"
                 value={handle}
                 onChange={(e) => setHandle(e.target.value)}
                 onBlur={fetchProfilePreview}
@@ -142,9 +146,10 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
               />
             </div>
             <div className="col" style={{ gap: 4 }}>
-              <span className="label">Followers</span>
-              <input
-                className="input mono"
+              <Label htmlFor="fid-followers">Followers</Label>
+              <Input
+                id="fid-followers"
+                className="mono"
                 value={followers}
                 onChange={(e) => setFollowers(e.target.value)}
                 placeholder="25000"
@@ -153,9 +158,10 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
           </div>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="col" style={{ gap: 4 }}>
-              <span className="label">Asking price (USDC)</span>
-              <input
-                className="input mono"
+              <Label htmlFor="fid-price">Asking price (USDC)</Label>
+              <Input
+                id="fid-price"
+                className="mono"
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="8.5"
@@ -175,48 +181,34 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
           )}
 
           {done && (
-            <div
-              className="card"
-              style={{
-                padding: 14,
-                background: "rgba(127,157,197,0.12)",
-                border: "1px solid var(--accent)",
-              }}
-            >
+            <Card style={{ padding: 14, background: "rgba(127,157,197,0.12)", border: "1px solid var(--accent)" }}>
               <div className="pill funded" style={{ width: "fit-content" }}>
                 <span className="pdot" />
                 {done}
               </div>
-            </div>
+            </Card>
           )}
           <div className="modal-f">
-            <button
-              className="btn"
-              style={{ flex: 1 }}
+            <Button
+              variant="outline"
                 onClick={() => {
                   onClose();
                   setDone("");
                 }}
             >
               Close
-            </button>
+            </Button>
             {!done ? (
-              <button
-                className="btn primary lg"
-                style={{ flex: 1 }}
+              <Button
                 onClick={submitListing}
                 disabled={submitting || !normalizedHandle || !price}
               >
                 {submitting ? "Signing..." : "List account"}
-              </button>
+              </Button>
             ) : (
-              <button
-                className="btn primary lg"
-                style={{ flex: 1 }}
-                onClick={onClose}
-              >
+              <Button onClick={onClose}>
                 Done
-              </button>
+              </Button>
             )}
           </div>
         </div>

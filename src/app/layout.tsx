@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Instrument_Serif, JetBrains_Mono } from "next/font/google";
+import ThemeProvider from "@/components/ThemeProvider";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
@@ -75,7 +76,7 @@ export default function RootLayout({
       </head>
       <body className={`${geist.variable} ${instrumentSerif.variable} ${jetBrainsMono.variable}`} data-theme="light" data-card="solid" data-density="regular">
         <a className="skip-link" href="#main-content">Skip to main content</a>
-        {children}
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );

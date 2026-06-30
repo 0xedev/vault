@@ -44,6 +44,21 @@ contract VaultNFT is VaultCore, IERC721Receiver {
     /// @notice Lender offer terms stored per listing.
     struct Offer { uint256 apr; uint256 term; }
 
+    /// @notice EIP-712 signed loan offer terms.
+    struct SignedLoanOffer {
+        uint256 listingId;
+        address lender;
+        uint256 amount;
+        uint256 apr;
+        uint256 term;
+        uint256 expiry;
+        uint256 nonce;
+    }
+
+    bytes32 public constant SIGNED_LOAN_OFFER_TYPEHASH = keccak256(
+        "SignedLoanOffer(uint256 listingId,address lender,uint256 amount,uint256 apr,uint256 term,uint256 expiry,uint256 nonce)"
+    );
+
     /// @notice Total listings created (increments monotonically, 1-indexed).
     uint256 public listingCount;
     /// @notice Full listing data keyed by listing ID.
@@ -74,6 +89,8 @@ contract VaultNFT is VaultCore, IERC721Receiver {
     event OfferWithdrawn(uint256 indexed listingId, address lender, uint256 amount);
     /// @notice Emitted when a borrower accepts a lender's offer.
     event OfferAccepted(uint256 indexed listingId, address lender, uint256 amount);
+    /// @notice Emitted when a borrower accepts a lender's EIP-712 signed offer.
+    event SignedOfferAccepted(uint256 indexed listingId, address indexed lender, uint256 amount, uint256 nonce);
     /// @notice Emitted on any repayment (full or partial).
     event Repaid(uint256 indexed listingId, uint256 amount);
     /// @notice Emitted when a lender claims the NFT collateral after default.
@@ -298,6 +315,48 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         if (fee > 0 && !usdc.transfer(treasury, fee)) revert TransferFailed();
         _refundNftOffers(listingId, lender);
         emit OfferAccepted(listingId, lender, acceptedAmount);
+    }
+
+    /**
+     * @notice Accepts a lender's EIP-712 signed offer, pulling USDC at acceptance time.
+     * @param offer     Signed loan offer terms.
+     * @param signature Lender signature over the offer.
+     */
+    function acceptSignedOffer(SignedLoanOffer calldata offer, bytes calldata signature)
+        external nonReentrant whenNotPaused onlyBorrower(offer.listingId) atStage(offer.listingId, Stage.LISTED)
+    {
+        require(offer.amount > 0 && offer.term > 0, "Invalid offer");
+        bytes32 structHash = keccak256(
+            abi.encode(
+                SIGNED_LOAN_OFFER_TYPEHASH,
+                offer.listingId,
+                offer.lender,
+                offer.amount,
+                offer.apr,
+                offer.term,
+                offer.expiry,
+                offer.nonce
+            )
+        );
+        address signer = _recoverSigner(_hashTypedData("VaultNFT", structHash), signature);
+        if (signer != offer.lender) revert InvalidSignature();
+        _consumeOfferNonce(offer.lender, offer.nonce, offer.expiry);
+
+        Listing storage l = listings[offer.listingId];
+        l.acceptedLender = offer.lender;
+        l.acceptedAmount = offer.amount;
+        l.acceptedApr = offer.apr;
+        l.acceptedTerm = offer.term;
+        l.fundedAt = block.timestamp;
+        l.stage = Stage.ACTIVE;
+
+        if (!usdc.transferFrom(offer.lender, address(this), offer.amount)) revert TransferFailed();
+        uint256 fee = (offer.amount * platformFeeBps) / 10000;
+        if (!usdc.transfer(msg.sender, offer.amount - fee)) revert TransferFailed();
+        if (fee > 0 && !usdc.transfer(treasury, fee)) revert TransferFailed();
+        _refundNftOffers(offer.listingId, offer.lender);
+        emit OfferAccepted(offer.listingId, offer.lender, offer.amount);
+        emit SignedOfferAccepted(offer.listingId, offer.lender, offer.amount, offer.nonce);
     }
 
     // ────────────────────────────────────────────────────────────

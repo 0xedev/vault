@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
+import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import { appColor, fmtCompact, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
@@ -278,6 +279,7 @@ export default function MiniAppsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [buying, setBuying] = useState("");
+  const [offerListing, setOfferListing] = useState<MiniApp | null>(null);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("dau");
 
@@ -415,9 +417,26 @@ export default function MiniAppsPage() {
               <button className="btn primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()} style={{ width: "100%", justifyContent: "center" }}>
                 {buying === a.id ? "Funding escrow..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Your listing" : "Buy with escrow"}
               </button>
+              <button className="btn" onClick={() => setOfferListing(a)} disabled={a.sellerAddress?.toLowerCase() === address?.toLowerCase()} style={{ width: "100%", justifyContent: "center" }}>
+                Submit offer
+              </button>
             </article>
           ))}
         </div>
+      )}
+      {offerListing && (
+        <SubmitDealOfferModal
+          listing={{
+            id: offerListing.id,
+            title: offerListing.name,
+            price: offerListing.price,
+            sellerAddress: offerListing.sellerAddress,
+            contractListingId: offerListing.contractListingId,
+            contractAddress: offerListing.contractAddress,
+            chainId: offerListing.chainId,
+          }}
+          onClose={() => setOfferListing(null)}
+        />
       )}
     </main>
   );

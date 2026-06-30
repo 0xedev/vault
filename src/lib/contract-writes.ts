@@ -1,6 +1,7 @@
 import { type Address, type Hash } from "viem";
 import { base } from "viem/chains";
 import { VaultNFT_ABI, VaultDeals_ABI, ERC721_ABI } from "./contract-abi";
+import type { SignedDealOfferMessage, SignedLoanOfferMessage } from "./signed-offers";
 import {
   getNftAddress,
   getDealsAddress,
@@ -117,6 +118,39 @@ export async function writeAcceptOffer(
     abi: VaultNFT_ABI,
     functionName: "acceptOffer",
     args: [listingId, lender, amountWei, BigInt(aprBps), BigInt(termDays)],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeAcceptSignedLoanOffer(
+  account: Address,
+  offer: SignedLoanOfferMessage,
+  signature: `0x${string}`,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getNftAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "acceptSignedOffer",
+    args: [offer, signature],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeCancelNftOfferNonce(
+  account: Address,
+  nonce: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getNftAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultNFT_ABI,
+    functionName: "cancelOfferNonce",
+    args: [nonce],
     account,
     chain: base,
   });
@@ -434,6 +468,39 @@ export async function writeAcceptDealOffer(
     abi: VaultDeals_ABI,
     functionName: "acceptDealOffer",
     args: [dealId, buyer],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeAcceptSignedDealOffer(
+  account: Address,
+  offer: SignedDealOfferMessage,
+  signature: `0x${string}`,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "acceptSignedDealOffer",
+    args: [offer, signature],
+    account,
+    chain: base,
+  });
+}
+
+export async function writeCancelDealOfferNonce(
+  account: Address,
+  nonce: bigint,
+): Promise<Hash> {
+  const wallet = getWalletClient();
+  const address = await getDealsAddress();
+  return wallet.writeContract({
+    address,
+    abi: VaultDeals_ABI,
+    functionName: "cancelOfferNonce",
+    args: [nonce],
     account,
     chain: base,
   });

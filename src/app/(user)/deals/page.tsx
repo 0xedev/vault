@@ -16,6 +16,10 @@ import {
   writeDisputeDeal,
   writeMarkDelivered,
   writeRefundDeal,
+  writeAcceptSignedDealOffer,
+  writeAcceptSignedLoanOffer,
+  writeCancelDealOfferNonce,
+  writeCancelNftOfferNonce,
   readPlatformFeeBps,
 } from "@/lib/contract";
 import {
@@ -26,6 +30,7 @@ import {
   transferClankerTokenSupply,
 } from "@/lib/clanker-writes";
 import { fmtUSDC } from "@/lib/utils";
+import type { SignedDealOfferMessage, SignedLoanOfferMessage } from "@/lib/signed-offers";
 import { selectedRights } from "@/lib/clanker";
 import type { BundleListing, ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount } from "@/lib/data";
 import { type Address, type Hash } from "viem";
@@ -106,6 +111,23 @@ interface ProfileListing {
   href: string;
   cancelPath: string;
   cancelMethod: "PATCH" | "DELETE";
+  offers: ProfileOffer[];
+}
+
+interface ProfileOffer {
+  id: string;
+  listingId: string;
+  offererAddress: string;
+  amt: number;
+  apr: number;
+  term: number;
+  status: string;
+  expiresAt?: string | null;
+  signature?: `0x${string}`;
+  nonce?: string;
+  typedData?: unknown;
+  marketplace?: string;
+  contractListingId?: string;
 }
 
 type ProfileLoan = Loan & {
@@ -750,6 +772,39 @@ function shortWallet(address?: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
+function profileOfferMessage(offer: ProfileOffer): SignedLoanOfferMessage | SignedDealOfferMessage | null {
+  const typedData = typeof offer.typedData === "string"
+    ? JSON.parse(offer.typedData)
+    : offer.typedData as { message?: Record<string, unknown> } | undefined;
+  const msg = typedData?.message;
+  if (!msg) return null;
+  if (offer.marketplace === "nft_loan") {
+    return {
+      listingId: BigInt(String(msg.listingId)),
+      lender: String(msg.lender) as Address,
+      amount: BigInt(String(msg.amount)),
+      apr: BigInt(String(msg.apr)),
+      term: BigInt(String(msg.term)),
+      expiry: BigInt(String(msg.expiry)),
+      nonce: BigInt(String(msg.nonce)),
+    };
+  }
+  return {
+    dealId: BigInt(String(msg.dealId)),
+    buyer: String(msg.buyer) as Address,
+    amount: BigInt(String(msg.amount)),
+    expiry: BigInt(String(msg.expiry)),
+    nonce: BigInt(String(msg.nonce)),
+  };
+}
+
+async function loadOffersForListing(listingId: string): Promise<ProfileOffer[]> {
+  const res = await fetch(`/api/offers?listingId=${encodeURIComponent(listingId)}`, { credentials: "include" });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) return [];
+  return (json.data || []).filter((offer: ProfileOffer) => offer.status === "pending");
+}
+
 async function loadProfileListings(address: string): Promise<ProfileListing[]> {
   const seller = address.toLowerCase();
   const [
@@ -774,7 +829,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
   const mine = <T extends { sellerAddress?: string }>(items: T[]) =>
     items.filter((item) => item.sellerAddress?.toLowerCase() === seller);
 
-  return [
+  const listings = [
     ...mine(dataFrom<ProfileLoan>(loansResult)).map((listing) => ({
       id: listing.id,
       kind: "NFT loan",
@@ -785,6 +840,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       href: `/detail?id=${encodeURIComponent(listing.id)}`,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
+      offers: [],
     })),
     ...mine(dataFrom<MiniApp>(miniAppsResult)).map((listing) => ({
       id: listing.id,
@@ -796,6 +852,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       href: `/miniapps?id=${encodeURIComponent(listing.id)}`,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
+      offers: [],
     })),
     ...mine(dataFrom<XAccount>(xAccountsResult)).map((listing) => ({
       id: listing.id,
@@ -807,6 +864,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       href: `/x?id=${encodeURIComponent(listing.id)}`,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
+      offers: [],
     })),
     ...mine(dataFrom<FarcasterAccount>(farcasterResult)).map((listing) => ({
       id: listing.id,
@@ -818,6 +876,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       href: `/farcaster?id=${encodeURIComponent(listing.id)}`,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
+      offers: [],
     })),
     ...mine(dataFrom<ClankerToken>(clankerResult)).map((listing) => ({
       id: listing.id,
@@ -829,6 +888,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       href: `/clanker?id=${encodeURIComponent(listing.id)}`,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
+      offers: [],
     })),
     ...mine(dataFrom<BundleListing>(bundlesResult)).map((listing) => ({
       id: listing.id,
@@ -840,8 +900,11 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       href: `/market?tab=bundles&id=${encodeURIComponent(listing.id)}`,
       cancelPath: `/api/listings/bundle?id=${encodeURIComponent(listing.id)}`,
       cancelMethod: "DELETE" as const,
+      offers: [],
     })),
   ];
+  const offers = await Promise.all(listings.map((listing) => loadOffersForListing(listing.id)));
+  return listings.map((listing, index) => ({ ...listing, offers: offers[index] || [] }));
 }
 
 export default function DealsPage() {
@@ -858,8 +921,10 @@ export default function DealsPage() {
   const [dealDetail, setDealDetail] = useState<DealDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [profileListings, setProfileListings] = useState<ProfileListing[]>([]);
+  const [outgoingOffers, setOutgoingOffers] = useState<ProfileOffer[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [listingNotice, setListingNotice] = useState("");
+  const [offerAction, setOfferAction] = useState("");
   const { isConnected, isConnecting, connect, role, address } = useWallet();
 
   const loadEscrows = React.useCallback(() => {
@@ -892,11 +957,23 @@ export default function DealsPage() {
       .finally(() => setListingsLoading(false));
   }, [address]);
 
+  const refreshOutgoingOffers = React.useCallback(() => {
+    if (!address) {
+      setOutgoingOffers([]);
+      return Promise.resolve();
+    }
+    return fetch(`/api/offers?offererAddress=${encodeURIComponent(address)}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((json) => setOutgoingOffers((json.data || []).filter((offer: ProfileOffer) => offer.status === "pending")))
+      .catch(() => setOutgoingOffers([]));
+  }, [address]);
+
   useEffect(() => {
     queueMicrotask(() => {
       refreshProfileListings();
+      refreshOutgoingOffers();
     });
-  }, [refreshProfileListings]);
+  }, [refreshOutgoingOffers, refreshProfileListings]);
 
   useEffect(() => {
     if (linkedDealId) queueMicrotask(() => setSelectedDealId(linkedDealId));
@@ -959,6 +1036,77 @@ export default function DealsPage() {
       await refreshProfileListings();
     } catch (err) {
       setListingNotice(err instanceof Error ? err.message : "Unable to cancel listing");
+    }
+  };
+
+  const patchOfferStatus = async (offer: ProfileOffer, status: "accepted" | "rejected" | "cancelled", txHash?: Hash) => {
+    const res = await fetch("/api/offers", {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: offer.id, status, actorAddress: address, txHash }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(json.error || "Unable to update offer");
+  };
+
+  const acceptProfileOffer = async (offer: ProfileOffer) => {
+    if (!address) return;
+    setOfferAction(offer.id);
+    setListingNotice("");
+    try {
+      if (!offer.signature) throw new Error("Offer signature is missing.");
+      const message = profileOfferMessage(offer);
+      if (!message) throw new Error("Offer typed data is missing.");
+      const txHash = offer.marketplace === "nft_loan"
+        ? await writeAcceptSignedLoanOffer(address as Address, message as SignedLoanOfferMessage, offer.signature)
+        : await writeAcceptSignedDealOffer(address as Address, message as SignedDealOfferMessage, offer.signature);
+      await getPublicClient().waitForTransactionReceipt({ hash: txHash });
+      await patchOfferStatus(offer, "accepted", txHash);
+      setListingNotice(offer.marketplace === "nft_loan"
+        ? "Offer accepted and loan activated."
+        : "Offer accepted. Buyer funds are locked in escrow until delivery is confirmed.");
+      await Promise.all([refreshProfileListings(), refreshOutgoingOffers(), loadEscrows()]);
+    } catch (err) {
+      setListingNotice(parseContractError(err));
+    } finally {
+      setOfferAction("");
+    }
+  };
+
+  const rejectProfileOffer = async (offer: ProfileOffer) => {
+    setOfferAction(offer.id);
+    setListingNotice("");
+    try {
+      await patchOfferStatus(offer, "rejected");
+      setListingNotice("Offer rejected.");
+      await refreshProfileListings();
+    } catch (err) {
+      setListingNotice(err instanceof Error ? err.message : "Unable to reject offer");
+    } finally {
+      setOfferAction("");
+    }
+  };
+
+  const cancelOutgoingOffer = async (offer: ProfileOffer) => {
+    if (!address) return;
+    setOfferAction(offer.id);
+    setListingNotice("");
+    try {
+      if (offer.nonce) {
+        const nonce = BigInt(offer.nonce);
+        const txHash = offer.marketplace === "nft_loan"
+          ? await writeCancelNftOfferNonce(address as Address, nonce)
+          : await writeCancelDealOfferNonce(address as Address, nonce);
+        await getPublicClient().waitForTransactionReceipt({ hash: txHash });
+      }
+      await patchOfferStatus(offer, "cancelled");
+      setListingNotice("Offer cancelled.");
+      await refreshOutgoingOffers();
+    } catch (err) {
+      setListingNotice(parseContractError(err));
+    } finally {
+      setOfferAction("");
     }
   };
 
@@ -1062,23 +1210,75 @@ export default function DealsPage() {
           ) : (
             <div className="profile-listings">
               {profileListings.map((listing) => (
-                <div key={`${listing.kind}-${listing.id}`} className="profile-listing-row">
-                  <div>
-                    <span className="smallcaps">{listing.kind}</span>
-                    <strong>{listing.title}</strong>
-                    <small>{fmtUSDC(listing.price)} {listing.currency} · {listing.status}</small>
-                  </div>
-                  <details className="listing-actions-menu">
-                    <summary className="btn sm">Manage</summary>
+                <div key={`${listing.kind}-${listing.id}`} className="profile-listing-item">
+                  <div className="profile-listing-row">
                     <div>
-                      <Link href={listing.href}>View listing</Link>
-                      <button type="button" onClick={() => cancelListing(listing)}>Cancel listing</button>
+                      <span className="smallcaps">{listing.kind}</span>
+                      <strong>{listing.title}</strong>
+                      <small>{fmtUSDC(listing.price)} {listing.currency} · {listing.status}</small>
                     </div>
-                  </details>
+                    <details className="listing-actions-menu">
+                      <summary className="btn sm">Manage</summary>
+                      <div>
+                        <Link href={listing.href}>View listing</Link>
+                        <button type="button" onClick={() => cancelListing(listing)}>Cancel listing</button>
+                      </div>
+                    </details>
+                  </div>
+                  {listing.offers.length > 0 && (
+                    <div className="profile-offers">
+                      {listing.offers.map((offer) => (
+                        <div key={offer.id} className="profile-offer-row">
+                          <div>
+                            <strong>{fmtUSDC(offer.amt)} USDC offer</strong>
+                            <small>
+                              {shortWallet(offer.offererAddress)}
+                              {offer.apr > 0 ? ` · ${offer.apr}% APR` : ""}
+                              {offer.term > 0 ? ` · ${offer.term} days` : ""}
+                            </small>
+                          </div>
+                          <div className="row" style={{ gap: 8 }}>
+                            <button className="btn sm" onClick={() => rejectProfileOffer(offer)} disabled={offerAction === offer.id}>
+                              Reject
+                            </button>
+                            <button className="btn primary sm" onClick={() => acceptProfileOffer(offer)} disabled={offerAction === offer.id}>
+                              {offerAction === offer.id ? "Working..." : "Accept"}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {!selectedDealId && outgoingOffers.length > 0 && (
+        <section className="card profile-listings-card">
+          <div className="profile-listings-head">
+            <div className="eyebrow">My offers</div>
+            <h2 className="serif" style={{ fontSize: 22, margin: "4px 0 0" }}>Outgoing offers</h2>
+          </div>
+          <div className="profile-listings">
+            {outgoingOffers.map((offer) => (
+              <div key={offer.id} className="profile-offer-row">
+                <div>
+                  <span className="smallcaps">{offer.marketplace === "nft_loan" ? "NFT loan" : "P2P market"}</span>
+                  <strong>{fmtUSDC(offer.amt)} USDC offer</strong>
+                  <small>
+                    {offer.status}
+                    {offer.expiresAt ? ` · expires ${new Date(offer.expiresAt).toLocaleString()}` : ""}
+                  </small>
+                </div>
+                <button className="btn sm" onClick={() => cancelOutgoingOffer(offer)} disabled={offerAction === offer.id}>
+                  {offerAction === offer.id ? "Cancelling..." : "Cancel offer"}
+                </button>
+              </div>
+            ))}
+          </div>
         </section>
       )}
 

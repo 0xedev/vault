@@ -4,6 +4,8 @@
 import React from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { bundleAssetLabel, type BundleListing } from "@/lib/data";
 import { fmtUSDC } from "@/lib/utils";
 
@@ -27,7 +29,7 @@ export default function BundleCard({ bundle }: { bundle: BundleListing }) {
         </div>
       )}
       <div className="bundle-card-head">
-        <span className="bundle-tag">Bundle</span>
+        <Badge className="bundle-tag">Bundle</Badge>
         <strong className="bundle-name">{bundle.name}</strong>
         {bundle.description && (
           <span className="bundle-desc">{bundle.description}</span>
@@ -52,6 +54,7 @@ export default function BundleCard({ bundle }: { bundle: BundleListing }) {
           </div>
         )}
       </div>
+      <Separator />
       <div className="bundle-card-foot">
         <span className="bundle-price">{totalPrice} {currency}</span>
         <span className="bundle-cta">View <Icon.arrow /></span>

@@ -29,6 +29,9 @@ contract VaultCore {
     /// @notice Multi-admin membership. Any admin can add/remove others.
     mapping(address => bool) public admins;
 
+    /// @notice Per-signer offer nonces that have been consumed or cancelled.
+    mapping(address => mapping(uint256 => bool)) public usedOrCancelledOfferNonces;
+
     /// @notice Number of active admins (must stay >= 1).
     uint256 public adminCount;
 
@@ -55,6 +58,9 @@ contract VaultCore {
     /// @notice Emitted when the contract is unpaused.
     event Unpaused();
 
+    /// @notice Emitted when a signer invalidates an offer nonce.
+    event OfferNonceCancelled(address indexed signer, uint256 indexed nonce);
+
     // ── Errors ──────────────────────────────────────────────────
 
     /// @notice Caller does not have admin privileges.
@@ -68,6 +74,15 @@ contract VaultCore {
 
     /// @notice The caller already has an active offer for this listing/deal.
     error AlreadyOffered();
+
+    /// @notice EIP-712 signature is invalid.
+    error InvalidSignature();
+
+    /// @notice Signed offer has expired.
+    error OfferExpired();
+
+    /// @notice Signed offer nonce was already used or cancelled.
+    error OfferNonceUnavailable();
 
     // ── Modifiers ───────────────────────────────────────────────
 
@@ -163,5 +178,64 @@ contract VaultCore {
     function unpause() external onlyAdmin {
         paused = false;
         emit Unpaused();
+    }
+
+    // ── Signed offers ───────────────────────────────────────────
+
+    /**
+     * @notice Cancels a signed offer nonce for the caller.
+     * @param nonce Offer nonce to invalidate.
+     */
+    function cancelOfferNonce(uint256 nonce) external {
+        usedOrCancelledOfferNonces[msg.sender][nonce] = true;
+        emit OfferNonceCancelled(msg.sender, nonce);
+    }
+
+    /**
+     * @notice Cancels multiple signed offer nonces for the caller.
+     * @param nonces Offer nonces to invalidate.
+     */
+    function cancelOfferNonces(uint256[] calldata nonces) external {
+        for (uint256 i = 0; i < nonces.length; i++) {
+            usedOrCancelledOfferNonces[msg.sender][nonces[i]] = true;
+            emit OfferNonceCancelled(msg.sender, nonces[i]);
+        }
+    }
+
+    function _hashTypedData(string memory name, bytes32 structHash) internal view returns (bytes32) {
+        bytes32 domainSeparator = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes(name)),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(this)
+            )
+        );
+        return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+    }
+
+    function _recoverSigner(bytes32 digest, bytes calldata signature) internal pure returns (address) {
+        if (signature.length != 65) revert InvalidSignature();
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        assembly {
+            r := calldataload(signature.offset)
+            s := calldataload(add(signature.offset, 32))
+            v := byte(0, calldataload(add(signature.offset, 64)))
+        }
+        if (v < 27) v += 27;
+        if (v != 27 && v != 28) revert InvalidSignature();
+        if (uint256(s) > 0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0) revert InvalidSignature();
+        address signer = ecrecover(digest, v, r, s);
+        if (signer == address(0)) revert InvalidSignature();
+        return signer;
+    }
+
+    function _consumeOfferNonce(address signer, uint256 nonce, uint256 expiry) internal {
+        if (block.timestamp > expiry) revert OfferExpired();
+        if (usedOrCancelledOfferNonces[signer][nonce]) revert OfferNonceUnavailable();
+        usedOrCancelledOfferNonces[signer][nonce] = true;
     }
 }

@@ -28,5 +28,6 @@ const statusMap: Record<string, [string, string]> = {
 
 export default function StatusPill({ s }: { s: Status | string }) {
   const [cls, label] = statusMap[s] || ["", s];
-  return <span className={"pill " + cls}><span className="pdot"/>{label}</span>;
+  return <Badge variant="outline" className={"pill " + cls}><span className="pdot"/>{label}</Badge>;
 }
+import { Badge } from "@/components/ui/badge";

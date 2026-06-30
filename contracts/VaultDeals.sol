@@ -28,6 +28,19 @@ contract VaultDeals is VaultCore {
         uint256 sellerAmount;   ///< Amount awarded to seller on resolution.
     }
 
+    /// @notice EIP-712 signed deal offer terms.
+    struct SignedDealOffer {
+        uint256 dealId;
+        address buyer;
+        uint256 amount;
+        uint256 expiry;
+        uint256 nonce;
+    }
+
+    bytes32 public constant SIGNED_DEAL_OFFER_TYPEHASH = keccak256(
+        "SignedDealOffer(uint256 dealId,address buyer,uint256 amount,uint256 expiry,uint256 nonce)"
+    );
+
     /// @notice Total deals created (1-indexed, shared across deals and MiniApps).
     uint256 public dealCount;
     /// @notice Full deal data keyed by deal ID.
@@ -74,6 +87,8 @@ contract VaultDeals is VaultCore {
     event DealOfferWithdrawn(uint256 indexed dealId, address buyer, uint256 amount);
     /// @notice Emitted when the seller accepts a deal offer.
     event DealOfferAccepted(uint256 indexed dealId, address buyer, uint256 amount);
+    /// @notice Emitted when the seller accepts a buyer's EIP-712 signed offer.
+    event SignedDealOfferAccepted(uint256 indexed dealId, address indexed buyer, uint256 amount, uint256 nonce);
     /// @notice Emitted when a MiniApp is listed.
     event MiniAppListed(uint256 indexed listingId, address seller, uint256 price, bytes32 metadataHash);
     /// @notice Emitted when a MiniApp is purchased instantly.
@@ -248,6 +263,44 @@ contract VaultDeals is VaultCore {
         _refundDealOffersExcept(dealId, buyer);
         emit DealOfferAccepted(dealId, buyer, deposited);
         emit DealFunded(dealId, buyer, deposited);
+    }
+
+    /**
+     * @notice Accepts a buyer's EIP-712 signed offer, pulling USDC into escrow.
+     * @dev Funds remain escrowed; seller is paid only after buyer confirms delivery.
+     * @param offer     Signed deal offer terms.
+     * @param signature Buyer signature over the offer.
+     */
+    function acceptSignedDealOffer(SignedDealOffer calldata offer, bytes calldata signature)
+        external nonReentrant whenNotPaused onlySeller(offer.dealId) atDealStage(offer.dealId, DealStage.LISTED)
+    {
+        require(offer.amount > 0, "Amount must be > 0");
+        Deal storage d = deals[offer.dealId];
+        require(offer.buyer != d.seller, "Seller cannot buy own listing");
+        bytes32 structHash = keccak256(
+            abi.encode(
+                SIGNED_DEAL_OFFER_TYPEHASH,
+                offer.dealId,
+                offer.buyer,
+                offer.amount,
+                offer.expiry,
+                offer.nonce
+            )
+        );
+        address signer = _recoverSigner(_hashTypedData("VaultDeals", structHash), signature);
+        if (signer != offer.buyer) revert InvalidSignature();
+        _consumeOfferNonce(offer.buyer, offer.nonce, offer.expiry);
+
+        if (!usdc.transferFrom(offer.buyer, address(this), offer.amount)) revert TransferFailed();
+        d.buyer = offer.buyer;
+        d.price = offer.amount;
+        d.stage = DealStage.FUNDED;
+        d.deadline = block.timestamp + 7 days;
+        dealEscrowBalance[offer.dealId] = offer.amount;
+        _refundDealOffers(offer.dealId);
+        emit DealOfferAccepted(offer.dealId, offer.buyer, offer.amount);
+        emit DealFunded(offer.dealId, offer.buyer, offer.amount);
+        emit SignedDealOfferAccepted(offer.dealId, offer.buyer, offer.amount, offer.nonce);
     }
 
     /**

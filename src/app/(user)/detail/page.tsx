@@ -13,10 +13,11 @@ import { COLLECTIONS } from "@/lib/data";
 import { fmtETH, fmtUSDC } from "@/lib/utils";
 import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
-import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline, writeApproveUsdc, getNftAddress, readPlatformFeeBps } from "@/lib/contract";
+import { getPublicClient, getWalletClient, writeAcceptOffer, writeAcceptSignedLoanOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline, writeApproveUsdc, getNftAddress, readPlatformFeeBps } from "@/lib/contract";
 import { parseUnits, type Address, type Hash } from "viem";
 import type { Loan } from "@/lib/data";
 import { shareAsCast } from "@/lib/farcaster-sdk";
+import { buildSignedLoanOfferTypedData, expiryFromHours, offerNonce, type SignedLoanOfferMessage } from "@/lib/signed-offers";
 
 type LoanRecord = Loan & { collection?: string; sellerAddress?: string };
 type OfferRecord = {
@@ -28,12 +29,40 @@ type OfferRecord = {
   term: number;
   when: string;
   status: string;
+  signature?: `0x${string}`;
+  nonce?: string;
+  expiresAt?: string;
+  typedData?: {
+    message?: {
+      listingId: string;
+      lender: Address;
+      amount: string;
+      apr: string;
+      term: string;
+      expiry: string;
+      nonce: string;
+    };
+  };
   txHash?: Hash;
 };
 
 async function waitForTx(hash: Hash) {
   await getPublicClient().waitForTransactionReceipt({ hash });
   return hash;
+}
+
+function signedLoanOfferFromRecord(offer: OfferRecord): SignedLoanOfferMessage | null {
+  const message = offer.typedData?.message;
+  if (!message) return null;
+  return {
+    listingId: BigInt(message.listingId),
+    lender: message.lender,
+    amount: BigInt(message.amount),
+    apr: BigInt(message.apr),
+    term: BigInt(message.term),
+    expiry: BigInt(message.expiry),
+    nonce: BigInt(message.nonce),
+  };
 }
 
 function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: { onClose: () => void; l: LoanRecord; prefillAmt?: number; prefillApr?: number; prefillTerm?: number }) {
@@ -51,20 +80,24 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
     setSubmitting(true);
     try {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-      const amtWei = parseUnits(amt.toFixed(4), 6);
-      // 1. Approve USDC
-      await waitForTx(await writeApproveUsdc(address as Address, await getNftAddress(), amtWei));
-      // 2. Deposit USDC into escrow contract
-      const aprBps = Math.round(apr * 100);
-      const txHash = await waitForTx(await writeSubmitOffer(
-        address as Address,
-        BigInt(l.contractListingId),
-        amtWei,
-        aprBps,
-        term,
-      ));
+      const expiry = expiryFromHours(exp);
+      const nonce = offerNonce();
+      const typedData = buildSignedLoanOfferTypedData({
+        verifyingContract: await getNftAddress(),
+        chainId: 8453,
+        listingId: l.contractListingId,
+        lender: address as Address,
+        amount: amt,
+        apr,
+        termDays: term,
+        expiry,
+        nonce,
+      });
+      const signature = await getWalletClient().signTypedData({
+        account: address as Address,
+        ...typedData,
+      });
 
-      // 2. POST to API
       const res = await fetch("/api/offers", {
         method: "POST",
         credentials: "include",
@@ -76,8 +109,10 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
           apr,
           termDays: term,
           expiresInHours: exp,
+          expiry: expiry.toString(),
+          nonce: nonce.toString(),
+          signature,
           chainId: 8453,
-          txHash,
         }),
       });
       if (!res.ok) throw new Error("Counter submission failed");
@@ -210,20 +245,24 @@ function LoanDetailContent() {
     setMatching(o.id);
     try {
       if (!loan.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-      const amtWei = parseUnits(o.amt.toFixed(4), 6);
-      // 1. Approve USDC
-      await waitForTx(await writeApproveUsdc(address as Address, await getNftAddress(), amtWei));
-      // 2. Deposit USDC via contract
-      const aprBps = Math.round(o.apr * 100);
-      const txHash = await waitForTx(await writeSubmitOffer(
-        address as Address,
-        BigInt(loan.contractListingId),
-        amtWei,
-        aprBps,
-        o.term,
-      ));
+      const expiry = expiryFromHours(24);
+      const nonce = offerNonce();
+      const typedData = buildSignedLoanOfferTypedData({
+        verifyingContract: await getNftAddress(),
+        chainId: 8453,
+        listingId: loan.contractListingId,
+        lender: address as Address,
+        amount: o.amt,
+        apr: o.apr,
+        termDays: o.term,
+        expiry,
+        nonce,
+      });
+      const signature = await getWalletClient().signTypedData({
+        account: address as Address,
+        ...typedData,
+      });
 
-      // 2. POST to API
       const res = await fetch("/api/offers", {
         method: "POST",
         credentials: "include",
@@ -234,12 +273,28 @@ function LoanDetailContent() {
           amount: o.amt,
           apr: o.apr,
           termDays: o.term,
+          expiry: expiry.toString(),
+          nonce: nonce.toString(),
+          signature,
           chainId: 8453,
-          txHash,
         }),
       });
-      if (!res.ok) throw new Error("Match failed");
-      setOffers((current) => [...current, { id: `O-${Date.now()}`, who: shortAddress(address), offererAddress: address, amt: o.amt, apr: o.apr, term: o.term, when: new Date().toISOString(), status: "pending" }]);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Match failed");
+      setOffers((current) => [...current, {
+        id: json.data?.id || `O-${Date.now()}`,
+        who: shortAddress(address),
+        offererAddress: address,
+        amt: o.amt,
+        apr: o.apr,
+        term: o.term,
+        when: json.data?.createdAt || new Date().toISOString(),
+        status: "pending",
+        signature,
+        nonce: nonce.toString(),
+        expiresAt: json.data?.expiresAt,
+        typedData: json.data?.typedData,
+      }]);
     } catch (err) {
       setError(parseContractError(err));
     } finally {
@@ -306,15 +361,24 @@ function LoanDetailContent() {
       // 1. If accepting, call contract to release USDC to borrower
       if (status === "accepted" && address && offer.offererAddress) {
         if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-        const aprBps = Math.round(offer.apr * 100);
-        txHash = await waitForTx(await writeAcceptOffer(
-          address as Address,
-          BigInt(l.contractListingId),
-          offer.offererAddress as Address,
-          parseUnits(offer.amt.toFixed(4), 6),
-          aprBps,
-          offer.term,
-        ));
+        const signedOffer = signedLoanOfferFromRecord(offer);
+        if (signedOffer && offer.signature) {
+          txHash = await waitForTx(await writeAcceptSignedLoanOffer(
+            address as Address,
+            signedOffer,
+            offer.signature,
+          ));
+        } else {
+          const aprBps = Math.round(offer.apr * 100);
+          txHash = await waitForTx(await writeAcceptOffer(
+            address as Address,
+            BigInt(l.contractListingId),
+            offer.offererAddress as Address,
+            parseUnits(offer.amt.toFixed(4), 6),
+            aprBps,
+            offer.term,
+          ));
+        }
       }
 
       // 2. Update API

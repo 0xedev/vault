@@ -3,6 +3,12 @@
 
 import React, { useState } from "react";
 import Icon from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useWallet } from "@/components/WalletProvider";
 import { hashMetadata, writeListBundle, waitForDealId, parseContractError } from "@/lib/contract";
 import { bundleAssetLabel, type BundleAssetKind } from "@/lib/data";
@@ -146,14 +152,14 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
             <div className="eyebrow">Create Bundle Listing</div>
             <h2 className="serif" style={{ fontSize: 22, margin: "4px 0 0" }}>Bundled asset sale</h2>
           </div>
-          <button className="btn ghost sm" onClick={onClose} aria-label="Close"><Icon.x /></button>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close"><Icon.x /></Button>
         </div>
 
         <div className="modal-b col" style={{ gap: 14 }}>
           <div>
-            <span className="label">Bundle name</span>
-            <input
-              className="input"
+            <Label htmlFor="bundle-name">Bundle name</Label>
+            <Input
+              id="bundle-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder='e.g. "$FED ecosystem bundle"'
@@ -162,31 +168,33 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
             />
           </div>
           <div>
-            <span className="label">Description</span>
-            <textarea
-              className="input"
+            <Label htmlFor="bundle-description">Description</Label>
+            <Textarea
+              id="bundle-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What assets are included and why buy them together?"
               maxLength={500}
-              style={{ minHeight: 56, resize: "vertical", padding: "10px 12px" }}
+              style={{ minHeight: 56, resize: "vertical" }}
               aria-label="Bundle description"
             />
           </div>
           <div>
-            <span className="label">Cover image</span>
+            <Label htmlFor="bundle-image">Cover image</Label>
             <div className="row" style={{ gap: 8 }}>
-              <input
-                className="input"
+              <Input
+                id="bundle-image"
                 value={imageUrl}
                 onChange={(e) => setImageUrl(e.target.value)}
                 placeholder="Image URL or upload below"
                 style={{ flex: 1 }}
               />
-              <label className="btn sm" style={{ cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+              <Button asChild variant="outline" size="sm" style={{ cursor: "pointer", flexShrink: 0 }}>
+              <label>
                 <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
                 {uploadingImage ? "Uploading…" : "Upload"}
               </label>
+              </Button>
             </div>
             {imageUrl && (
               <div style={{ marginTop: 6, width: "100%", aspectRatio: "16/10", borderRadius: 8, overflow: "hidden", background: "var(--surface-2)", border: "1px solid var(--line)" }}>
@@ -195,9 +203,10 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
             )}
           </div>
           <div>
-            <span className="label">Bundle price (USDC)</span>
-            <input
-              className="input mono"
+            <Label htmlFor="bundle-price">Bundle price (USDC)</Label>
+            <Input
+              id="bundle-price"
+              className="mono"
               type="number"
               min="0"
               step="0.0001"
@@ -211,9 +220,9 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
           <div>
             <div className="row between" style={{ alignItems: "center", marginBottom: 8 }}>
               <span className="label">Assets ({assets.length})</span>
-              <button className="btn ghost sm" onClick={addAsset} disabled={assets.length >= 10}>
+              <Button variant="ghost" size="sm" onClick={addAsset} disabled={assets.length >= 10}>
                 <Icon.upload style={{ transform: "rotate(180deg)" }} /> Add asset
-              </button>
+              </Button>
             </div>
 
             {hasDuplicates && (
@@ -224,32 +233,30 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
 
             <div className="col" style={{ gap: 10 }}>
               {assets.map((asset, i) => (
-                <div key={i} className="bundle-form-asset card" style={{ padding: 12 }}>
+                <Card key={i} className="bundle-form-asset" style={{ padding: 12 }}>
                   <div className="row between" style={{ marginBottom: 8 }}>
                     <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                      <select
-                        className="input"
-                        value={asset.kind}
-                        onChange={(e) => updateAsset(i, { kind: e.target.value as BundleAssetKind, data: {} })}
-                        style={{ height: 30, padding: "0 8px" }}
-                        aria-label={`Asset ${i + 1} type`}
-                      >
-                        {ASSET_KINDS.map(({ kind }) => (
-                          <option key={kind} value={kind}>{bundleAssetLabel(kind)}</option>
-                        ))}
-                      </select>
+                      <Select value={asset.kind} onValueChange={(value) => updateAsset(i, { kind: value as BundleAssetKind, data: {} })}>
+                        <SelectTrigger aria-label={`Asset ${i + 1} type`} style={{ height: 30, minWidth: 160 }}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ASSET_KINDS.map(({ kind }) => (
+                            <SelectItem key={kind} value={kind}>{bundleAssetLabel(kind)}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <span className="smallcaps" style={{ color: "var(--ink-4)" }}>#{i + 1}</span>
                     </div>
                     {assets.length > 1 && (
-                      <button className="btn ghost sm" onClick={() => removeAsset(i)} aria-label={`Remove asset ${i + 1}`}>
+                      <Button variant="ghost" size="icon" onClick={() => removeAsset(i)} aria-label={`Remove asset ${i + 1}`}>
                         <Icon.x style={{ width: 13, height: 13, color: "var(--risk)" }} />
-                      </button>
+                      </Button>
                     )}
                   </div>
 
                   <div className="col" style={{ gap: 6 }}>
-                    <input
-                      className="input"
+                    <Input
                       value={asset.label}
                       onChange={(e) => updateAsset(i, { label: e.target.value })}
                       placeholder={`${bundleAssetLabel(asset.kind)} name or identifier`}
@@ -257,8 +264,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
                       style={{ height: 30 }}
                       aria-label={`Asset ${i + 1} label`}
                     />
-                    <input
-                      className="input"
+                    <Input
                       value={asset.detail}
                       onChange={(e) => updateAsset(i, { detail: e.target.value })}
                       placeholder="Quick detail (e.g. 45K followers, 1200 DAU, 2M supply)"
@@ -267,7 +273,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
                       aria-label={`Asset ${i + 1} detail`}
                     />
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           </div>
@@ -284,10 +290,10 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
         </div>
 
         <div className="modal-f bundle-modal-footer">
-          <button className="btn" onClick={onClose} disabled={submitting}>Cancel</button>
-          <button className="btn primary" onClick={handleSubmit} disabled={submitting || !canSubmit}>
+          <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={submitting || !canSubmit}>
             {submitting ? "Signing..." : "Create bundle"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

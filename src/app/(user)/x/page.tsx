@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 import React, { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
+import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
 import { parseUnits, type Address } from "viem";
@@ -46,6 +47,7 @@ export default function XAccountsPage() {
   const [price, setPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [buying, setBuying] = useState("");
+  const [offerListing, setOfferListing] = useState<XAccount | null>(null);
 
   const submitListing = async () => {
     if (!address) return;
@@ -285,9 +287,26 @@ export default function XAccountsPage() {
             <button className="btn primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()} style={{ width: "100%", justifyContent: "center" }}>
               {buying === a.id ? "Funding escrow..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Your listing" : "Buy with escrow"}
             </button>
+            <button className="btn" onClick={() => setOfferListing(a)} disabled={a.sellerAddress?.toLowerCase() === address?.toLowerCase()} style={{ width: "100%", justifyContent: "center" }}>
+              Submit offer
+            </button>
           </article>
         ))}
       </div>
+      )}
+      {offerListing && (
+        <SubmitDealOfferModal
+          listing={{
+            id: offerListing.id,
+            title: offerListing.handle,
+            price: offerListing.price,
+            sellerAddress: offerListing.sellerAddress,
+            contractListingId: offerListing.contractListingId,
+            contractAddress: offerListing.contractAddress,
+            chainId: offerListing.chainId,
+          }}
+          onClose={() => setOfferListing(null)}
+        />
       )}
     </main>
   );

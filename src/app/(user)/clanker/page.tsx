@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
+import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
 import { parseUnits, type Address } from "viem";
@@ -46,6 +47,7 @@ export default function ClankerPage() {
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [selectedToken, setSelectedToken] = useState<ClankerToken | null>(null);
+  const [offerToken, setOfferToken] = useState<ClankerToken | null>(null);
   const [buying, setBuying] = useState("");
   const [ownedTokens, setOwnedTokens] = useState<ClankerToken[]>([]);
   const [ownedLoading, setOwnedLoading] = useState(false);
@@ -406,12 +408,34 @@ export default function ClankerPage() {
             </div>
             <div className="modal-f">
               <button className="btn" onClick={() => setSelectedToken(null)}>Close</button>
+              <button
+                className="btn"
+                onClick={() => setOfferToken(selectedToken)}
+                disabled={!selectedToken.contractListingId || selectedToken.sellerAddress?.toLowerCase() === address?.toLowerCase()}
+              >
+                Submit offer
+              </button>
               <button className="btn primary" onClick={() => fundEscrow(selectedToken)} disabled={buying === selectedToken.id || selectedToken.sellerAddress?.toLowerCase() === address?.toLowerCase()}>
                 {buying === selectedToken.id ? "Funding escrow..." : selectedToken.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Your listing" : "Buy with escrow"}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {offerToken && (
+        <SubmitDealOfferModal
+          listing={{
+            id: offerToken.id,
+            title: `${offerToken.name} (${offerToken.symbol})`,
+            price: offerToken.price,
+            sellerAddress: offerToken.sellerAddress,
+            contractListingId: offerToken.contractListingId,
+            contractAddress: offerToken.contractAddress,
+            chainId: offerToken.chainId,
+          }}
+          onClose={() => setOfferToken(null)}
+        />
       )}
 
       {/* List modal */}

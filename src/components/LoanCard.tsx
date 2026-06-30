@@ -2,6 +2,7 @@
 import Link from "next/link";
 import NFTArt from "./NFTArt";
 import StatusPill from "./StatusPill";
+import { Badge } from "@/components/ui/badge";
 import { COLLECTIONS } from "@/lib/data";
 import { fmtETH, fmtUSDC } from "@/lib/utils";
 import type { Loan } from "@/lib/data";
@@ -25,11 +26,11 @@ export default function LoanCard({ l }: { l: Loan }) {
     <Link href={`/detail?id=${l.id}`} className="loan-card">
       <div style={{ position: "relative" }}>
         <NftImage l={l} />
-        <span className="pill floor-pill" style={{ position: "absolute", top: 8, right: 8, gap: 4 }}>
+        <Badge variant="outline" className="pill floor-pill" style={{ position: "absolute", top: 8, right: 8, gap: 4 }}>
           <span className="pdot" style={{ background: "var(--gold)" }} />
           <span className="nowrap">{fmtETH(l.value)} Ξ floor</span>
           <span className="mono" style={{ fontSize: 9, opacity: 0.6, marginLeft: 2 }}>±3%</span>
-        </span>
+        </Badge>
       </div>
       <div className="row between">
         <span className="nm trunc">{COLLECTIONS[l.coll]}</span>

@@ -5,6 +5,9 @@ import { usePathname, useSearchParams } from "next/navigation";
 import VaultMark from "./VaultMark";
 import Icon from "./icons";
 import { useWallet } from "./WalletProvider";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const topNavItems = [
   { href: "/market", label: "NFT Loans", match: "/market" },
@@ -40,9 +43,9 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
   return (
     <header className="topbar">
       <div className="row" style={{ gap: 28 }}>
-        <button className="menu-btn" onClick={onMenu} aria-label="Menu">
+        <Button variant="ghost" size="icon" className="menu-btn" onClick={onMenu} aria-label="Menu">
           <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
-        </button>
+        </Button>
         <Link href="/" className="brand" style={{ background: "transparent", border: 0, color: "inherit", padding: 0 }}>
           <VaultMark size={26} className="mark-glow" priority/>
           <span className="name hide-mobile">Baseshire Hethaway<em></em></span>
@@ -66,20 +69,39 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
         </nav>
       </div>
       <div className="row" style={{ gap: 10 }}>
-        <button className="btn ghost sm hide-mobile" title="Search"><Icon.search/> <span className="kbd">⌘K</span></button>
-        <button className="btn ghost sm hide-mobile" title="Notifications" style={{ position: "relative" }}>
-          <Icon.bell/>
-          <span style={{ position: "absolute", top: 4, right: 6, width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }}/>
-        </button>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className="hide-mobile" title="Search"><Icon.search/> <span className="kbd">⌘K</span></Button>
+            </TooltipTrigger>
+            <TooltipContent>Search</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className="hide-mobile" title="Notifications" style={{ position: "relative" }}>
+                <Icon.bell/>
+                <span style={{ position: "absolute", top: 4, right: 6, width: 6, height: 6, borderRadius: "50%", background: "var(--accent)" }}/>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Notifications</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
         {isConnected && isAuthenticated ? (
-          <div className="wallet" style={{ cursor: "pointer" }} onClick={disconnect}>
-            <span className="dot"/>
-            <span>{formatIdentity(address)}</span>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="wallet">
+                <span className="dot"/>
+                <span>{formatIdentity(address)}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={disconnect}>Disconnect</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
-          <button className="btn primary" onClick={connect} disabled={isConnecting}>
+          <Button onClick={connect} disabled={isConnecting}>
             {isConnecting ? "Connecting…" : isConnected ? "Sign in" : "Connect wallet"}
-          </button>
+          </Button>
         )}
       </div>
     </header>

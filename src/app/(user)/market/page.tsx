@@ -40,6 +40,7 @@ import ListBundleModal from "@/components/ListBundleModal";
 import ListMiniAppModal from "@/components/ListMiniAppModal";
 import ListXModal from "@/components/ListXModal";
 import ListFidModal from "@/components/ListFidModal";
+import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 
 type LoanWithSeller = Loan & { sellerAddress?: string };
 type MarketTab =
@@ -676,11 +677,13 @@ function BundleDetailPanel({
   buying,
   buyerAddress,
   onBuy,
+  onOffer,
 }: {
   bundle: BundleListing;
   buying: boolean;
   buyerAddress?: string | null;
   onBuy: (bundle: BundleListing) => void;
+  onOffer: (bundle: BundleListing) => void;
 }) {
   const seller = bundle.sellerAddress
     ? `${bundle.sellerAddress.slice(0, 6)}...${bundle.sellerAddress.slice(-4)}`
@@ -740,6 +743,13 @@ function BundleDetailPanel({
         <div className="row" style={{ gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
           <Link href="/market?tab=bundles" className="btn">Back to bundles</Link>
           <button
+            className="btn"
+            onClick={() => onOffer(bundle)}
+            disabled={isOwnListing || isPendingSync}
+          >
+            Submit offer
+          </button>
+          <button
             className="btn primary"
             onClick={() => onBuy(bundle)}
             disabled={buying || isOwnListing || isPendingSync}
@@ -776,6 +786,7 @@ export default function MarketplacePage() {
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [showListModal, setShowListModal] = useState(false);
   const [showBundleModal, setShowBundleModal] = useState(false);
+  const [offerBundle, setOfferBundle] = useState<BundleListing | null>(null);
   const [buyingBundleId, setBuyingBundleId] = useState("");
   const [chainLoading, setChainLoading] = useState(false);
   const [showOnChain, setShowOnChain] = useState(false);
@@ -1521,6 +1532,7 @@ export default function MarketplacePage() {
               buying={buyingBundleId === selectedBundle.id}
               buyerAddress={address}
               onBuy={fundBundleEscrow}
+              onOffer={setOfferBundle}
             />
           )}
           <div className="bundle-all-grid">
@@ -1559,6 +1571,20 @@ export default function MarketplacePage() {
               if (json.data) setBundles(json.data);
             });
           }}
+        />
+      )}
+      {offerBundle && (
+        <SubmitDealOfferModal
+          listing={{
+            id: offerBundle.id,
+            title: offerBundle.name,
+            price: offerBundle.totalPrice,
+            sellerAddress: offerBundle.sellerAddress,
+            contractListingId: offerBundle.contractListingId,
+            contractAddress: offerBundle.contractAddress,
+            chainId: offerBundle.chainId,
+          }}
+          onClose={() => setOfferBundle(null)}
         />
       )}
     </main>

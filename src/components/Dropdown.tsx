@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Option = { value: string; label: string };
 
@@ -17,48 +18,24 @@ export default function Dropdown({
   className?: string;
   style?: React.CSSProperties;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
   const items: Option[] = options.map((o) =>
     typeof o === "string" ? { value: o, label: o } : o
   );
-  const selected = items.find((o) => o.value === value);
 
   return (
-    <div ref={ref} className={`dropdown-root ${className}`} style={{ position: "relative", ...style }}>
-      <button
-        type="button"
-        className="dropdown-trigger"
-        onClick={() => setOpen(!open)}
-      >
-        <span className="trunc">{selected?.label || value}</span>
-        <svg viewBox="0 0 10 6" width="10" height="6" style={{ flexShrink: 0, opacity: 0.5 }}>
-          <path d="M0 0h10L5 6z" fill="currentColor" />
-        </svg>
-      </button>
-      {open && (
-        <div className="dropdown-menu">
+    <div className={`dropdown-root ${className}`} style={style}>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="dropdown-trigger">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className="dropdown-menu">
           {items.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              className={`dropdown-item${o.value === value ? " active" : ""}`}
-              onClick={() => { onChange(o.value); setOpen(false); }}
-            >
+            <SelectItem key={o.value} value={o.value} className="dropdown-item">
               {o.label}
-            </button>
+            </SelectItem>
           ))}
-        </div>
-      )}
+        </SelectContent>
+      </Select>
     </div>
   );
 }
