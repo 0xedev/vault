@@ -5,6 +5,7 @@ import { mapLoanListing } from "@/lib/marketplace";
 import { actorAddressForRequest, forbidden, requireUser } from "@/lib/auth";
 import { readListing, readRepaymentDue, readDeadline, readOfferCount, mapListingStage } from "@/lib/contract";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
+import { fetchIndexedNftListingById, nftListingRowFromSubgraph } from "@/lib/subgraph";
 
 export async function GET(
   req: NextRequest,
@@ -63,13 +64,52 @@ export async function GET(
   const activeContract = await activeListingContractAddress("nft_loan");
 
   const rows = await db`SELECT * FROM listings WHERE id = ${id} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract}` as Record<string, unknown>[];
+  if (rows.length === 0 && id.startsWith("C-")) {
+    try {
+      const indexed = await fetchIndexedNftListingById(id.slice(2));
+      if (indexed && indexed.contract.toLowerCase() === activeContract && indexed.status !== "cancelled") {
+        return NextResponse.json({
+          data: {
+            ...mapLoanListing(nftListingRowFromSubgraph(indexed)),
+            onChainStage: indexed.status,
+            onChainBorrower: indexed.seller.address || indexed.seller.id,
+            onChainAcceptedLender: indexed.acceptedLender?.address || indexed.acceptedLender?.id || "",
+            onChainRepaidSoFar: indexed.repaidAmount,
+            onChainVerified: true,
+          },
+        });
+      }
+    } catch {
+      // Fall through to not found.
+    }
+  }
   if (rows.length === 0) return NextResponse.json({ error: "Listing not found" }, { status: 404 });
 
-  const data = mapLoanListing(rows[0]);
+  let row = rows[0];
+  let data = mapLoanListing(row);
 
   // If the listing has a contract_listing_id, also try to enrich with on-chain data
   const contractId = String(rows[0].contract_listing_id || "");
   if (contractId) {
+    try {
+      const indexed = await fetchIndexedNftListingById(contractId);
+      if (indexed && indexed.contract.toLowerCase() === activeContract) {
+        row = nftListingRowFromSubgraph(indexed, rows[0]);
+        data = mapLoanListing(row);
+        return NextResponse.json({
+          data: {
+            ...data,
+            onChainStage: indexed.status,
+            onChainBorrower: indexed.seller.address || indexed.seller.id,
+            onChainAcceptedLender: indexed.acceptedLender?.address || indexed.acceptedLender?.id || "",
+            onChainRepaidSoFar: indexed.repaidAmount,
+            onChainVerified: true,
+          },
+        });
+      }
+    } catch {
+      // Subgraph read failed, try direct chain read below.
+    }
     try {
       const listing = await readListing(BigInt(contractId));
       return NextResponse.json({

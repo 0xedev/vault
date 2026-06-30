@@ -5,6 +5,7 @@ import { mapLoanListing } from "@/lib/marketplace";
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { getNftAddress, readAllListings, readListing, mapListingStage } from "@/lib/contract";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
+import { fetchIndexedNftListings, mergeIndexedListingRows, nftListingRowFromSubgraph } from "@/lib/subgraph";
 import type { Loan } from "@/lib/data";
 
 const walletAddressSchema = z.string().startsWith("0x").length(42);
@@ -145,11 +146,12 @@ export async function GET(req: NextRequest) {
   }
 
   // Default: DB listings only (fast path)
-  if (!db) return NextResponse.json({ data: [], total: 0 });
   const activeContract = await activeListingContractAddress("nft_loan");
 
   let rows: Record<string, unknown>[];
-  if (parsedSellerAddress?.success) {
+  if (!db) {
+    rows = [];
+  } else if (parsedSellerAddress?.success) {
     const sellerAddress = parsedSellerAddress.data.toLowerCase();
     rows = (status === "all"
       ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
@@ -162,7 +164,31 @@ export async function GET(req: NextRequest) {
     ) as Record<string, unknown>[];
   }
 
-  rows = await filterContractLiveLoanRows(rows);
+  try {
+    const indexed = await fetchIndexedNftListings({
+      sellerAddress: parsedSellerAddress?.success ? parsedSellerAddress.data : undefined,
+      limit: Math.max(limit + offset, 100),
+    });
+    const indexedRows = indexed
+      .filter((listing) => listing.contract.toLowerCase() === activeContract)
+      .map((listing) => {
+        const existing = rows.find((row) =>
+          String(row.contract_listing_id || "") === listing.listingId &&
+          String(row.contract_address || "").toLowerCase() === listing.contract.toLowerCase()
+        );
+        return nftListingRowFromSubgraph(listing, existing);
+      })
+      .filter((row) => {
+        const rowStatus = String(row.status || "");
+        if (rowStatus === "cancelled") return false;
+        if (status === "all") return true;
+        return jsonRecord(row.collateral_data).status === status || rowStatus === status;
+      });
+    rows = mergeIndexedListingRows(rows, indexedRows);
+  } catch {
+    rows = await filterContractLiveLoanRows(rows);
+  }
+
   const total = rows.length;
 
   const data = rows.map(mapLoanListing);

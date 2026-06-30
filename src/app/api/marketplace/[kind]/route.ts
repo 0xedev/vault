@@ -6,6 +6,7 @@ import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { verifyClankerTokenOwnership } from "@/lib/clanker";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
 import { mapDealStage, readDeal } from "@/lib/contract";
+import { dealListingRowFromSubgraph, fetchIndexedDealListings, mergeIndexedListingRows } from "@/lib/subgraph";
 
 const walletAddressSchema = z.string().startsWith("0x").length(42);
 
@@ -114,7 +115,27 @@ export async function GET(
       : await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC` as Record<string, unknown>[];
   }
 
-  rows = await filterContractLiveRows(rows);
+  try {
+    const indexed = await fetchIndexedDealListings({
+      sellerAddress: sellerAddress || undefined,
+      kind: dbKind === "mini_app" ? "mini_app" : undefined,
+    });
+    const indexedRows = indexed
+      .filter((listing) => listing.contract.toLowerCase() === activeContract)
+      .filter((listing) => listing.status !== "cancelled")
+      .flatMap((listing) => {
+        const existing = rows.find((row) =>
+          String(row.contract_listing_id || "") === listing.dealId &&
+          String(row.contract_address || "").toLowerCase() === listing.contract.toLowerCase()
+        );
+        if (dbKind !== "mini_app" && !existing) return [];
+        if (existing && String(existing.marketplace || "") !== dbKind) return [];
+        return [dealListingRowFromSubgraph(listing, existing)];
+      });
+    rows = mergeIndexedListingRows(rows, indexedRows);
+  } catch {
+    rows = await filterContractLiveRows(rows);
+  }
 
   const data =
     kind === "nft-loans" ? rows.map(mapLoanListing) :

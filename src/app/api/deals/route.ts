@@ -3,13 +3,30 @@ import { databaseRequired, getDatabase } from "@/lib/api";
 import { mapDigitalDeal } from "@/lib/marketplace";
 import { readAllDeals, mapDealStage } from "@/lib/contract";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
+import { dealListingRowFromSubgraph, fetchIndexedDealListings, mergeIndexedListingRows } from "@/lib/subgraph";
 
 export async function GET() {
   const db = getDatabase();
   if (!db) return databaseRequired();
   const activeContract = await activeListingContractAddress("mini_app");
 
-  const rows = await db`SELECT * FROM listings WHERE marketplace IN ('mini_app', 'x_account', 'farcaster', 'otc') AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC LIMIT 20` as Record<string, unknown>[];
+  let rows = await db`SELECT * FROM listings WHERE marketplace IN ('mini_app', 'x_account', 'farcaster', 'otc') AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC LIMIT 20` as Record<string, unknown>[];
+  try {
+    const indexed = await fetchIndexedDealListings({ limit: 100 });
+    const indexedRows = indexed
+      .filter((listing) => listing.contract.toLowerCase() === activeContract && listing.status !== "cancelled")
+      .flatMap((listing) => {
+        const existing = rows.find((row) =>
+          String(row.contract_listing_id || "") === listing.dealId &&
+          String(row.contract_address || "").toLowerCase() === listing.contract.toLowerCase()
+        );
+        if (!existing && listing.kind !== "mini_app") return [];
+        return [dealListingRowFromSubgraph(listing, existing)];
+      });
+    rows = mergeIndexedListingRows(rows, indexedRows);
+  } catch {
+    // Subgraph read failed, return DB data below.
+  }
   const data = rows.map(mapDigitalDeal);
 
   try {

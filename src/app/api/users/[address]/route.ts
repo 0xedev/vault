@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
+import { fetchIndexedUserProfile } from "@/lib/subgraph";
 
 export async function GET(
   _req: NextRequest,
@@ -12,14 +13,32 @@ export async function GET(
     return NextResponse.json({ error: "Profile access denied" }, { status: 403 });
   }
   const db = auth.db;
+  const normalizedAddress = address.toLowerCase();
 
-  const rows = await db`SELECT * FROM users WHERE address = ${address}` as Record<string, unknown>[];
+  const indexed = await fetchIndexedUserProfile(normalizedAddress).catch(() => null);
+  const rows = await db`SELECT * FROM users WHERE address = ${normalizedAddress}` as Record<string, unknown>[];
   if (rows.length === 0) {
-    return NextResponse.json({ data: { address, trades: 0, reputation: 0, lockedBalance: 0, role: "user" } });
+    return NextResponse.json({
+      data: {
+        address: normalizedAddress,
+        trades: indexed?.indexedTrades || 0,
+        reputation: 0,
+        lockedBalance: indexed?.indexedLockedBalance || 0,
+        role: "user",
+        indexed,
+      },
+    });
   }
 
   const u = rows[0];
   return NextResponse.json({
-    data: { address: u.address, trades: u.trades, reputation: u.reputation, lockedBalance: u.locked_balance, role: u.role },
+    data: {
+      address: u.address,
+      trades: Math.max(Number(u.trades || 0), indexed?.indexedTrades || 0),
+      reputation: u.reputation,
+      lockedBalance: Math.max(Number(u.locked_balance || 0), indexed?.indexedLockedBalance || 0),
+      role: u.role,
+      indexed,
+    },
   });
 }
