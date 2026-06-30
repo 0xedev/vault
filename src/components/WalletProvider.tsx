@@ -37,10 +37,17 @@ type SelectedWallet = {
   chainId?: number;
 };
 
-declare global {
-  interface Window {
-    ethereum?: WalletLike;
-  }
+function isWalletLike(provider: unknown): provider is WalletLike {
+  return (
+    typeof provider === "object" &&
+    provider !== null &&
+    typeof (provider as { request?: unknown }).request === "function"
+  );
+}
+
+function getInjectedWalletProvider(): WalletLike | null {
+  if (typeof window === "undefined") return null;
+  return isWalletLike(window.ethereum) ? window.ethereum : null;
 }
 
 type WalletState = {
@@ -112,8 +119,9 @@ async function selectWalletProvider(
   }
 
   // Fallback: browser-injected wallet outside Mini App
-  if (window.ethereum) {
-    return { provider: window.ethereum };
+  const injectedProvider = getInjectedWalletProvider();
+  if (injectedProvider) {
+    return { provider: injectedProvider };
   }
 
   return null;
@@ -373,7 +381,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.ethereum) return;
+    const injectedProvider = getInjectedWalletProvider();
+    if (!injectedProvider) return;
     let active = true;
 
     const handleAccountsChanged = async (accounts: string[]) => {
@@ -382,7 +391,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       if (!isEvmAddress(accounts[0])) return;
-      setActiveWalletProvider(window.ethereum!);
+      setActiveWalletProvider(injectedProvider);
       setAddress(accounts[0]);
       setSessionAddress(null);
       setRole(null);
@@ -391,7 +400,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           method: "POST",
           credentials: "include",
         });
-        const chain = (await window.ethereum!.request({
+        const chain = (await injectedProvider.request({
           method: "eth_chainId",
         })) as string;
         const chainIdNum = parseInt(chain, 16);
@@ -399,7 +408,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         const session = await siweSignIn(
           accounts[0],
           chainIdNum,
-          window.ethereum!,
+          injectedProvider,
         );
         if (session) {
           setSessionAddress(session.address);
@@ -416,11 +425,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     void isMiniApp().then((inMiniApp) => {
       if (!active || inMiniApp) return;
-      window.ethereum?.on?.(
+      injectedProvider.on?.(
         "accountsChanged",
         handleAccountsChanged as (...args: unknown[]) => void,
       );
-      window.ethereum?.on?.(
+      injectedProvider.on?.(
         "chainChanged",
         handleChainChanged as (...args: unknown[]) => void,
       );
@@ -428,11 +437,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
       active = false;
-      window.ethereum?.removeListener?.(
+      injectedProvider.removeListener?.(
         "accountsChanged",
         handleAccountsChanged as (...args: unknown[]) => void,
       );
-      window.ethereum?.removeListener?.(
+      injectedProvider.removeListener?.(
         "chainChanged",
         handleChainChanged as (...args: unknown[]) => void,
       );

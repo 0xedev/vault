@@ -16,7 +16,7 @@ import { getCallsStatus, sendCalls } from "viem/actions";
 import { base } from "viem/chains";
 import { ESCROW_ABI } from "./contract-abi";
 
-type WalletProviderLike = {
+export type WalletProviderLike = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 };
 
@@ -52,9 +52,11 @@ export function setActiveWalletProvider(provider: WalletProviderLike | null) {
   switchPromise = null;
 }
 
-export function getActiveWalletProvider() {
+export function getActiveWalletProvider(): WalletProviderLike | null {
   if (activeWalletProvider) return activeWalletProvider;
-  if (typeof window !== "undefined" && window.ethereum) return window.ethereum;
+  if (typeof window !== "undefined" && window.ethereum) {
+    return window.ethereum as WalletProviderLike;
+  }
   return null;
 }
 
@@ -107,22 +109,22 @@ let _dealsAddress: Address | null = null;
 export async function getNftAddress(): Promise<Address> {
   if (_nftAddress) return _nftAddress;
   const client = getPublicClient();
-  _nftAddress = await client.readContract({
+  _nftAddress = (await client.readContract({
     address: getEscrowAddress(),
     abi: ESCROW_ABI,
     functionName: "nft",
-  }) as Address;
+  })) as Address;
   return _nftAddress;
 }
 
 export async function getDealsAddress(): Promise<Address> {
   if (_dealsAddress) return _dealsAddress;
   const client = getPublicClient();
-  _dealsAddress = await client.readContract({
+  _dealsAddress = (await client.readContract({
     address: getEscrowAddress(),
     abi: ESCROW_ABI,
     functionName: "deals",
-  }) as Address;
+  })) as Address;
   return _dealsAddress;
 }
 
@@ -157,10 +159,12 @@ export function getWalletClient() {
 async function waitForCallsResult(id: string): Promise<ContractCallsResult> {
   const client = getWalletClient();
   const status = await getCallsStatus(client, { id });
-  const receipts: ContractCallReceipt[] = (status.receipts || []).map((receipt) => ({
-    hash: receipt.transactionHash,
-    status: receipt.status === "success" ? "success" : "failure" as const,
-  }));
+  const receipts: ContractCallReceipt[] = (status.receipts || []).map(
+    (receipt) => ({
+      hash: receipt.transactionHash,
+      status: receipt.status === "success" ? "success" : ("failure" as const),
+    }),
+  );
   return {
     id: status.id,
     status: status.status ?? "pending",

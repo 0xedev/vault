@@ -3,7 +3,9 @@
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { base } from "@reown/appkit/networks";
+import type { AppKitNetwork } from "@reown/appkit/networks";
 import { connect, getAccount } from "@wagmi/core";
+import type { Connector } from "wagmi";
 
 type ConnectConfig = Parameters<typeof connect>[0];
 
@@ -25,12 +27,10 @@ type WalletProviderLike = {
 const projectId =
   process.env.NEXT_PUBLIC_REOWN_PROJECT_ID ||
   "b56e18d47c72ab683b10814fe9495694";
-const networks = [base];
+const networks: [AppKitNetwork, ...AppKitNetwork[]] = [base];
 
 interface WagmiConfigLike {
-  connectors: Array<{
-    getProvider: () => Promise<unknown>;
-  }>;
+  connectors: Connector[];
 }
 
 export const wagmiAdapter = new WagmiAdapter({ networks, projectId });
