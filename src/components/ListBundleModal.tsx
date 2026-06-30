@@ -282,9 +282,9 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
 
         </div>
 
-        <div className="modal-f">
-          <button className="btn" style={{ flex: "1 1 160px" }} onClick={onClose} disabled={submitting}>Cancel</button>
-          <button className="btn primary" style={{ flex: "1 1 180px" }} onClick={handleSubmit} disabled={submitting || !canSubmit}>
+        <div className="modal-f bundle-modal-footer">
+          <button className="btn" onClick={onClose} disabled={submitting}>Cancel</button>
+          <button className="btn primary" onClick={handleSubmit} disabled={submitting || !canSubmit}>
             {submitting ? "Signing..." : "Create bundle"}
           </button>
         </div>

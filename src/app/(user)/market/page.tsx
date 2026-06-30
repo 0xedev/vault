@@ -9,7 +9,7 @@ import Icon from "@/components/icons";
 import LoanCard from "@/components/LoanCard";
 import Dropdown from "@/components/Dropdown";
 import NFTArt from "@/components/NFTArt";
-import { COLLECTIONS } from "@/lib/data";
+import { COLLECTIONS, bundleAssetLabel } from "@/lib/data";
 import { useWallet } from "@/components/WalletProvider";
 import {
   approveNft,
@@ -665,8 +665,68 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+function BundleDetailPanel({ bundle }: { bundle: BundleListing }) {
+  const seller = bundle.sellerAddress
+    ? `${bundle.sellerAddress.slice(0, 6)}...${bundle.sellerAddress.slice(-4)}`
+    : "Unknown";
+
+  return (
+    <section className="bundle-detail-panel">
+      <div className="bundle-detail-media">
+        {bundle.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={bundle.imageUrl} alt={bundle.name} />
+        ) : (
+          <span><Icon.shield /></span>
+        )}
+      </div>
+      <div className="bundle-detail-body">
+        <div className="row between" style={{ gap: 12, alignItems: "flex-start" }}>
+          <div>
+            <div className="eyebrow">Bundle listing</div>
+            <h2 className="serif" style={{ fontSize: 28, margin: "6px 0 4px" }}>{bundle.name}</h2>
+            {bundle.description && <p className="muted" style={{ margin: 0, maxWidth: 620 }}>{bundle.description}</p>}
+          </div>
+          <Link href="/market?tab=bundles" className="btn ghost sm" aria-label="Close bundle details">
+            <Icon.x />
+          </Link>
+        </div>
+
+        <div className="grid grid-3" style={{ marginTop: 18 }}>
+          <div className="metric">
+            <span className="lab">Bundle price</span>
+            <span className="val">{bundle.totalPrice} {bundle.currency || "USDC"}</span>
+          </div>
+          <div className="metric">
+            <span className="lab">Assets</span>
+            <span className="val">{bundle.assets.length}</span>
+          </div>
+          <div className="metric">
+            <span className="lab">Seller</span>
+            <span className="val" style={{ fontSize: 14 }}>{seller}</span>
+          </div>
+        </div>
+
+        <div className="bundle-detail-assets">
+          {bundle.assets.map((asset) => (
+            <div key={asset.id} className="bundle-detail-asset">
+              <span className="bundle-asset-icon"><Icon.asset /></span>
+              <div>
+                <strong>{asset.label}</strong>
+                <small>{bundleAssetLabel(asset.kind)}{asset.detail ? ` · ${asset.detail}` : ""}</small>
+              </div>
+              {asset.price > 0 && <em>{asset.price} {bundle.currency || "USDC"}</em>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function MarketplacePage() {
   const searchParams = useSearchParams();
+  const selectedBundleId = searchParams.get("id");
   const [activeMarket, setActiveMarket] = useState<MarketTab>("all");
   const [loans, setLoans] = useState<Loan[]>([]);
   const [miniApps, setMiniApps] = useState<MiniApp[]>([]);
@@ -790,6 +850,11 @@ export default function MarketplacePage() {
     if (sort === "ltv") r = [...r].sort((a, b) => a.ltv - b.ltv);
     return r;
   }, [filter, sort, loans, collectionFilter, address]);
+
+  const selectedBundle = useMemo(
+    () => bundles.find((bundle) => bundle.id === selectedBundleId) || null,
+    [bundles, selectedBundleId],
+  );
 
   const chipData: [string, string, number][] = [
     ["all", "All", loans.length],
@@ -1366,18 +1431,21 @@ export default function MarketplacePage() {
 
       {/* BUNDLES TAB */}
       {activeMarket === "bundles" && (
-        <div className="bundle-all-grid">
-          {bundles.length === 0 ? (
-            <div
-              className="muted"
-              style={{ padding: 40, textAlign: "center", gridColumn: "1 / -1" }}
-            >
-              No bundled listings yet.
-            </div>
-          ) : (
-            bundles.map((b) => <BundleCard key={b.id} bundle={b} />)
-          )}
-        </div>
+        <>
+          {selectedBundle && <BundleDetailPanel bundle={selectedBundle} />}
+          <div className="bundle-all-grid">
+            {bundles.length === 0 ? (
+              <div
+                className="muted"
+                style={{ padding: 40, textAlign: "center", gridColumn: "1 / -1" }}
+              >
+                No bundled listings yet.
+              </div>
+            ) : (
+              bundles.map((b) => <BundleCard key={b.id} bundle={b} />)
+            )}
+          </div>
+        </>
       )}
 
       {showListModal && activeMarket === "nft" && (

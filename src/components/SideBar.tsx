@@ -11,19 +11,18 @@ interface SidebarItem {
   tab?: string;
   t?: string;
   icon?: React.ReactNode;
-  badge?: string;
 }
 
 const items: SidebarItem[] = [
   { sec: "Marketplaces" },
-  { k: "/market",    t: "NFT Loans",         icon: <Icon.market/>, badge: "284" },
-  { k: "/miniapps",  t: "Mini Apps",         icon: <Icon.app/>,    badge: "62" },
-  { k: "/x",         t: "X Accounts",        icon: <Icon.xlogo/>,  badge: "118" },
-  { k: "/farcaster", t: "Farcaster",         icon: <Icon.cast/>,   badge: "44" },
-  { k: "/clanker",   t: "Clanker Tokens",    icon: <Icon.token/>,  badge: "12" },
+  { k: "/market",    t: "NFT Loans",         icon: <Icon.market/> },
+  { k: "/miniapps",  t: "Mini Apps",         icon: <Icon.app/> },
+  { k: "/x",         t: "X Accounts",        icon: <Icon.xlogo/> },
+  { k: "/farcaster", t: "Farcaster",         icon: <Icon.cast/> },
+  { k: "/clanker",   t: "Clanker Tokens",    icon: <Icon.token/> },
   { k: "/market", href: "/market?tab=bundles", tab: "bundles", t: "Bundles",  icon: <Icon.shield/> },
   { sec: "Account" },
-  { k: "/deals",     t: "Profile",           icon: <Icon.escrow/>, badge: "6" },
+  { k: "/deals",     t: "Profile",           icon: <Icon.escrow/> },
   { sec: "About" },
   { k: "/info",      t: "How it works",       icon: <Icon.shield/> },
 ];
@@ -53,7 +52,6 @@ export default function SideBar({ open, onClose }: { open: boolean; onClose: () 
           >
             <span className="icn">{it.icon}</span>
             <span>{it.t}</span>
-            {it.badge && <span className="badge">{it.badge}</span>}
           </Link>
         );
       })}

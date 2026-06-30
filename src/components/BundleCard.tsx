@@ -19,7 +19,7 @@ export default function BundleCard({ bundle }: { bundle: BundleListing }) {
   const totalPrice = fmtETH(bundle.totalPrice);
 
   return (
-    <Link href={`/deals?id=${encodeURIComponent(bundle.id)}`} className="bundle-card">
+    <Link href={`/market?tab=bundles&id=${encodeURIComponent(bundle.id)}`} className="bundle-card">
       {bundle.imageUrl && (
         <div className="bundle-card-img">
           <img src={bundle.imageUrl} alt={bundle.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />

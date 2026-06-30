@@ -27,6 +27,7 @@ import {
 } from "@/lib/clanker-writes";
 import { fmtETH, fmtUSD } from "@/lib/utils";
 import { selectedRights } from "@/lib/clanker";
+import type { BundleListing, ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount } from "@/lib/data";
 import { type Address, type Hash } from "viem";
 import { shareAsCast } from "@/lib/farcaster-sdk";
 
@@ -94,6 +95,23 @@ interface ChatMessage {
   messageType?: string;
   imageUrl?: string | null;
 }
+
+interface ProfileListing {
+  id: string;
+  kind: string;
+  title: string;
+  price: number;
+  currency: string;
+  status: string;
+  href: string;
+  cancelPath: string;
+  cancelMethod: "PATCH" | "DELETE";
+}
+
+type ProfileLoan = Loan & {
+  collection?: string;
+  sellerAddress?: string;
+};
 
 /* ------------------------------------------------------------------ */
 /*  View / filter helpers                                              */
@@ -727,6 +745,105 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
 /*  Main page                                                          */
 /* ------------------------------------------------------------------ */
 
+function shortWallet(address?: string) {
+  if (!address) return "";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+async function loadProfileListings(address: string): Promise<ProfileListing[]> {
+  const seller = address.toLowerCase();
+  const [
+    loansResult,
+    miniAppsResult,
+    xAccountsResult,
+    farcasterResult,
+    clankerResult,
+    bundlesResult,
+  ] = await Promise.allSettled([
+    fetch("/api/listings", { credentials: "include" }).then((r) => r.json()),
+    fetch("/api/marketplace/mini-apps", { credentials: "include" }).then((r) => r.json()),
+    fetch("/api/marketplace/x-accounts", { credentials: "include" }).then((r) => r.json()),
+    fetch("/api/marketplace/farcaster", { credentials: "include" }).then((r) => r.json()),
+    fetch("/api/marketplace/clanker", { credentials: "include" }).then((r) => r.json()),
+    fetch("/api/marketplace/bundles", { credentials: "include" }).then((r) => r.json()),
+  ]);
+
+  const dataFrom = <T,>(result: PromiseSettledResult<{ data?: T[] }>) =>
+    result.status === "fulfilled" ? result.value.data || [] : [];
+
+  const mine = <T extends { sellerAddress?: string }>(items: T[]) =>
+    items.filter((item) => item.sellerAddress?.toLowerCase() === seller);
+
+  return [
+    ...mine(dataFrom<ProfileLoan>(loansResult)).map((listing) => ({
+      id: listing.id,
+      kind: "NFT loan",
+      title: `${listing.collection || "NFT"} ${listing.token}`,
+      price: listing.amt,
+      currency: "USDC",
+      status: listing.status,
+      href: `/detail?id=${encodeURIComponent(listing.id)}`,
+      cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
+      cancelMethod: "PATCH" as const,
+    })),
+    ...mine(dataFrom<MiniApp>(miniAppsResult)).map((listing) => ({
+      id: listing.id,
+      kind: "Mini app",
+      title: listing.name,
+      price: listing.price,
+      currency: "USDC",
+      status: listing.txStatus || "active",
+      href: `/miniapps?id=${encodeURIComponent(listing.id)}`,
+      cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
+      cancelMethod: "PATCH" as const,
+    })),
+    ...mine(dataFrom<XAccount>(xAccountsResult)).map((listing) => ({
+      id: listing.id,
+      kind: "X account",
+      title: listing.handle,
+      price: listing.price,
+      currency: "USDC",
+      status: listing.txStatus || "active",
+      href: `/x?id=${encodeURIComponent(listing.id)}`,
+      cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
+      cancelMethod: "PATCH" as const,
+    })),
+    ...mine(dataFrom<FarcasterAccount>(farcasterResult)).map((listing) => ({
+      id: listing.id,
+      kind: "Farcaster",
+      title: `@${listing.handle}`,
+      price: listing.price,
+      currency: "USDC",
+      status: listing.txStatus || "active",
+      href: `/farcaster?id=${encodeURIComponent(listing.id)}`,
+      cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
+      cancelMethod: "PATCH" as const,
+    })),
+    ...mine(dataFrom<ClankerToken>(clankerResult)).map((listing) => ({
+      id: listing.id,
+      kind: "Clanker",
+      title: `${listing.name}${listing.symbol ? ` (${listing.symbol})` : ""}`,
+      price: listing.price,
+      currency: "USDC",
+      status: listing.txStatus || "active",
+      href: `/clanker?id=${encodeURIComponent(listing.id)}`,
+      cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
+      cancelMethod: "PATCH" as const,
+    })),
+    ...mine(dataFrom<BundleListing>(bundlesResult)).map((listing) => ({
+      id: listing.id,
+      kind: "Bundle",
+      title: listing.name,
+      price: listing.totalPrice,
+      currency: listing.currency || "USDC",
+      status: listing.txStatus || "active",
+      href: `/market?tab=bundles&id=${encodeURIComponent(listing.id)}`,
+      cancelPath: `/api/listings/bundle?id=${encodeURIComponent(listing.id)}`,
+      cancelMethod: "DELETE" as const,
+    })),
+  ];
+}
+
 export default function DealsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -740,6 +857,9 @@ export default function DealsPage() {
   const [selectedDealId, setSelectedDealId] = useState<string | null>(null);
   const [dealDetail, setDealDetail] = useState<DealDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [profileListings, setProfileListings] = useState<ProfileListing[]>([]);
+  const [listingsLoading, setListingsLoading] = useState(false);
+  const [listingNotice, setListingNotice] = useState("");
   const { isConnected, isConnecting, connect, role, address } = useWallet();
 
   const loadEscrows = React.useCallback(() => {
@@ -760,6 +880,24 @@ export default function DealsPage() {
       .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load deals"); setLoading(false); });
   }, [isConnected, role, loadEscrows]);
 
+  const refreshProfileListings = React.useCallback(() => {
+    if (!address) {
+      setProfileListings([]);
+      return Promise.resolve();
+    }
+    setListingsLoading(true);
+    return loadProfileListings(address)
+      .then(setProfileListings)
+      .catch((err) => setListingNotice(err instanceof Error ? err.message : "Unable to load active listings"))
+      .finally(() => setListingsLoading(false));
+  }, [address]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      refreshProfileListings();
+    });
+  }, [refreshProfileListings]);
+
   useEffect(() => {
     if (linkedDealId) queueMicrotask(() => setSelectedDealId(linkedDealId));
   }, [linkedDealId]);
@@ -779,6 +917,7 @@ export default function DealsPage() {
   const needsAct   = escrows.filter(e => e.action !== "On schedule" && e.action !== "None");
   const totalLocked = active.reduce((s, e) => s + e.amount, 0);
   const completed   = escrows.filter(e => e.stage === "Released").length;
+  const activeListingCount = profileListings.length;
 
   const viewFiltered = filterByView(escrows, view);
   const stageFiltered = stage === "all"
@@ -800,6 +939,27 @@ export default function DealsPage() {
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     a.download = "deals.csv";
     a.click();
+  };
+
+  const cancelListing = async (listing: ProfileListing) => {
+    if (!window.confirm(`Cancel ${listing.title}?`)) return;
+    setListingNotice("");
+    try {
+      const res = await fetch(listing.cancelPath, {
+        method: listing.cancelMethod,
+        credentials: "include",
+        headers: listing.cancelMethod === "PATCH" ? { "Content-Type": "application/json" } : undefined,
+        body: listing.cancelMethod === "PATCH"
+          ? JSON.stringify({ status: "cancelled", action: "cancel_listing", actorAddress: address })
+          : undefined,
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Unable to cancel listing");
+      setListingNotice("Listing cancelled.");
+      await refreshProfileListings();
+    } catch (err) {
+      setListingNotice(err instanceof Error ? err.message : "Unable to cancel listing");
+    }
   };
 
   /* -- render -- */
@@ -861,9 +1021,9 @@ export default function DealsPage() {
           <span className="delta">released deals</span>
         </div>
         <div className="metric">
-          <span className="lab">Est. fees paid</span>
-          <span className="val">{fmtETH(totalLocked * 0.015)} Ξ</span>
-          <span className="delta">1.5% origination</span>
+          <span className="lab">Active listings</span>
+          <span className="val">{activeListingCount}</span>
+          <span className="delta">listed from {shortWallet(address || "")}</span>
         </div>
       </div>
 
@@ -882,6 +1042,43 @@ export default function DealsPage() {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {!selectedDealId && (
+        <section className="card profile-listings-card">
+          <div className="row between profile-listings-head">
+            <div>
+              <div className="eyebrow">My listings</div>
+              <h2 className="serif" style={{ fontSize: 22, margin: "4px 0 0" }}>Active listings</h2>
+            </div>
+            <Link href="/market" className="btn primary sm">List asset</Link>
+          </div>
+          {listingNotice && <div className="warn-banner" style={{ margin: "0 18px 12px", fontSize: 12 }}>{listingNotice}</div>}
+          {listingsLoading ? (
+            <div className="muted" style={{ padding: 22, textAlign: "center" }}>Loading listings...</div>
+          ) : profileListings.length === 0 ? (
+            <div className="muted" style={{ padding: 22, textAlign: "center" }}>No active listings yet.</div>
+          ) : (
+            <div className="profile-listings">
+              {profileListings.map((listing) => (
+                <div key={`${listing.kind}-${listing.id}`} className="profile-listing-row">
+                  <div>
+                    <span className="smallcaps">{listing.kind}</span>
+                    <strong>{listing.title}</strong>
+                    <small>{listing.price} {listing.currency} · {listing.status}</small>
+                  </div>
+                  <details className="listing-actions-menu">
+                    <summary className="btn sm">Manage</summary>
+                    <div>
+                      <Link href={listing.href}>View listing</Link>
+                      <button type="button" onClick={() => cancelListing(listing)}>Cancel listing</button>
+                    </div>
+                  </details>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
