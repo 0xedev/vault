@@ -5,6 +5,7 @@ import { mapClankerListing, mapFarcasterListing, mapLoanListing, mapMiniAppListi
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { verifyClankerTokenOwnership } from "@/lib/clanker";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
+import { mapDealStage, readDeal } from "@/lib/contract";
 
 const walletAddressSchema = z.string().startsWith("0x").length(42);
 
@@ -28,6 +29,16 @@ export const marketplaceListingSchema = z.object({
   contractListingId: z.string().optional(),
   txHash: z.string().startsWith("0x").optional(),
 });
+
+async function filterContractLiveRows(rows: Record<string, unknown>[]) {
+  const checked = await Promise.allSettled(rows.map(async (row) => {
+    const contractListingId = String(row.contract_listing_id || "");
+    if (!contractListingId) return null;
+    const deal = await readDeal(BigInt(contractListingId));
+    return mapDealStage(deal.stage) === "listed" ? row : null;
+  }));
+  return checked.flatMap((result) => result.status === "fulfilled" && result.value ? [result.value] : []);
+}
 
 export async function GET(
   req: NextRequest,
@@ -100,8 +111,10 @@ export async function GET(
   } else {
     rows = sellerAddress
       ? await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC` as Record<string, unknown>[]
-      : await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC` as Record<string, unknown>[];
+      : await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC` as Record<string, unknown>[];
   }
+
+  rows = await filterContractLiveRows(rows);
 
   const data =
     kind === "nft-loans" ? rows.map(mapLoanListing) :

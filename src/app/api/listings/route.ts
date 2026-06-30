@@ -3,11 +3,21 @@ import { z } from "zod";
 import { badRequest, getDatabase, jsonRecord } from "@/lib/api";
 import { mapLoanListing } from "@/lib/marketplace";
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
-import { getNftAddress, readAllListings, mapListingStage } from "@/lib/contract";
+import { getNftAddress, readAllListings, readListing, mapListingStage } from "@/lib/contract";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
 import type { Loan } from "@/lib/data";
 
 const walletAddressSchema = z.string().startsWith("0x").length(42);
+
+async function filterContractLiveLoanRows(rows: Record<string, unknown>[]) {
+  const checked = await Promise.allSettled(rows.map(async (row) => {
+    const contractListingId = String(row.contract_listing_id || "");
+    if (!contractListingId) return null;
+    const listing = await readListing(BigInt(contractListingId));
+    return mapListingStage(listing.stage) === "listed" ? row : null;
+  }));
+  return checked.flatMap((result) => result.status === "fulfilled" && result.value ? [result.value] : []);
+}
 
 const listingSchema = z.object({
   id: z.string().min(1).optional(),
@@ -147,12 +157,13 @@ export async function GET(req: NextRequest) {
     ) as Record<string, unknown>[];
   } else {
     rows = (status === "all"
-      ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
-      : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} AND lower(contract_address) = ${activeContract} ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+      ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+      : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
     ) as Record<string, unknown>[];
   }
 
-  const total = parseInt(rows[0]?.total_count as string || "0");
+  rows = await filterContractLiveLoanRows(rows);
+  const total = rows.length;
 
   const data = rows.map(mapLoanListing);
 
