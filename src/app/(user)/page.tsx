@@ -11,6 +11,13 @@ import VaultMark from "@/components/VaultMark";
 import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
 import StatusPill from "@/components/StatusPill";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import { useWallet } from "@/components/WalletProvider";
 import { COLLECTIONS } from "@/lib/data";
 import { fmtUSDC, fmtCompact, appColor } from "@/lib/utils";
@@ -241,7 +248,7 @@ export default function LandingPage() {
   const activeLoans = loans.filter((l) => l.status === "funded").length;
   const allOpportunities = [
     ...loans.slice(0, 4).map((l) => ({
-      href: "/market",
+      href: `/detail?id=${encodeURIComponent(l.id)}`,
       market: "NFT loan",
       title: `${COLLECTIONS[l.coll]} ${l.token}`,
       meta: `${fmtUSDC(l.amt)} USDC · ${l.apr}% APR · ${l.term}d`,
@@ -254,7 +261,7 @@ export default function LandingPage() {
       ),
     })),
     ...miniApps.slice(0, 4).map((topMiniApp) => ({
-      href: "/miniapps",
+      href: `/miniapps?id=${encodeURIComponent(topMiniApp.id)}`,
       market: "Mini app",
       title: topMiniApp.name,
       meta: `${fmtCompact(topMiniApp.dau)} DAU · ${fmtUSDC(topMiniApp.mrr)} USDC MRR`,
@@ -274,7 +281,7 @@ export default function LandingPage() {
       ),
     })),
     ...xAccounts.slice(0, 4).map((topXAccount) => ({
-      href: "/x",
+      href: `/x?id=${encodeURIComponent(topXAccount.id)}`,
       market: "X account",
       title: topXAccount.handle,
       meta: `${fmtCompact(topXAccount.followers)} followers · ${topXAccount.engagement}% engagement`,
@@ -292,7 +299,7 @@ export default function LandingPage() {
       ),
     })),
     ...farcaster.slice(0, 4).map((topFarcaster) => ({
-      href: "/farcaster",
+      href: `/farcaster?id=${encodeURIComponent(topFarcaster.id)}`,
       market: "Farcaster",
       title: `@${topFarcaster.handle}`,
       meta: `${fmtCompact(topFarcaster.followers)} followers · FID #${topFarcaster.fid}`,
@@ -309,8 +316,28 @@ export default function LandingPage() {
         </span>
       ),
     })),
+    ...clanker.slice(0, 4).map((token) => ({
+      href: `/clanker?id=${encodeURIComponent(token.id)}`,
+      market: "Clanker",
+      title: `${token.name} (${token.symbol})`,
+      meta: `${token.chain} · ${fmtCompact(token.totalSupply)} supply`,
+      value: `${fmtUSDC(token.price)} USDC`,
+      color: "#10B981",
+      icon: (
+        <span
+          className="feed-image"
+          style={{
+            backgroundImage: token.imageUrl
+              ? `url("${token.imageUrl}")`
+              : "linear-gradient(135deg, #064e3b, #10b981)",
+          }}
+        >
+          {!token.imageUrl && <Icon.token />}
+        </span>
+      ),
+    })),
     ...bundles.slice(0, 4).map((bundle) => ({
-      href: "/market",
+      href: `/market?tab=bundles&id=${encodeURIComponent(bundle.id)}`,
       market: "Bundle",
       title: bundle.name,
       meta: `${bundle.assets.length} assets · ${bundle.currency || "USDC"}`,
@@ -432,53 +459,62 @@ export default function LandingPage() {
                 </div>
               </div>
             ) : (
-              <div
-                className="market-carousel-track"
+              <Carousel
+                opts={{ align: "start", dragFree: true }}
+                className="market-carousel-viewport"
                 aria-label="Marketplace listings carousel"
               >
-                {allOpportunities.map((item, index) => (
-                  <Link
-                    key={`${item.href}-${item.title}`}
-                    href={item.href}
-                    className="market-float-card"
-                    style={
-                      {
-                        "--market-color": item.color,
-                        "--float-offset": `${index % 2 === 0 ? 0 : 14}px`,
-                      } as CSSProperties
-                    }
-                  >
-                    <span className="market-float-glow" />
-                    <span className="market-float-top">
-                      <span className="market-float-visual">{item.icon}</span>
-                      <span
-                        className="pill"
-                        style={{
-                          borderColor:
-                            "color-mix(in oklab, var(--market-color) 30%, transparent)",
-                          color: "var(--market-color)",
-                        }}
+                <CarouselContent className="market-carousel-content">
+                  {allOpportunities.map((item, index) => (
+                    <CarouselItem
+                      key={`${item.href}-${item.title}`}
+                      className="market-carousel-item"
+                    >
+                      <Link
+                        href={item.href}
+                        className="market-float-card"
+                        style={
+                          {
+                            "--market-color": item.color,
+                            "--float-offset": `${index % 2 === 0 ? 0 : 14}px`,
+                          } as CSSProperties
+                        }
                       >
-                        <span
-                          className="pdot"
-                          style={{ background: "var(--market-color)" }}
-                        />
-                        {item.market}
-                      </span>
-                    </span>
-                    <span className="market-float-copy">
-                      <strong>{item.title}</strong>
-                      <span>{item.meta}</span>
-                    </span>
-                    <span className="market-float-foot">
-                      <span className="mono">{item.value}</span>
-                      <span>
-                        View <Icon.arrow />
-                      </span>
-                    </span>
-                  </Link>
-                ))}
-              </div>
+                        <span className="market-float-glow" />
+                        <span className="market-float-top">
+                          <span className="market-float-visual">{item.icon}</span>
+                          <span
+                            className="pill"
+                            style={{
+                              borderColor:
+                                "color-mix(in oklab, var(--market-color) 30%, transparent)",
+                              color: "var(--market-color)",
+                            }}
+                          >
+                            <span
+                              className="pdot"
+                              style={{ background: "var(--market-color)" }}
+                            />
+                            {item.market}
+                          </span>
+                        </span>
+                        <span className="market-float-copy">
+                          <strong>{item.title}</strong>
+                          <span>{item.meta}</span>
+                        </span>
+                        <span className="market-float-foot">
+                          <span className="mono">{item.value}</span>
+                          <span>
+                            View <Icon.arrow />
+                          </span>
+                        </span>
+                      </Link>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious className="vault-carousel-prev" />
+                <CarouselNext className="vault-carousel-next" />
+              </Carousel>
             )}
           </div>
         </section>
@@ -743,33 +779,43 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="mobile-feed-list">
-            {opportunityRows.length === 0 ? (
-              <div className="mobile-feed-empty">
-                <strong>No live listings yet.</strong>
-                <span>
-                  List the first asset to publish it here.
-                </span>
-              </div>
-            ) : (
-              opportunityRows.map((item) => (
-                <Link
-                  key={`${item.href}-${item.title}`}
-                  href={item.href}
-                  className="mobile-feed-row"
-                  style={{ "--feed-color": item.color } as CSSProperties}
-                >
-                  <span className="mobile-feed-icon">{item.icon}</span>
-                  <span className="mobile-feed-copy">
-                    <small>{item.market}</small>
-                    <strong>{item.title}</strong>
-                    <em>{item.meta}</em>
-                  </span>
-                  <span className="mobile-feed-value">{item.value}</span>
-                </Link>
-              ))
-            )}
-          </div>
+          {opportunityRows.length === 0 ? (
+            <div className="mobile-feed-empty">
+              <strong>No live listings yet.</strong>
+              <span>
+                List the first asset to publish it here.
+              </span>
+            </div>
+          ) : (
+            <Carousel
+              opts={{ align: "start", dragFree: true }}
+              className="mobile-feed-carousel"
+              aria-label={`${selectedFeedFilter.label} listing feed`}
+            >
+              <CarouselContent className="mobile-feed-list">
+                {opportunityRows.map((item) => (
+                  <CarouselItem
+                    key={`${item.href}-${item.title}`}
+                    className="mobile-feed-item"
+                  >
+                    <Link
+                      href={item.href}
+                      className="mobile-feed-row"
+                      style={{ "--feed-color": item.color } as CSSProperties}
+                    >
+                      <span className="mobile-feed-icon">{item.icon}</span>
+                      <span className="mobile-feed-copy">
+                        <small>{item.market}</small>
+                        <strong>{item.title}</strong>
+                        <em>{item.meta}</em>
+                      </span>
+                      <span className="mobile-feed-value">{item.value}</span>
+                    </Link>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
+          )}
         </section>
       </div>
 

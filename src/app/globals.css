@@ -1010,6 +1010,53 @@ select:focus-visible {
 .market-carousel-track::-webkit-scrollbar {
   height: 6px;
 }
+.market-carousel-viewport {
+  position: relative;
+  padding: 0 36px;
+}
+.market-carousel-content {
+  align-items: stretch;
+  min-height: 250px;
+  margin-left: -16px;
+  padding: 10px 0 18px;
+}
+.market-carousel-item {
+  flex: 0 0 min(320px, 82vw);
+  min-width: 0;
+  padding-left: 16px;
+}
+.market-carousel-item .market-float-card {
+  height: 100%;
+}
+.vault-carousel-prev,
+.vault-carousel-next {
+  z-index: 4;
+  border-color: var(--line-strong);
+  background: var(--bg);
+  color: var(--accent);
+  box-shadow: var(--shadow-1);
+}
+.vault-carousel-prev:disabled,
+.vault-carousel-next:disabled {
+  opacity: 0.35;
+}
+.market-assets-carousel {
+  position: relative;
+  padding: 0 36px;
+}
+.market-assets-carousel-content {
+  align-items: stretch;
+  margin-left: -14px;
+  padding: 4px 0 18px;
+}
+.market-asset-carousel-item {
+  flex: 0 0 min(292px, 82vw);
+  min-width: 0;
+  padding-left: 14px;
+}
+.market-asset-carousel-item > * {
+  height: 100%;
+}
 .market-float-card {
   position: relative;
   min-height: 214px;
@@ -2973,6 +3020,28 @@ select:focus-visible {
 .mobile-feed-list::-webkit-scrollbar {
   display: none;
 }
+.mobile-feed-carousel {
+  position: relative;
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+.mobile-feed-carousel .mobile-feed-list {
+  overflow: visible;
+  margin: 0;
+  padding: 8px 0 32px;
+  gap: 0;
+}
+.mobile-feed-item {
+  flex: 0 0 216px;
+  min-width: 0;
+  padding-left: 16px;
+}
+.mobile-feed-item:first-child {
+  padding-left: 0;
+}
+.mobile-feed-item .mobile-feed-row {
+  height: 100%;
+}
 .mobile-feed-row {
   scroll-snap-align: start;
   flex: 0 0 200px;
@@ -3333,6 +3402,34 @@ select:focus-visible {
 }
 .bubble img:hover {
   opacity: 0.9;
+}
+.deal-message-scroller {
+  flex: 1;
+  min-height: 0;
+  margin: 0 -4px;
+}
+.deal-message-content {
+  gap: 8px;
+  padding: 4px;
+}
+.deal-message-textarea {
+  min-height: 38px;
+  max-height: 92px;
+  flex: 1;
+  resize: none;
+  font-size: 13px;
+}
+.deal-empty-state,
+.profile-empty-state {
+  border: 1px dashed var(--line-strong);
+  color: var(--ink-3);
+  background: color-mix(in oklab, var(--surface) 70%, transparent);
+}
+.deal-empty-state {
+  min-height: 180px;
+}
+.profile-empty-state {
+  margin: 0 18px 18px;
 }
 
 /* checklist */

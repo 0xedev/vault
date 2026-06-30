@@ -39,6 +39,13 @@ import ListMiniAppModal from "@/components/ListMiniAppModal";
 import ListXModal from "@/components/ListXModal";
 import ListFidModal from "@/components/ListFidModal";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 type LoanWithSeller = Loan & { sellerAddress?: string };
 type MarketTab =
@@ -59,6 +66,30 @@ const marketTabs: { key: MarketTab; label: string }[] = [
   { key: "clanker", label: "Clanker" },
   { key: "bundles", label: "Bundles" },
 ];
+
+function MarketAssetCarousel({ children }: { children: React.ReactNode }) {
+  const slides = React.Children.toArray(children);
+
+  if (slides.length === 0) return null;
+
+  return (
+    <Carousel
+      opts={{ align: "start", dragFree: true }}
+      className="market-assets-carousel"
+      aria-label="Market asset carousel"
+    >
+      <CarouselContent className="market-assets-carousel-content">
+        {slides.map((child, index) => (
+          <CarouselItem key={index} className="market-asset-carousel-item">
+            {child}
+          </CarouselItem>
+        ))}
+      </CarouselContent>
+      <CarouselPrevious className="vault-carousel-prev" />
+      <CarouselNext className="vault-carousel-next" />
+    </Carousel>
+  );
+}
 
 function ListNFTModal({ onClose }: { onClose: () => void }) {
   const { address } = useWallet();
@@ -1128,11 +1159,11 @@ export default function MarketplacePage() {
               Loading…
             </div>
           ) : (
-            <div className="grid grid-4">
+            <MarketAssetCarousel>
               {loans.slice(0, 4).map((l) => (
                 <LoanCard key={l.id} l={l} />
               ))}
-            </div>
+            </MarketAssetCarousel>
           )}
 
           <div className="market-section-head">
@@ -1148,7 +1179,7 @@ export default function MarketplacePage() {
               View all <Icon.arrow />
             </button>
           </div>
-          <div className="market-listing-grid">
+          <MarketAssetCarousel>
             {miniApps.slice(0, 4).map((app) => (
               <Link
                 href={`/miniapps?id=${encodeURIComponent(app.id)}`}
@@ -1167,7 +1198,7 @@ export default function MarketplacePage() {
                 </em>
               </Link>
             ))}
-          </div>
+          </MarketAssetCarousel>
 
           <div className="market-section-head">
             <span className="market-section-icon">
@@ -1182,7 +1213,7 @@ export default function MarketplacePage() {
               View all <Icon.arrow />
             </button>
           </div>
-          <div className="market-listing-grid">
+          <MarketAssetCarousel>
             {xAccounts.slice(0, 4).map((account) => (
               <Link href={`/x?id=${encodeURIComponent(account.id)}`} key={account.id} className="market-listing-card">
                 <span className="market-listing-icon">
@@ -1198,7 +1229,7 @@ export default function MarketplacePage() {
                 </em>
               </Link>
             ))}
-          </div>
+          </MarketAssetCarousel>
 
           <div className="market-section-head">
             <span className="market-section-icon">
@@ -1213,7 +1244,7 @@ export default function MarketplacePage() {
               View all <Icon.arrow />
             </button>
           </div>
-          <div className="market-listing-grid">
+          <MarketAssetCarousel>
             {farcaster.slice(0, 4).map((account) => (
               <Link
                 href={`/farcaster?id=${encodeURIComponent(account.id)}`}
@@ -1233,7 +1264,7 @@ export default function MarketplacePage() {
                 </em>
               </Link>
             ))}
-          </div>
+          </MarketAssetCarousel>
 
           <div className="market-section-head">
             <span className="market-section-icon">
@@ -1248,7 +1279,7 @@ export default function MarketplacePage() {
               View all <Icon.arrow />
             </button>
           </div>
-          <div className="market-listing-grid">
+          <MarketAssetCarousel>
             {clankerTokens.slice(0, 4).map((token) => (
               <Link
                 href={`/clanker?id=${encodeURIComponent(token.id)}`}
@@ -1269,7 +1300,7 @@ export default function MarketplacePage() {
                 </em>
               </Link>
             ))}
-          </div>
+          </MarketAssetCarousel>
 
           <div className="market-section-head">
             <span className="market-section-icon">
@@ -1284,25 +1315,24 @@ export default function MarketplacePage() {
               View all <Icon.arrow />
             </button>
           </div>
-          <div className="bundle-all-grid">
-            {bundles.length === 0 ? (
-              <div
-                className="muted"
-                style={{
-                  padding: 20,
-                  textAlign: "center",
-                  gridColumn: "1 / -1",
-                }}
-              >
-                No bundled listings yet. Be the first to list multiple assets
-                together.
-              </div>
-            ) : (
-              bundles
+          {bundles.length === 0 ? (
+            <div
+              className="muted"
+              style={{
+                padding: 20,
+                textAlign: "center",
+              }}
+            >
+              No bundled listings yet. Be the first to list multiple assets
+              together.
+            </div>
+          ) : (
+            <MarketAssetCarousel>
+              {bundles
                 .slice(0, 3)
-                .map((b) => <BundleCard key={b.id} bundle={b} />)
-            )}
-          </div>
+                .map((b) => <BundleCard key={b.id} bundle={b} />)}
+            </MarketAssetCarousel>
+          )}
         </>
       )}
 
@@ -1392,133 +1422,141 @@ export default function MarketplacePage() {
               No loans match this filter.
             </div>
           ) : (
-            <div className="grid grid-4">
+            <MarketAssetCarousel>
               {filtered.map((l) => (
                 <LoanCard key={l.id} l={l} />
               ))}
-            </div>
+            </MarketAssetCarousel>
           )}
         </>
       )}
 
       {/* MINI APPS TAB */}
       {activeMarket === "miniapps" && (
-        <div className="market-listing-grid">
+        <>
           {miniApps.length === 0 ? (
             <div className="muted" style={{ padding: 40, textAlign: "center" }}>
               No Mini App listings yet.
             </div>
           ) : (
-            miniApps.map((app) => (
-              <Link
-                href={`/miniapps?id=${encodeURIComponent(app.id)}`}
-                key={app.id}
-                className="market-listing-card"
-              >
-                <span className="market-listing-icon">
-                  <Icon.app />
-                </span>
-                <strong>{app.name}</strong>
-                <small>
-                  {app.kind} · {app.dau.toLocaleString()} DAU · {app.mrr} USDC MRR
-                </small>
-                <em>
-                  {app.price} USDC <Icon.arrow />
-                </em>
-              </Link>
-            ))
+            <MarketAssetCarousel>
+              {miniApps.map((app) => (
+                <Link
+                  href={`/miniapps?id=${encodeURIComponent(app.id)}`}
+                  key={app.id}
+                  className="market-listing-card"
+                >
+                  <span className="market-listing-icon">
+                    <Icon.app />
+                  </span>
+                  <strong>{app.name}</strong>
+                  <small>
+                    {app.kind} · {app.dau.toLocaleString()} DAU · {app.mrr} USDC MRR
+                  </small>
+                  <em>
+                    {app.price} USDC <Icon.arrow />
+                  </em>
+                </Link>
+              ))}
+            </MarketAssetCarousel>
           )}
-        </div>
+        </>
       )}
 
       {/* X ACCOUNTS TAB */}
       {activeMarket === "x" && (
-        <div className="market-listing-grid">
+        <>
           {xAccounts.length === 0 ? (
             <div className="muted" style={{ padding: 40, textAlign: "center" }}>
               No X account listings yet.
             </div>
           ) : (
-            xAccounts.map((account) => (
-              <Link href={`/x?id=${encodeURIComponent(account.id)}`} key={account.id} className="market-listing-card">
-                <span className="market-listing-icon">
-                  <Icon.xlogo />
-                </span>
-                <strong>{account.handle}</strong>
-                <small>
-                  {account.followers.toLocaleString()} followers ·{" "}
-                  {account.engagement}% engagement
-                </small>
-                <em>
-                  {account.price} USDC <Icon.arrow />
-                </em>
-              </Link>
-            ))
+            <MarketAssetCarousel>
+              {xAccounts.map((account) => (
+                <Link href={`/x?id=${encodeURIComponent(account.id)}`} key={account.id} className="market-listing-card">
+                  <span className="market-listing-icon">
+                    <Icon.xlogo />
+                  </span>
+                  <strong>{account.handle}</strong>
+                  <small>
+                    {account.followers.toLocaleString()} followers ·{" "}
+                    {account.engagement}% engagement
+                  </small>
+                  <em>
+                    {account.price} USDC <Icon.arrow />
+                  </em>
+                </Link>
+              ))}
+            </MarketAssetCarousel>
           )}
-        </div>
+        </>
       )}
 
       {/* FARCASTER TAB */}
       {activeMarket === "farcaster" && (
-        <div className="market-listing-grid">
+        <>
           {farcaster.length === 0 ? (
             <div className="muted" style={{ padding: 40, textAlign: "center" }}>
               No Farcaster listings yet.
             </div>
           ) : (
-            farcaster.map((account) => (
-              <Link
-                href={`/farcaster?id=${encodeURIComponent(account.id)}`}
-                key={account.id}
-                className="market-listing-card"
-              >
-                <span className="market-listing-icon">
-                  <Icon.cast />
-                </span>
-                <strong>@{account.handle}</strong>
-                <small>
-                  {account.followers.toLocaleString()} followers · FID #
-                  {account.fid}
-                </small>
-                <em>
-                  {account.price} USDC <Icon.arrow />
-                </em>
-              </Link>
-            ))
+            <MarketAssetCarousel>
+              {farcaster.map((account) => (
+                <Link
+                  href={`/farcaster?id=${encodeURIComponent(account.id)}`}
+                  key={account.id}
+                  className="market-listing-card"
+                >
+                  <span className="market-listing-icon">
+                    <Icon.cast />
+                  </span>
+                  <strong>@{account.handle}</strong>
+                  <small>
+                    {account.followers.toLocaleString()} followers · FID #
+                    {account.fid}
+                  </small>
+                  <em>
+                    {account.price} USDC <Icon.arrow />
+                  </em>
+                </Link>
+              ))}
+            </MarketAssetCarousel>
           )}
-        </div>
+        </>
       )}
 
       {/* CLANKER TAB */}
       {activeMarket === "clanker" && (
-        <div className="market-listing-grid">
+        <>
           {clankerTokens.length === 0 ? (
             <div className="muted" style={{ padding: 40, textAlign: "center" }}>
               No Clanker token listings yet.
             </div>
           ) : (
-            clankerTokens.map((token) => (
-              <Link
-                href={`/clanker?id=${encodeURIComponent(token.id)}`}
-                key={token.id}
-                className="market-listing-card"
-              >
-                <span className="market-listing-icon">
-                  <Icon.token />
-                </span>
-                <strong>
-                  {token.name} (${token.symbol})
-                </strong>
-                <small>
-                  {token.chain} · {token.totalSupply.toLocaleString()} supply
-                </small>
-                <em>
-                  {token.price} USDC <Icon.arrow />
-                </em>
-              </Link>
-            ))
+            <MarketAssetCarousel>
+              {clankerTokens.map((token) => (
+                <Link
+                  href={`/clanker?id=${encodeURIComponent(token.id)}`}
+                  key={token.id}
+                  className="market-listing-card"
+                >
+                  <span className="market-listing-icon">
+                    <Icon.token />
+                  </span>
+                  <strong>
+                    {token.name} (${token.symbol})
+                  </strong>
+                  <small>
+                    {token.chain} · {token.totalSupply.toLocaleString()} supply
+                  </small>
+                  <em>
+                    {token.price} USDC <Icon.arrow />
+                  </em>
+                </Link>
+              ))}
+            </MarketAssetCarousel>
           )}
-        </div>
+        </>
       )}
 
       {/* BUNDLES TAB */}
@@ -1533,18 +1571,18 @@ export default function MarketplacePage() {
               onOffer={setOfferBundle}
             />
           )}
-          <div className="bundle-all-grid">
-            {bundles.length === 0 ? (
-              <div
-                className="muted"
-                style={{ padding: 40, textAlign: "center", gridColumn: "1 / -1" }}
-              >
-                No bundled listings yet.
-              </div>
-            ) : (
-              bundles.map((b) => <BundleCard key={b.id} bundle={b} />)
-            )}
-          </div>
+          {bundles.length === 0 ? (
+            <div
+              className="muted"
+              style={{ padding: 40, textAlign: "center" }}
+            >
+              No bundled listings yet.
+            </div>
+          ) : (
+            <MarketAssetCarousel>
+              {bundles.map((b) => <BundleCard key={b.id} bundle={b} />)}
+            </MarketAssetCarousel>
+          )}
         </>
       )}
 

@@ -35,6 +35,30 @@ import { selectedRights } from "@/lib/clanker";
 import type { BundleListing, ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount } from "@/lib/data";
 import { type Address, type Hash } from "viem";
 import { shareAsCast } from "@/lib/farcaster-sdk";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Label } from "@/components/ui/label";
+import {
+  Message,
+  MessageContent,
+  MessageFooter,
+  MessageGroup,
+  MessageHeader,
+} from "@/components/ui/message";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
+import { Textarea } from "@/components/ui/textarea";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -200,7 +224,6 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
   const [loadingMore, setLoadingMore] = useState(false);
   const [uploading, setUploading] = useState(false);
   const seenRef = useRef<Set<string>>(new Set());
-  const chatRef = useRef<HTMLDivElement>(null);
   const step = stageToStep(deal.stageRaw);
   const walletAddress = address?.toLowerCase();
   const buyerAddress = deal.buyerAddress.toLowerCase();
@@ -685,30 +708,63 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
               <span className="eyebrow">Deal Room Chat</span>
               <span className="muted-2" style={{ fontSize: 11 }}>End-to-end encrypted · 2 participants</span>
             </div>
-            <div ref={chatRef} className="col" style={{ flex: 1, overflowY: "auto", gap: 4, padding: "4px 0" }}>
-              {hasMore && (
-                <button className="btn ghost sm" onClick={loadMore} disabled={loadingMore} style={{ marginBottom: 4, fontSize: 11 }}>
-                  {loadingMore ? "Loading..." : "Load earlier messages"}
-                </button>
-              )}
-              {messages.map((m) => (
-                <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: m.me ? "flex-end" : "flex-start" }}>
-                  <div className={"bubble" + (m.me ? " me" : "")}>
-                    <div className="who">
-                      {m.sender} · {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      {m.readAt && m.me && <span className="read-receipt"> ✓✓</span>}
-                    </div>
-                    {m.messageType === "image" && m.imageUrl ? (
-                      /* eslint-disable-next-line @next/next/no-img-element */
-                      <img src={m.imageUrl} alt="attachment" style={{ maxWidth: 200, borderRadius: 8, marginTop: 2 }} />
-                    ) : (
-                      m.body
+            <MessageScrollerProvider autoScroll defaultScrollPosition="end">
+              <MessageScroller className="deal-message-scroller">
+                <MessageScrollerViewport aria-label="Deal room messages">
+                  <MessageScrollerContent className="deal-message-content">
+                    {hasMore && (
+                      <MessageScrollerItem>
+                        <button className="btn ghost sm" onClick={loadMore} disabled={loadingMore} style={{ margin: "0 auto 4px", fontSize: 11 }}>
+                          {loadingMore ? "Loading..." : "Load earlier messages"}
+                        </button>
+                      </MessageScrollerItem>
                     )}
-                  </div>
-                </div>
-              ))}
-              {messages.length === 0 && <div className="muted" style={{ padding: 20, textAlign: "center", fontSize: 12 }}>No messages yet. Start the conversation.</div>}
-            </div>
+                    {messages.map((m, index) => (
+                      <MessageScrollerItem
+                        key={m.id}
+                        messageId={m.id}
+                        scrollAnchor={index === messages.length - 1}
+                      >
+                        <MessageGroup>
+                          <Message align={m.me ? "end" : "start"}>
+                            <MessageContent>
+                              <MessageHeader>
+                                {m.sender} · {new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </MessageHeader>
+                              <div className={"bubble" + (m.me ? " me" : "")}>
+                                {m.messageType === "image" && m.imageUrl ? (
+                                  /* eslint-disable-next-line @next/next/no-img-element */
+                                  <img src={m.imageUrl} alt="attachment" />
+                                ) : (
+                                  m.body
+                                )}
+                              </div>
+                              {m.readAt && m.me && (
+                                <MessageFooter>
+                                  <span className="read-receipt">Read</span>
+                                </MessageFooter>
+                              )}
+                            </MessageContent>
+                          </Message>
+                        </MessageGroup>
+                      </MessageScrollerItem>
+                    ))}
+                    {messages.length === 0 && (
+                      <MessageScrollerItem scrollAnchor>
+                        <Empty className="deal-empty-state">
+                          <EmptyHeader>
+                            <EmptyMedia variant="icon"><Icon.send /></EmptyMedia>
+                            <EmptyTitle>No messages yet</EmptyTitle>
+                            <EmptyDescription>Start the conversation with the buyer or seller.</EmptyDescription>
+                          </EmptyHeader>
+                        </Empty>
+                      </MessageScrollerItem>
+                    )}
+                  </MessageScrollerContent>
+                </MessageScrollerViewport>
+                <MessageScrollerButton />
+              </MessageScroller>
+            </MessageScrollerProvider>
             <div className="row" style={{ gap: 4, flexWrap: "wrap", padding: "6px 0" }}>
               {["I've paid", "Please release", "Received, thanks", "Checking now"].map(q => (
                 <button key={q} className="btn ghost sm" style={{ fontSize: 11 }} onClick={() => sendMsg(q)} disabled={sending}>{q}</button>
@@ -719,16 +775,28 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
                 {uploading ? "..." : "📎"}
                 <input type="file" accept="image/*" hidden onChange={e => { const f = e.target.files?.[0]; if (f) uploadImage(f); e.target.value = ""; }} />
               </label>
-              <input className="input" placeholder="Send a message…" aria-label="Send a message" value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && sendMsg()} />
+              <Textarea
+                className="deal-message-textarea"
+                placeholder="Send a message..."
+                aria-label="Send a message"
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMsg();
+                  }
+                }}
+              />
               <button className="btn primary" onClick={() => sendMsg()} disabled={sending}><Icon.send /></button>
             </div>
           </div>
 
           <div className="card" style={{ padding: 18 }}>
             <div className="eyebrow" style={{ marginBottom: 10 }}>Funds in escrow</div>
-            <div className="kv"><span className="k">Buyer deposit</span><span className="v">{fmtUSDC(deal.price)} {deal.currency}</span></div>
-            <div className="kv"><span className="k">Platform fee ({platformFeeBps / 100}%)</span><span className="v">{fmtUSDC(deal.price * platformFeeBps / 10000)} {deal.currency}</span></div>
-            <div className="kv"><span className="k">Net to seller</span><span className="v" style={{ color: "var(--accent)" }}>{fmtUSDC(deal.price * (1 - platformFeeBps / 10000))} {deal.currency}</span></div>
+            <div className="kv"><Label className="k">Buyer deposit</Label><span className="v">{fmtUSDC(deal.price)} {deal.currency}</span></div>
+            <div className="kv"><Label className="k">Platform fee ({platformFeeBps / 100}%)</Label><span className="v">{fmtUSDC(deal.price * platformFeeBps / 10000)} {deal.currency}</span></div>
+            <div className="kv"><Label className="k">Net to seller</Label><span className="v" style={{ color: "var(--accent)" }}>{fmtUSDC(deal.price * (1 - platformFeeBps / 10000))} {deal.currency}</span></div>
             {actionNotice && <div className="warn-banner" style={{ marginTop: 12, fontSize: 12 }}>{actionNotice}</div>}
             <div className="row" style={{ gap: 8, marginTop: 16 }}>
               {actorRole === "buyer" ? (
@@ -1206,7 +1274,14 @@ export default function DealsPage() {
           {listingsLoading ? (
             <div className="muted" style={{ padding: 22, textAlign: "center" }}>Loading listings...</div>
           ) : profileListings.length === 0 ? (
-            <div className="muted" style={{ padding: 22, textAlign: "center" }}>No active listings yet.</div>
+            <Empty className="profile-empty-state">
+              <EmptyHeader>
+                <EmptyMedia variant="icon"><Icon.asset /></EmptyMedia>
+                <EmptyTitle>No active listings yet</EmptyTitle>
+                <EmptyDescription>List an asset to start receiving offers from buyers.</EmptyDescription>
+              </EmptyHeader>
+              <Link href="/market" className="btn sm">Create listing</Link>
+            </Empty>
           ) : (
             <div className="profile-listings">
               {profileListings.map((listing) => (
