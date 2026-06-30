@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import VaultMark from "./VaultMark";
 import Icon from "./icons";
 import { useWallet } from "./WalletProvider";
@@ -28,7 +28,6 @@ function formatIdentity(address: string | null) {
 }
 
 export default function TopBar({ onMenu }: { onMenu: () => void }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab");
@@ -47,18 +46,6 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
         <Button variant="ghost" size="icon" className="menu-btn" onClick={onMenu} aria-label="Menu">
           <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
         </Button>
-        {pathname !== "/" && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.back()}
-            aria-label="Go back"
-            title="Go back"
-            style={{ color: "var(--ink-3)" }}
-          >
-            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M10 3L5 8l5 5"/></svg>
-          </Button>
-        )}
         <Link href="/" className="brand" style={{ background: "transparent", border: 0, color: "inherit", padding: 0 }}>
           <VaultMark size={26} className="mark-glow" priority/>
           <span className="name hide-mobile">Baseshire Hethaway<em></em></span>

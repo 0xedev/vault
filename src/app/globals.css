@@ -1930,22 +1930,39 @@ select:focus-visible {
   }
   .market-listing-card {
     min-height: unset;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "icon title price"
+      "icon desc  price";
+    column-gap: 12px;
+    row-gap: 2px;
     padding: 12px;
+    align-items: center;
   }
   .market-listing-card > .market-listing-icon {
+    grid-area: icon;
     margin-bottom: 0;
-    flex-shrink: 0;
   }
   .market-listing-card > strong {
-    flex: 1;
+    grid-area: title;
+    align-self: end;
     min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .market-listing-card > small {
+    grid-area: desc;
+    align-self: start;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .market-listing-card > em {
+    grid-area: price;
     margin-top: 0;
-    flex-shrink: 0;
   }
   .grid-4 {
     grid-template-columns: 1fr;

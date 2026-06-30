@@ -38,6 +38,7 @@ import ListBundleModal from "@/components/ListBundleModal";
 import ListMiniAppModal from "@/components/ListMiniAppModal";
 import ListXModal from "@/components/ListXModal";
 import ListFidModal from "@/components/ListFidModal";
+import ListClankerModal from "@/components/ListClankerModal";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import {
   Carousel,
@@ -815,6 +816,7 @@ export default function MarketplacePage() {
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [showListModal, setShowListModal] = useState(false);
   const [showBundleModal, setShowBundleModal] = useState(false);
+  const [showClankerModal, setShowClankerModal] = useState(false);
   const [offerBundle, setOfferBundle] = useState<BundleListing | null>(null);
   const [buyingBundleId, setBuyingBundleId] = useState("");
   const [chainLoading, setChainLoading] = useState(false);
@@ -1091,16 +1093,27 @@ export default function MarketplacePage() {
             disabled={isConnecting}
           >
             {isConnected
-              ? "List your Identity"
+              ? "List Farcaster account"
               : isConnecting
                 ? "Connecting…"
                 : "Connect & list"}
           </button>
         )}
         {activeMarket === "clanker" && (
-          <Link href="/clanker" className="btn primary">
-            Open Clanker market
-          </Link>
+          <button
+            className="btn primary"
+            onClick={() => {
+              if (!isConnected) { connect(); return; }
+              setShowClankerModal(true);
+            }}
+            disabled={isConnecting}
+          >
+            {isConnected
+              ? "List Clanker token"
+              : isConnecting
+                ? "Connecting…"
+                : "Connect & list"}
+          </button>
         )}
         {activeMarket === "bundles" && (
           <button
@@ -1138,200 +1151,217 @@ export default function MarketplacePage() {
         ))}
       </div>
 
-      {/* ALL MARKETS — one section per category */}
+      {/* ALL MARKETS — only show sections with listings */}
       {activeMarket === "all" && (
         <>
-          <div className="market-section-head">
-            <span className="market-section-icon">
-              <NFTArt seed={2} />
-            </span>
-            <strong>NFT Loans</strong>
-            <span className="market-section-count">{loans.length}</span>
-            <button
-              className="market-section-cta"
-              onClick={() => setActiveMarket("nft")}
-            >
-              View all <Icon.arrow />
-            </button>
-          </div>
-          {loading ? (
-            <div className="muted" style={{ padding: 32, textAlign: "center" }}>
-              Loading…
-            </div>
-          ) : (
-            <MarketAssetCarousel>
-              {loans.slice(0, 4).map((l) => (
-                <LoanCard key={l.id} l={l} />
-              ))}
-            </MarketAssetCarousel>
+          {loans.length > 0 && (
+            <>
+              <div className="market-section-head">
+                <span className="market-section-icon">
+                  <NFTArt seed={2} />
+                </span>
+                <strong>NFT Loans</strong>
+                <span className="market-section-count">{loans.length}</span>
+                <button
+                  className="market-section-cta"
+                  onClick={() => setActiveMarket("nft")}
+                >
+                  View all <Icon.arrow />
+                </button>
+              </div>
+              {loading ? (
+                <div className="muted" style={{ padding: 32, textAlign: "center" }}>
+                  Loading…
+                </div>
+              ) : (
+                <MarketAssetCarousel>
+                  {loans.slice(0, 4).map((l) => (
+                    <LoanCard key={l.id} l={l} />
+                  ))}
+                </MarketAssetCarousel>
+              )}
+            </>
           )}
 
-          <div className="market-section-head">
-            <span className="market-section-icon">
-              <Icon.app />
-            </span>
-            <strong>Mini Apps</strong>
-            <span className="market-section-count">{miniApps.length}</span>
-            <button
-              className="market-section-cta"
-              onClick={() => setActiveMarket("miniapps")}
-            >
-              View all <Icon.arrow />
-            </button>
-          </div>
-          <MarketAssetCarousel>
-            {miniApps.slice(0, 4).map((app) => (
-              <Link
-                href={`/miniapps?id=${encodeURIComponent(app.id)}`}
-                key={app.id}
-                className="market-listing-card"
-              >
-                <span className="market-listing-icon">
+          {miniApps.length > 0 && (
+            <>
+              <div className="market-section-head">
+                <span className="market-section-icon">
                   <Icon.app />
                 </span>
-                <strong>{app.name}</strong>
-                <small>
-                  {app.kind} · {app.dau.toLocaleString()} DAU · {app.mrr} USDC MRR
-                </small>
-                <em>
-                  {app.price} USDC <Icon.arrow />
-                </em>
-              </Link>
-            ))}
-          </MarketAssetCarousel>
+                <strong>Mini Apps</strong>
+                <span className="market-section-count">{miniApps.length}</span>
+                <button
+                  className="market-section-cta"
+                  onClick={() => setActiveMarket("miniapps")}
+                >
+                  View all <Icon.arrow />
+                </button>
+              </div>
+              <MarketAssetCarousel>
+                {miniApps.slice(0, 4).map((app) => (
+                  <Link
+                    href={`/miniapps?id=${encodeURIComponent(app.id)}`}
+                    key={app.id}
+                    className="market-listing-card"
+                  >
+                    <span className="market-listing-icon">
+                      <Icon.app />
+                    </span>
+                    <strong>{app.name}</strong>
+                    <small>
+                      {app.kind} · {app.dau.toLocaleString()} DAU · {app.mrr} USDC MRR
+                    </small>
+                    <em>
+                      {app.price} USDC <Icon.arrow />
+                    </em>
+                  </Link>
+                ))}
+              </MarketAssetCarousel>
+            </>
+          )}
 
-          <div className="market-section-head">
-            <span className="market-section-icon">
-              <Icon.xlogo />
-            </span>
-            <strong>X Accounts</strong>
-            <span className="market-section-count">{xAccounts.length}</span>
-            <button
-              className="market-section-cta"
-              onClick={() => setActiveMarket("x")}
-            >
-              View all <Icon.arrow />
-            </button>
-          </div>
-          <MarketAssetCarousel>
-            {xAccounts.slice(0, 4).map((account) => (
-              <Link href={`/x?id=${encodeURIComponent(account.id)}`} key={account.id} className="market-listing-card">
-                <span className="market-listing-icon">
+          {xAccounts.length > 0 && (
+            <>
+              <div className="market-section-head">
+                <span className="market-section-icon">
                   <Icon.xlogo />
                 </span>
-                <strong>{account.handle}</strong>
-                <small>
-                  {account.followers.toLocaleString()} followers ·{" "}
-                  {account.engagement}% engagement
-                </small>
-                <em>
-                  {account.price} USDC <Icon.arrow />
-                </em>
-              </Link>
-            ))}
-          </MarketAssetCarousel>
+                <strong>X Accounts</strong>
+                <span className="market-section-count">{xAccounts.length}</span>
+                <button
+                  className="market-section-cta"
+                  onClick={() => setActiveMarket("x")}
+                >
+                  View all <Icon.arrow />
+                </button>
+              </div>
+              <MarketAssetCarousel>
+                {xAccounts.slice(0, 4).map((account) => (
+                  <Link href={`/x?id=${encodeURIComponent(account.id)}`} key={account.id} className="market-listing-card">
+                    <span className="market-listing-icon">
+                      <Icon.xlogo />
+                    </span>
+                    <strong>{account.handle}</strong>
+                    <small>
+                      {account.followers.toLocaleString()} followers ·{" "}
+                      {account.engagement}% engagement
+                    </small>
+                    <em>
+                      {account.price} USDC <Icon.arrow />
+                    </em>
+                  </Link>
+                ))}
+              </MarketAssetCarousel>
+            </>
+          )}
 
-          <div className="market-section-head">
-            <span className="market-section-icon">
-              <Icon.cast />
-            </span>
-            <strong>Farcaster</strong>
-            <span className="market-section-count">{farcaster.length}</span>
-            <button
-              className="market-section-cta"
-              onClick={() => setActiveMarket("farcaster")}
-            >
-              View all <Icon.arrow />
-            </button>
-          </div>
-          <MarketAssetCarousel>
-            {farcaster.slice(0, 4).map((account) => (
-              <Link
-                href={`/farcaster?id=${encodeURIComponent(account.id)}`}
-                key={account.id}
-                className="market-listing-card"
-              >
-                <span className="market-listing-icon">
+          {farcaster.length > 0 && (
+            <>
+              <div className="market-section-head">
+                <span className="market-section-icon">
                   <Icon.cast />
                 </span>
-                <strong>@{account.handle}</strong>
-                <small>
-                  {account.followers.toLocaleString()} followers · FID #
-                  {account.fid}
-                </small>
-                <em>
-                  {account.price} USDC <Icon.arrow />
-                </em>
-              </Link>
-            ))}
-          </MarketAssetCarousel>
+                <strong>Farcaster</strong>
+                <span className="market-section-count">{farcaster.length}</span>
+                <button
+                  className="market-section-cta"
+                  onClick={() => setActiveMarket("farcaster")}
+                >
+                  View all <Icon.arrow />
+                </button>
+              </div>
+              <MarketAssetCarousel>
+                {farcaster.slice(0, 4).map((account) => (
+                  <Link
+                    href={`/farcaster?id=${encodeURIComponent(account.id)}`}
+                    key={account.id}
+                    className="market-listing-card"
+                  >
+                    <span className="market-listing-icon">
+                      <Icon.cast />
+                    </span>
+                    <strong>@{account.handle}</strong>
+                    <small>
+                      {account.followers.toLocaleString()} followers · FID #
+                      {account.fid}
+                    </small>
+                    <em>
+                      {account.price} USDC <Icon.arrow />
+                    </em>
+                  </Link>
+                ))}
+              </MarketAssetCarousel>
+            </>
+          )}
 
-          <div className="market-section-head">
-            <span className="market-section-icon">
-              <Icon.token />
-            </span>
-            <strong>Clanker Tokens</strong>
-            <span className="market-section-count">{clankerTokens.length}</span>
-            <button
-              className="market-section-cta"
-              onClick={() => setActiveMarket("clanker")}
-            >
-              View all <Icon.arrow />
-            </button>
-          </div>
-          <MarketAssetCarousel>
-            {clankerTokens.slice(0, 4).map((token) => (
-              <Link
-                href={`/clanker?id=${encodeURIComponent(token.id)}`}
-                key={token.id}
-                className="market-listing-card"
-              >
-                <span className="market-listing-icon">
+          {clankerTokens.length > 0 && (
+            <>
+              <div className="market-section-head">
+                <span className="market-section-icon">
                   <Icon.token />
                 </span>
-                <strong>
-                  {token.name} (${token.symbol})
-                </strong>
-                <small>
-                  {token.chain} · {token.totalSupply.toLocaleString()} supply
-                </small>
-                <em>
-                  {token.price} USDC <Icon.arrow />
-                </em>
-              </Link>
-            ))}
-          </MarketAssetCarousel>
+                <strong>Clanker Tokens</strong>
+                <span className="market-section-count">{clankerTokens.length}</span>
+                <button
+                  className="market-section-cta"
+                  onClick={() => setActiveMarket("clanker")}
+                >
+                  View all <Icon.arrow />
+                </button>
+              </div>
+              <MarketAssetCarousel>
+                {clankerTokens.slice(0, 4).map((token) => (
+                  <Link
+                    href={`/clanker?id=${encodeURIComponent(token.id)}`}
+                    key={token.id}
+                    className="market-listing-card"
+                  >
+                    <span className="market-listing-icon">
+                      <Icon.token />
+                    </span>
+                    <strong>
+                      {token.name} (${token.symbol})
+                    </strong>
+                    <small>
+                      {token.chain} · {token.totalSupply.toLocaleString()} supply
+                    </small>
+                    <em>
+                      {token.price} USDC <Icon.arrow />
+                    </em>
+                  </Link>
+                ))}
+              </MarketAssetCarousel>
+            </>
+          )}
 
-          <div className="market-section-head">
-            <span className="market-section-icon">
-              <Icon.shield />
-            </span>
-            <strong>Bundled Listings</strong>
-            <span className="market-section-count">{bundles.length}</span>
-            <button
-              className="market-section-cta"
-              onClick={() => setActiveMarket("bundles")}
-            >
-              View all <Icon.arrow />
-            </button>
-          </div>
-          {bundles.length === 0 ? (
-            <div
-              className="muted"
-              style={{
-                padding: 20,
-                textAlign: "center",
-              }}
-            >
-              No bundled listings yet. Be the first to list multiple assets
-              together.
+          {bundles.length > 0 && (
+            <>
+              <div className="market-section-head">
+                <span className="market-section-icon">
+                  <Icon.shield />
+                </span>
+                <strong>Bundled Listings</strong>
+                <span className="market-section-count">{bundles.length}</span>
+                <button
+                  className="market-section-cta"
+                  onClick={() => setActiveMarket("bundles")}
+                >
+                  View all <Icon.arrow />
+                </button>
+              </div>
+              <MarketAssetCarousel>
+                {bundles
+                  .slice(0, 3)
+                  .map((b) => <BundleCard key={b.id} bundle={b} />)}
+              </MarketAssetCarousel>
+            </>
+          )}
+
+          {!loading && loans.length === 0 && miniApps.length === 0 && xAccounts.length === 0 && farcaster.length === 0 && clankerTokens.length === 0 && bundles.length === 0 && (
+            <div className="muted" style={{ padding: 80, textAlign: "center" }}>
+              No listings yet. Be the first to list an asset.
             </div>
-          ) : (
-            <MarketAssetCarousel>
-              {bundles
-                .slice(0, 3)
-                .map((b) => <BundleCard key={b.id} bundle={b} />)}
-            </MarketAssetCarousel>
           )}
         </>
       )}
@@ -1597,6 +1627,17 @@ export default function MarketplacePage() {
       )}
       {showListModal && activeMarket === "farcaster" && (
         <ListFidModal onClose={() => setShowListModal(false)} />
+      )}
+      {showClankerModal && (
+        <ListClankerModal
+          onClose={() => setShowClankerModal(false)}
+          onListed={() => {
+            fetch("/api/marketplace/clanker").then(async (r) => {
+              const json = await r.json();
+              if (json.data) setClankerTokens(json.data);
+            });
+          }}
+        />
       )}
       {showBundleModal && (
         <ListBundleModal

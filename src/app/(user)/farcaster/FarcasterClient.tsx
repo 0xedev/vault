@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import ListFidModal from "@/components/ListFidModal";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
+import BackButton from "@/components/BackButton";
 import type { FarcasterAccount } from "@/lib/data";
 import { fmtCompact, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
@@ -100,6 +101,7 @@ export default function FarcasterPage() {
 
   return (
     <main id="main-content" role="main" aria-label="Main content" className="main">
+      <BackButton />
       <div className="row between" style={{ alignItems: "center", marginBottom: 22, gap: 24, rowGap: 16, flexWrap: "wrap" }}>
         <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <div className="row" style={{ gap: 10, alignItems: "center", marginBottom: 4 }}>

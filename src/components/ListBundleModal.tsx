@@ -4,10 +4,8 @@
 import React, { useState } from "react";
 import Icon from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useWallet } from "@/components/WalletProvider";
 import { hashMetadata, writeListBundle, waitForDealId, parseContractError } from "@/lib/contract";
@@ -15,12 +13,12 @@ import { bundleAssetLabel, type BundleAssetKind } from "@/lib/data";
 import { fmtUSDC } from "@/lib/utils";
 import { parseUnits, type Address } from "viem";
 
-const ASSET_KINDS: { kind: BundleAssetKind; icon: React.ReactNode }[] = [
-  { kind: "nft_loan", icon: <Icon.loan /> },
-  { kind: "mini_app", icon: <Icon.app /> },
-  { kind: "x_account", icon: <Icon.xlogo /> },
-  { kind: "farcaster", icon: <Icon.cast /> },
-  { kind: "clanker", icon: <Icon.token /> },
+// No nft_loan — bundles are for accounts, apps, and tokens
+const ASSET_KINDS: { kind: BundleAssetKind; icon: React.ReactNode; color: string }[] = [
+  { kind: "mini_app",   icon: <Icon.app />,   color: "#F97316" },
+  { kind: "x_account", icon: <Icon.xlogo />, color: "#52525B" },
+  { kind: "farcaster",  icon: <Icon.cast />,  color: "#8B5CF6" },
+  { kind: "clanker",   icon: <Icon.token />, color: "#10B981" },
 ];
 
 interface BundleFormAsset {
@@ -33,7 +31,7 @@ interface BundleFormAsset {
 }
 
 let _uid = 0;
-function emptyAsset(kind: BundleAssetKind = "nft_loan"): BundleFormAsset {
+function emptyAsset(kind: BundleAssetKind = "mini_app"): BundleFormAsset {
   return { uid: `asset-${_uid++}`, kind, label: "", detail: "", price: 0, data: {} };
 }
 
@@ -55,8 +53,8 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
 
   const totalPrice = Number(price || 0);
 
-  const updateAsset = (i: number, update: Partial<BundleFormAsset>) => {
-    setAssets((prev) => prev.map((a, idx) => (idx === i ? { ...a, ...update } : a)));
+  const updateAsset = (uid: string, update: Partial<BundleFormAsset>) => {
+    setAssets((prev) => prev.map((a) => (a.uid === uid ? { ...a, ...update } : a)));
   };
 
   const addAsset = () => {
@@ -64,14 +62,24 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
     setAssets((prev) => [...prev, emptyAsset()]);
   };
 
-  const removeAsset = (i: number) => {
+  const removeAsset = (uid: string) => {
     if (assets.length <= 1) return;
-    setAssets((prev) => prev.filter((_, idx) => idx !== i));
+    setAssets((prev) => prev.filter((a) => a.uid !== uid));
   };
 
-  const hasDuplicates = assets.length > 1 && assets.some((a, i) =>
-    assets.findIndex((b, j) => j < i && b.label.trim().toLowerCase() === a.label.trim().toLowerCase() && b.kind === a.kind) >= 0
-  );
+  // Duplicate check: same label AND same kind (ignore blank labels)
+  const duplicateUids = new Set<string>();
+  assets.forEach((a, i) => {
+    if (!a.label.trim()) return;
+    const isDup = assets.some(
+      (b, j) =>
+        j !== i &&
+        b.kind === a.kind &&
+        b.label.trim().toLowerCase() === a.label.trim().toLowerCase()
+    );
+    if (isDup) duplicateUids.add(a.uid);
+  });
+  const hasDuplicates = duplicateUids.size > 0;
 
   const canSubmit =
     name.trim().length >= 2 &&
@@ -103,12 +111,10 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
     if (!address) return;
     setSubmitting(true);
     setError("");
-
     try {
       const metadata = { name, description, totalPrice, assets, imageUrl, createdAt: new Date().toISOString() };
       const metadataHash = hashMetadata(metadata);
       const priceWei = parseUnits(String(totalPrice), 6);
-
       const txHash = await writeListBundle(address as Address, priceWei, metadataHash as `0x${string}`);
       const contractListingId = await waitForDealId(txHash);
 
@@ -117,26 +123,13 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sellerAddress: address,
-          name,
-          description,
-          imageUrl,
-          totalPrice,
-          assets: assets.map((a) => ({
-            kind: a.kind,
-            label: a.label,
-            detail: a.detail,
-            price: a.price,
-            data: a.data,
-          })),
-          txHash,
-          contractListingId,
+          sellerAddress: address, name, description, imageUrl, totalPrice,
+          assets: assets.map((a) => ({ kind: a.kind, label: a.label, detail: a.detail, price: a.price, data: a.data })),
+          txHash, contractListingId,
         }),
       });
-
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to create bundle");
-
       onListed();
       onClose();
     } catch (err) {
@@ -148,64 +141,45 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
 
   return (
     <div className="modal-bg" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 620, maxWidth: "100%" }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: "100%" }}>
         <div className="modal-h">
           <div>
-            <div className="eyebrow">Create Bundle Listing</div>
-            <h2 className="serif" style={{ fontSize: 22, margin: "4px 0 0" }}>Bundled asset sale</h2>
+            <div className="eyebrow">Create Bundle</div>
+            <h2 className="serif" style={{ fontSize: 20, margin: "4px 0 0" }}>Bundle multiple assets</h2>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close"><Icon.x /></Button>
         </div>
 
-        <div className="modal-b col" style={{ gap: 14 }}>
+        <div className="modal-b col" style={{ gap: 14, maxHeight: "72vh", overflowY: "auto" }}>
+
+          {/* Bundle name */}
           <div>
-            <Label htmlFor="bundle-name">Bundle name</Label>
+            <Label htmlFor="bundle-name" style={{ fontSize: 12 }}>Bundle name</Label>
             <Input
               id="bundle-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder='e.g. "$FED ecosystem bundle"'
               maxLength={120}
-              aria-label="Bundle name"
             />
           </div>
+
+          {/* Description */}
           <div>
-            <Label htmlFor="bundle-description">Description</Label>
+            <Label htmlFor="bundle-description" style={{ fontSize: 12 }}>Description</Label>
             <Textarea
               id="bundle-description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What assets are included and why buy them together?"
               maxLength={500}
-              style={{ minHeight: 56, resize: "vertical" }}
-              aria-label="Bundle description"
+              style={{ minHeight: 52, resize: "vertical", fontSize: 13 }}
             />
           </div>
+
+          {/* Price */}
           <div>
-            <Label htmlFor="bundle-image">Cover image</Label>
-            <div className="row" style={{ gap: 8 }}>
-              <Input
-                id="bundle-image"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="Image URL or upload below"
-                style={{ flex: 1 }}
-              />
-              <Button asChild variant="outline" size="sm" style={{ cursor: "pointer", flexShrink: 0 }}>
-              <label>
-                <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
-                {uploadingImage ? "Uploading…" : "Upload"}
-              </label>
-              </Button>
-            </div>
-            {imageUrl && (
-              <div style={{ marginTop: 6, width: "100%", aspectRatio: "16/10", borderRadius: 8, overflow: "hidden", background: "var(--surface-2)", border: "1px solid var(--line)" }}>
-                <img src={imageUrl} alt="Cover preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-              </div>
-            )}
-          </div>
-          <div>
-            <Label htmlFor="bundle-price">Bundle price (USDC)</Label>
+            <Label htmlFor="bundle-price" style={{ fontSize: 12 }}>Bundle price (USDC)</Label>
             <Input
               id="bundle-price"
               className="mono"
@@ -215,86 +189,168 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="0.00"
-              aria-label="Bundle price in ETH"
             />
           </div>
 
+          {/* Cover image */}
           <div>
-            <div className="row between" style={{ alignItems: "center", marginBottom: 8 }}>
-              <span className="label">Assets ({assets.length})</span>
-              <Button variant="ghost" size="sm" onClick={addAsset} disabled={assets.length >= 10}>
-                <Icon.upload style={{ transform: "rotate(180deg)" }} /> Add asset
+            <Label htmlFor="bundle-image" style={{ fontSize: 12 }}>Cover image</Label>
+            <div className="row" style={{ gap: 8 }}>
+              <Input
+                id="bundle-image"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="Paste URL or upload"
+                style={{ flex: 1, fontSize: 13 }}
+              />
+              <Button asChild variant="outline" size="sm" style={{ cursor: "pointer", flexShrink: 0 }}>
+                <label>
+                  <input type="file" accept="image/*" onChange={handleImageUpload} style={{ display: "none" }} />
+                  {uploadingImage ? "Uploading…" : "Upload"}
+                </label>
+              </Button>
+            </div>
+            {imageUrl && (
+              <div style={{ marginTop: 6, width: "100%", aspectRatio: "16/8", borderRadius: 8, overflow: "hidden", background: "var(--surface-2)", border: "1px solid var(--line)" }}>
+                <img src={imageUrl} alt="Cover preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+              </div>
+            )}
+          </div>
+
+          {/* Assets section */}
+          <div>
+            <div className="row between" style={{ alignItems: "center", marginBottom: 10 }}>
+              <div className="col" style={{ gap: 1 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-2)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Assets ({assets.length}/10)
+                </span>
+                <span style={{ fontSize: 11, color: "var(--ink-4)" }}>Add the accounts, apps, or tokens in this bundle</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={addAsset} disabled={assets.length >= 10} style={{ fontSize: 12 }}>
+                + Add asset
               </Button>
             </div>
 
             {hasDuplicates && (
-              <div className="warn-banner" style={{ fontSize: 12, marginBottom: 6 }}>
-                Two assets have the same label and type. Please make them unique.
+              <div className="warn-banner" style={{ fontSize: 12, marginBottom: 8 }}>
+                Two assets share the same name and type — rename one to make it unique.
               </div>
             )}
 
             <div className="col" style={{ gap: 10 }}>
               {assets.map((asset, i) => (
-                <Card key={asset.uid} className="bundle-form-asset" style={{ padding: 12 }}>
-                  <div className="row between" style={{ marginBottom: 8 }}>
-                    <div className="row" style={{ gap: 8, alignItems: "center" }}>
-                      <Select value={asset.kind} onValueChange={(value) => updateAsset(i, { kind: value as BundleAssetKind, data: {} })}>
-                        <SelectTrigger aria-label={`Asset ${i + 1} type`} style={{ height: 30, minWidth: 160 }}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ASSET_KINDS.map(({ kind }) => (
-                            <SelectItem key={kind} value={kind}>{bundleAssetLabel(kind)}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <span className="smallcaps" style={{ color: "var(--ink-4)" }}>#{i + 1}</span>
-                    </div>
+                <div
+                  key={asset.uid}
+                  className="card"
+                  style={{
+                    padding: "12px 14px",
+                    border: duplicateUids.has(asset.uid) ? "1px solid var(--risk)" : undefined,
+                  }}
+                >
+                  {/* Header row: index + remove */}
+                  <div className="row between" style={{ marginBottom: 10, alignItems: "center" }}>
+                    <span style={{ fontSize: 11, color: "var(--ink-4)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Asset #{i + 1}
+                    </span>
                     {assets.length > 1 && (
-                      <Button variant="ghost" size="icon" onClick={() => removeAsset(i)} aria-label={`Remove asset ${i + 1}`}>
-                        <Icon.x style={{ width: 13, height: 13, color: "var(--risk)" }} />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeAsset(asset.uid)}
+                        aria-label={`Remove asset ${i + 1}`}
+                        style={{ width: 22, height: 22 }}
+                      >
+                        <Icon.x style={{ width: 11, height: 11, color: "var(--risk)" }} />
                       </Button>
                     )}
                   </div>
 
-                  <div className="col" style={{ gap: 6 }}>
-                    <Input
-                      value={asset.label}
-                      onChange={(e) => updateAsset(i, { label: e.target.value })}
-                      placeholder={`${bundleAssetLabel(asset.kind)} name or identifier`}
-                      maxLength={200}
-                      style={{ height: 30 }}
-                      aria-label={`Asset ${i + 1} label`}
-                    />
-                    <Input
-                      value={asset.detail}
-                      onChange={(e) => updateAsset(i, { detail: e.target.value })}
-                      placeholder="Quick detail (e.g. 45K followers, 1200 DAU, 2M supply)"
-                      maxLength={300}
-                      style={{ height: 30 }}
-                      aria-label={`Asset ${i + 1} detail`}
-                    />
+                  {/* Asset type — pill chips */}
+                  <div style={{ marginBottom: 10 }}>
+                    <span style={{ fontSize: 11, color: "var(--ink-3)", display: "block", marginBottom: 6 }}>Type</span>
+                    <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+                      {ASSET_KINDS.map(({ kind, icon, color }) => {
+                        const active = asset.kind === kind;
+                        return (
+                          <button
+                            key={kind}
+                            type="button"
+                            onClick={() => updateAsset(asset.uid, { kind: kind as BundleAssetKind })}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 5,
+                              padding: "4px 10px",
+                              borderRadius: 20,
+                              fontSize: 12,
+                              fontWeight: active ? 600 : 400,
+                              border: `1px solid ${active ? color : "var(--line)"}`,
+                              background: active
+                                ? `color-mix(in oklab, ${color} 12%, transparent)`
+                                : "transparent",
+                              color: active ? color : "var(--ink-3)",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <span style={{ display: "flex", width: 12, height: 12, color: active ? color : "var(--ink-4)" }}>{icon}</span>
+                            {bundleAssetLabel(kind)}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </Card>
+
+                  {/* Name + detail */}
+                  <div className="col" style={{ gap: 7 }}>
+                    <div>
+                      <span style={{ fontSize: 11, color: "var(--ink-3)", display: "block", marginBottom: 4 }}>
+                        {bundleAssetLabel(asset.kind)} name / identifier
+                      </span>
+                      <Input
+                        value={asset.label}
+                        onChange={(e) => updateAsset(asset.uid, { label: e.target.value })}
+                        placeholder={
+                          asset.kind === "x_account" ? "@handle"
+                          : asset.kind === "farcaster" ? "@handle or FID"
+                          : asset.kind === "clanker" ? "Token name or $SYMBOL"
+                          : "App name"
+                        }
+                        maxLength={200}
+                        style={{ height: 34, fontSize: 13 }}
+                      />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 11, color: "var(--ink-3)", display: "block", marginBottom: 4 }}>Quick detail (optional)</span>
+                      <Input
+                        value={asset.detail}
+                        onChange={(e) => updateAsset(asset.uid, { detail: e.target.value })}
+                        placeholder="e.g. 45K followers, 1200 DAU, 2M supply"
+                        maxLength={300}
+                        style={{ height: 34, fontSize: 13 }}
+                      />
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
 
-          <div className="row" style={{ justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid var(--line)" }}>
-            <span className="smallcaps" style={{ fontSize: 13 }}>Total bundle price</span>
-            <span className="mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--accent)" }}>
+          {/* Total price summary */}
+          <div className="row between" style={{ alignItems: "center", padding: "10px 0", borderTop: "1px solid var(--line)" }}>
+            <span className="smallcaps" style={{ fontSize: 12 }}>Total bundle price</span>
+            <span className="mono" style={{ fontSize: 18, fontWeight: 700, color: "var(--accent)" }}>
               {fmtUSDC(totalPrice)} USDC
             </span>
           </div>
 
           {error && <div className="warn-banner" style={{ fontSize: 12, color: "var(--risk)" }}>{error}</div>}
-
         </div>
 
-        <div className="modal-f bundle-modal-footer">
+        <div className="modal-f">
           <Button variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
           <Button onClick={handleSubmit} disabled={submitting || !canSubmit}>
-            {submitting ? "Signing..." : "Create bundle"}
+            {submitting ? "Signing…" : "Create bundle"}
           </Button>
         </div>
       </div>

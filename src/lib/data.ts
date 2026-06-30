@@ -59,10 +59,11 @@ const DISPLAY_KINDS: Record<BundleAssetKind, string> = {
 
 export function asBundleAssetKind(s: unknown): BundleAssetKind {
   const map: Record<string, BundleAssetKind> = {
-    nft_loan: "nft_loan", mini_app: "mini_app", x_account: "x_account",
+    nft_loan: "nft_loan",
+    mini_app: "mini_app", x_account: "x_account",
     farcaster: "farcaster", clanker: "clanker",
   };
-  return map[String(s)] || "nft_loan";
+  return map[String(s)] || "mini_app";
 }
 
 export function bundleAssetLabel(kind: BundleAssetKind): string {
