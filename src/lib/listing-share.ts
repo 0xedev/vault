@@ -31,6 +31,7 @@ export type ListingShareData = {
   priceLabel: string;
   imageUrl: string;
   pageUrl: string;
+  details: { label: string; value: string }[];
 };
 
 type ListingKindConfig = {
@@ -141,6 +142,20 @@ function priceLabel(value: unknown, currency = "USDC") {
   return `${price.toLocaleString("en-US", { maximumFractionDigits: 2 })} ${currency}`;
 }
 
+function compact(value: unknown) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value || "0");
+  return Intl.NumberFormat("en-US", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(n);
+}
+
+function joinValues(values: unknown[], fallback = "Included") {
+  const text = values.map(String).filter(Boolean).slice(0, 2).join(", ");
+  return text || fallback;
+}
+
 function shareDataForRow(
   kind: ListingShareKind,
   row: ListingRow,
@@ -155,6 +170,12 @@ function shareDataForRow(
       priceLabel: priceLabel(listing.amt),
       imageUrl: absoluteUrl(listing.imageUrl),
       pageUrl: pageUrlForListing(kind, listing.id),
+      details: [
+        { label: "Principal", value: priceLabel(listing.amt) },
+        { label: "APR", value: `${listing.apr}%` },
+        { label: "Term", value: `${listing.term}d` },
+        { label: "LTV", value: `${listing.ltv}%` },
+      ],
     };
   }
 
@@ -168,6 +189,15 @@ function shareDataForRow(
       priceLabel: priceLabel(listing.price),
       imageUrl: absoluteUrl(listing.imageUrl),
       pageUrl: pageUrlForListing(kind, listing.id),
+      details: [
+        { label: "DAU", value: compact(listing.dau) },
+        { label: "MRR", value: priceLabel(listing.mrr) },
+        { label: "Stack", value: joinValues(listing.stack, listing.kind) },
+        {
+          label: "Assets",
+          value: joinValues(listing.includes || [], listing.source ? "Source included" : "Negotiable"),
+        },
+      ],
     };
   }
 
@@ -181,6 +211,12 @@ function shareDataForRow(
       priceLabel: priceLabel(listing.price),
       imageUrl: absoluteUrl(listing.imageUrl),
       pageUrl: pageUrlForListing(kind, listing.id),
+      details: [
+        { label: "Followers", value: compact(listing.followers) },
+        { label: "Niche", value: listing.niche || "General" },
+        { label: "Engagement", value: `${listing.engagement}%` },
+        { label: "Posts / 30d", value: compact(listing.posts_30d) },
+      ],
     };
   }
 
@@ -194,6 +230,15 @@ function shareDataForRow(
       priceLabel: priceLabel(listing.price),
       imageUrl: absoluteUrl(listing.imageUrl),
       pageUrl: pageUrlForListing(kind, listing.id),
+      details: [
+        { label: "FID", value: `#${listing.fid}` },
+        { label: "Followers", value: compact(listing.followers) },
+        { label: "Casts / 30d", value: compact(listing.casts_30d) },
+        {
+          label: "Channel",
+          value: listing.channel || (listing.power_badge ? "Power badge" : "General"),
+        },
+      ],
     };
   }
 
@@ -207,6 +252,12 @@ function shareDataForRow(
       priceLabel: priceLabel(listing.price),
       imageUrl: absoluteUrl(listing.imageUrl),
       pageUrl: pageUrlForListing(kind, listing.id),
+      details: [
+        { label: "Symbol", value: listing.symbol || "Token" },
+        { label: "Supply", value: compact(listing.totalSupply) },
+        { label: "Remaining", value: compact(listing.remainingSupply) },
+        { label: "Fees", value: priceLabel(listing.feeEarnings) || "Included" },
+      ],
     };
   }
 
@@ -221,6 +272,18 @@ function shareDataForRow(
     priceLabel: priceLabel(listing.totalPrice, listing.currency),
     imageUrl: absoluteUrl(listing.imageUrl),
     pageUrl: pageUrlForListing(kind, listing.id),
+    details: [
+      { label: "Assets", value: String(listing.assets.length) },
+      {
+        label: "Includes",
+        value: joinValues(
+          listing.assets.map((asset) => asset.label),
+          "Multiple assets",
+        ),
+      },
+      { label: "Currency", value: listing.currency || "USDC" },
+      { label: "Listed", value: listing.createdAt ? new Date(listing.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "Live" },
+    ],
   };
 }
 
@@ -234,6 +297,12 @@ export function fallbackShareData(kind: ListingShareKind): ListingShareData {
     priceLabel: "",
     imageUrl: DEFAULT_IMAGE_URL,
     pageUrl: pageUrlForListing(kind),
+    details: [
+      { label: "Market", value: "Live" },
+      { label: "Escrow", value: "On-chain" },
+      { label: "Settlement", value: "USDC" },
+      { label: "Network", value: "Base" },
+    ],
   };
 }
 

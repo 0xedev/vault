@@ -1,12 +1,13 @@
 /* eslint-disable @next/next/no-img-element */
 import { ImageResponse } from "next/og";
 import {
+  DEFAULT_IMAGE_URL,
   fallbackShareData,
   getListingShareData,
   type ListingShareKind,
 } from "@/lib/listing-share";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 const size = {
@@ -44,6 +45,8 @@ export async function GET(request: Request) {
   const id = url.searchParams.get("id") || undefined;
   const data =
     (await getListingShareData(kind, id)) || fallbackShareData(kind);
+  const shouldRenderImage =
+    data.imageUrl && data.imageUrl !== DEFAULT_IMAGE_URL;
 
   return new ImageResponse(
     (
@@ -78,7 +81,7 @@ export async function GET(request: Request) {
               overflow: "hidden",
             }}
           >
-            {data.imageUrl ? (
+            {shouldRenderImage ? (
               <img
                 src={data.imageUrl}
                 alt=""
@@ -153,16 +156,16 @@ export async function GET(request: Request) {
                 display: "flex",
                 flexDirection: "column",
                 flex: 1,
-                justifyContent: "center",
+                justifyContent: "flex-start",
               }}
             >
               <div
                 style={{
                   display: "flex",
-                  fontSize: data.title.length > 34 ? 54 : 66,
-                  lineHeight: 1,
+                  fontSize: data.title.length > 34 ? 44 : 56,
+                  lineHeight: 1.04,
                   fontWeight: 900,
-                  marginBottom: 24,
+                  marginBottom: 16,
                   maxWidth: 640,
                 }}
               >
@@ -171,13 +174,60 @@ export async function GET(request: Request) {
               <div
                 style={{
                   display: "flex",
-                  fontSize: 28,
+                  fontSize: 24,
                   lineHeight: 1.25,
                   color: "#4b5563",
                   maxWidth: 610,
                 }}
               >
                 {data.subtitle}
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  marginTop: 24,
+                  flexWrap: "wrap",
+                }}
+              >
+                {data.details.slice(0, 4).map((detail) => (
+                  <div
+                    key={detail.label}
+                    style={{
+                      width: 140,
+                      display: "flex",
+                      flexDirection: "column",
+                      border: "2px solid #d1d5db",
+                      padding: "10px 12px",
+                      background: "#f9fafb",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        fontSize: 13,
+                        letterSpacing: 1.5,
+                        color: "#6b7280",
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        marginBottom: 7,
+                      }}
+                    >
+                      {detail.label}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        fontSize: detail.value.length > 12 ? 20 : 24,
+                        lineHeight: 1.05,
+                        fontWeight: 900,
+                        color: "#111827",
+                      }}
+                    >
+                      {detail.value}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
