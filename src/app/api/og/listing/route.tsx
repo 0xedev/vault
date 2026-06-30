@@ -4,6 +4,7 @@ import {
   DEFAULT_IMAGE_URL,
   fallbackShareData,
   getListingShareData,
+  type ListingShareKind,
 } from "@/lib/listing-share";
 
 export const dynamic = "force-dynamic";
