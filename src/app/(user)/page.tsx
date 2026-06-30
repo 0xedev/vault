@@ -13,7 +13,7 @@ import NFTArt from "@/components/NFTArt";
 import StatusPill from "@/components/StatusPill";
 import { useWallet } from "@/components/WalletProvider";
 import { COLLECTIONS } from "@/lib/data";
-import { fmtETH, fmtCompact, appColor } from "@/lib/utils";
+import { fmtUSDC, fmtCompact, appColor } from "@/lib/utils";
 import type {
   Loan,
   MiniApp,
@@ -119,7 +119,7 @@ function DashboardPreview({ loans }: { loans: Loan[] }) {
         </div>
         <div className="metric">
           <span className="lab">Active principal</span>
-          <span className="val">{fmtETH(activePrincipal)} Ξ</span>
+          <span className="val">{fmtUSDC(activePrincipal)} USDC</span>
         </div>
       </div>
       <Sparkline />
@@ -164,7 +164,7 @@ function DashboardPreview({ loans }: { loans: Loan[] }) {
             </div>
             <div className="col right" style={{ gap: 1 }}>
               <span className="mono" style={{ fontSize: 13 }}>
-                {fmtETH(l.amt)} Ξ
+                {fmtUSDC(l.amt)} USDC
               </span>
               <StatusPill s={l.status} />
             </div>
@@ -244,7 +244,7 @@ export default function LandingPage() {
       href: "/market",
       market: "NFT loan",
       title: `${COLLECTIONS[l.coll]} ${l.token}`,
-      meta: `${fmtETH(l.amt)} Ξ · ${l.apr}% APR · ${l.term}d`,
+      meta: `${fmtUSDC(l.amt)} USDC · ${l.apr}% APR · ${l.term}d`,
       value: `${l.ltv}% LTV`,
       color: "#4A6CF7",
       icon: l.imageUrl ? (
@@ -257,8 +257,8 @@ export default function LandingPage() {
       href: "/miniapps",
       market: "Mini app",
       title: topMiniApp.name,
-      meta: `${fmtCompact(topMiniApp.dau)} DAU · ${topMiniApp.mrr} Ξ MRR`,
-      value: `${topMiniApp.price} Ξ`,
+      meta: `${fmtCompact(topMiniApp.dau)} DAU · ${fmtUSDC(topMiniApp.mrr)} USDC MRR`,
+      value: `${fmtUSDC(topMiniApp.price)} USDC`,
       color: "#F97316",
       icon: (
         <span
@@ -278,7 +278,7 @@ export default function LandingPage() {
       market: "X account",
       title: topXAccount.handle,
       meta: `${fmtCompact(topXAccount.followers)} followers · ${topXAccount.engagement}% engagement`,
-      value: `${topXAccount.price} Ξ`,
+      value: `${fmtUSDC(topXAccount.price)} USDC`,
       color: "#52525B",
       icon: (
         <span
@@ -296,7 +296,7 @@ export default function LandingPage() {
       market: "Farcaster",
       title: `@${topFarcaster.handle}`,
       meta: `${fmtCompact(topFarcaster.followers)} followers · FID #${topFarcaster.fid}`,
-      value: `${topFarcaster.price} Ξ`,
+      value: `${fmtUSDC(topFarcaster.price)} USDC`,
       color: "#8B5CF6",
       icon: (
         <span
@@ -314,7 +314,7 @@ export default function LandingPage() {
       market: "Bundle",
       title: bundle.name,
       meta: `${bundle.assets.length} assets · ${bundle.currency || "USDC"}`,
-      value: `${bundle.totalPrice} Ξ`,
+      value: `${fmtUSDC(bundle.totalPrice)} ${bundle.currency || "USDC"}`,
       color: "#0EA5E9",
       icon: (
         <span
@@ -375,7 +375,7 @@ export default function LandingPage() {
               style={{ marginTop: 56, gap: 48, flexWrap: "wrap" }}
             >
               {[
-                ["Listed principal", `${fmtETH(totalPrincipal)} Ξ`],
+                ["Listed principal", `${fmtUSDC(totalPrincipal)} USDC`],
                 ["Active loans", String(loans.length)],
               ].map(([k, v]) => (
                 <div key={k} className="col" style={{ gap: 4 }}>
@@ -523,11 +523,11 @@ export default function LandingPage() {
                     marginTop: 2,
                   }}
                 >
-                  Hollow Forms #3301 will be transferred to the lender if 4.21 Ξ
+                  Hollow Forms #3301 will be transferred to the lender if 4.21 USDC
                   isn&apos;t repaid by 22:00 UTC.
                 </div>
                 <div className="row" style={{ gap: 8, marginTop: 10 }}>
-                  <button className="btn primary sm">Repay 4.21 Ξ</button>
+                  <button className="btn primary sm">Repay 4.21 USDC</button>
                   <button className="btn sm ghost">Refinance</button>
                 </div>
               </div>
@@ -574,7 +574,7 @@ export default function LandingPage() {
               <span>Listings</span>
             </div>
             <div>
-              <strong>{fmtETH(totalPrincipal)} Ξ</strong>
+              <strong>{fmtUSDC(totalPrincipal)} USDC</strong>
               <span>NFT principal</span>
             </div>
             <div>

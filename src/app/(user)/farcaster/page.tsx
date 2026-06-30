@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import ListFidModal from "@/components/ListFidModal";
 import type { FarcasterAccount } from "@/lib/data";
-import { fmtCompact } from "@/lib/utils";
+import { fmtCompact, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, parseContractError, writeApproveUsdc } from "@/lib/contract";
 import { parseUnits, type Address } from "viem";
@@ -179,7 +179,7 @@ export default function FarcasterPage() {
                 <td className="muted">/{a.channel}</td>
                 <td className="right mono">{fmtCompact(a.followers)}</td>
                 <td className="right mono">{a.casts_30d}</td>
-                <td className="right mono">{a.rev_30d > 0 ? `${a.rev_30d} Ξ` : <span className="muted-2">—</span>}</td>
+                <td className="right mono">{a.rev_30d > 0 ? `${fmtUSDC(a.rev_30d)} USDC` : <span className="muted-2">—</span>}</td>
                 <td>
                   <div className="row" style={{ gap: 4 }}>
                     {a.power_badge && <span className="pill" style={{ background: "color-mix(in oklab, var(--gold) 14%, transparent)", color: "var(--gold)", borderColor: "color-mix(in oklab, var(--gold) 30%, transparent)" }}><span className="pdot" style={{ background: "var(--gold)" }}/>Power</span>}

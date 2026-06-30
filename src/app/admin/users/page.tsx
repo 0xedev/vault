@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { fmtUSDC } from "@/lib/utils";
 
 type AdminUser = {
   addr: string;
@@ -90,7 +91,7 @@ export default function AdminUsersPage() {
                 <td className="muted">{new Date(u.joined).toLocaleDateString()}</td>
                 <td className="right mono">{u.trades.toLocaleString()}</td>
                 <td>{u.flags > 0 ? <span style={{ color: u.flags >= 3 ? "var(--risk)" : "var(--warn)", fontFamily: "var(--mono)", fontSize: 12 }}>{u.flags}</span> : <span className="muted-2">-</span>}</td>
-                <td className="right mono">{u.locked > 0 ? `${u.locked.toFixed(3)} Ξ` : <span className="muted-2">-</span>}</td>
+                <td className="right mono">{u.locked > 0 ? `${fmtUSDC(u.locked)} USDC` : <span className="muted-2">-</span>}</td>
                 <td><UserStatus status={u.status} /></td>
                 <td className="right">
                   <div className="row" style={{ gap: 6, justifyContent: "flex-end" }}>

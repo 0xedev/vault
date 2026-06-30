@@ -10,7 +10,7 @@ import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
 import { parseUnits, type Address } from "viem";
 import type { ClankerToken } from "@/lib/data";
-import { fmtCompact } from "@/lib/utils";
+import { fmtCompact, fmtUSDC } from "@/lib/utils";
 
 function Stat({ lab, v }: { lab: string; v: string }) {
   return (
@@ -358,7 +358,7 @@ export default function ClankerPage() {
               <div className="grid grid-3" style={{ gap: 8, marginBottom: 10 }}>
                 <Stat lab="Supply" v={fmtCompact(t.totalSupply)} />
                 <Stat lab="Remaining" v={fmtCompact(t.remainingSupply)} />
-                <Stat lab="Price" v={`${t.price} Ξ`} />
+                <Stat lab="Price" v={`${fmtUSDC(t.price)} USDC`} />
               </div>
               {t.vaultedAmount > 0 && (
                 <div style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 4 }}>
@@ -385,7 +385,7 @@ export default function ClankerPage() {
             </div>
             <div className="modal-b col" style={{ gap: 14, maxHeight: "70vh", overflowY: "auto" }}>
               <div className="grid grid-3" style={{ gap: 12 }}>
-                <div className="metric"><span className="lab">Price</span><span className="val">{selectedToken.price} Ξ</span></div>
+                <div className="metric"><span className="lab">Price</span><span className="val">{fmtUSDC(selectedToken.price)} USDC</span></div>
                 <div className="metric"><span className="lab">Chain</span><span className="val" style={{ fontSize: 16 }}>{selectedToken.chain}</span></div>
                 <div className="metric"><span className="lab">Symbol</span><span className="val" style={{ fontSize: 16 }}>${selectedToken.symbol}</span></div>
               </div>
@@ -515,7 +515,7 @@ export default function ClankerPage() {
               </div>
 
               <div className="grid grid-2" style={{ gap: 12 }}>
-                <div><span className="label">Price (Ξ)</span><input className="input mono" type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} /></div>
+                <div><span className="label">Price (USDC)</span><input className="input mono" type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} /></div>
                 <div><span className="label">Chain</span><input className="input" value={chain} readOnly /></div>
               </div>
               <div><span className="label">Sale notes</span><textarea className="input" style={{ minHeight: 60 }} value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional terms, transfer steps, or what is included." /></div>

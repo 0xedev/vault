@@ -6,6 +6,7 @@ import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
 import { hashMetadata, writeListBundle, waitForDealId, parseContractError } from "@/lib/contract";
 import { bundleAssetLabel, type BundleAssetKind } from "@/lib/data";
+import { fmtUSDC } from "@/lib/utils";
 import { parseUnits, type Address } from "viem";
 
 const ASSET_KINDS: { kind: BundleAssetKind; icon: React.ReactNode }[] = [
@@ -274,7 +275,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
           <div className="row" style={{ justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderTop: "1px solid var(--line)" }}>
             <span className="smallcaps" style={{ fontSize: 13 }}>Total bundle price</span>
             <span className="mono" style={{ fontSize: 20, fontWeight: 700, color: "var(--accent)" }}>
-              {totalPrice.toFixed(4)} USDC
+              {fmtUSDC(totalPrice)} USDC
             </span>
           </div>
 

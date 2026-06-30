@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import React, { useEffect, useState } from "react";
 import StatusPill from "@/components/StatusPill";
 import type { Escrow } from "@/lib/data";
+import { fmtUSDC } from "@/lib/utils";
 
 export default function AdminEscrowPage() {
   const [escrows, setEscrows] = useState<Escrow[]>([]);
@@ -35,7 +36,7 @@ export default function AdminEscrowPage() {
 
       <div className="grid grid-4" style={{ marginBottom: 22 }}>
         <div className="metric"><span className="lab">Active escrows</span><span className="val">{escrows.length}</span></div>
-        <div className="metric"><span className="lab">Total locked</span><span className="val">{locked.toFixed(3)} Ξ</span></div>
+        <div className="metric"><span className="lab">Total locked</span><span className="val">{fmtUSDC(locked)} USDC</span></div>
         <div className="metric"><span className="lab">Needs action</span><span className="val" style={{ color: "var(--warn)" }}>{needsAction}</span></div>
         <div className="metric"><span className="lab">Auto-release queue</span><span className="val">{escrows.filter((e) => e.stage === "Awaiting confirmation").length}</span></div>
       </div>
@@ -54,7 +55,7 @@ export default function AdminEscrowPage() {
                 <td>{e.kind}</td>
                 <td className="mono">{e.party}</td>
                 <td>{e.asset}</td>
-                <td className="right mono">{e.amount} {e.asset_type}</td>
+                <td className="right mono">{fmtUSDC(e.amount)} {e.asset_type}</td>
                 <td><StatusPill s={e.stage} /></td>
                 <td className="muted">{e.deadline}</td>
                 <td className="right">

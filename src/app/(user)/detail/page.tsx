@@ -10,7 +10,7 @@ import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
 import StatusPill from "@/components/StatusPill";
 import { COLLECTIONS } from "@/lib/data";
-import { fmtETH } from "@/lib/utils";
+import { fmtETH, fmtUSDC } from "@/lib/utils";
 import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
 import { getPublicClient, writeSubmitOffer, writeAcceptOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline, writeApproveUsdc, getNftAddress, readPlatformFeeBps } from "@/lib/contract";
@@ -120,13 +120,13 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
           {done ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
               <Icon.check style={{ width: 36, height: 36, color: "var(--accent)" }} />
-              <p style={{ fontSize: 14, margin: "12px 0 4px" }}>{fmtETH(amt)} USDC at {apr}% / {term}d submitted.</p>
+              <p style={{ fontSize: 14, margin: "12px 0 4px" }}>{fmtUSDC(amt)} USDC at {apr}% / {term}d submitted.</p>
               <p className="muted-2" style={{ fontSize: 12 }}>The borrower can now accept, reject, or counter.</p>
             </div>
           ) : (
             <>
               <p className="muted" style={{ marginTop: 0, fontSize: 12, lineHeight: 1.4 }}>
-                Listed: {fmtETH(l.amt)} USDC at {l.apr}% / {l.term}d. Submit your terms.
+                Listed: {fmtUSDC(l.amt)} USDC at {l.apr}% / {l.term}d. Submit your terms.
               </p>
               <div className="grid grid-2" style={{ marginTop: 12, gap: 10 }}>
                 <div><span className="label">Amount (USDC)</span><input className="input mono" type="number" step="0.1" value={amt} onChange={(e) => setAmt(+e.target.value)} /></div>
@@ -547,7 +547,7 @@ function LoanDetailContent() {
                       <span className="muted-2" style={{ fontSize: 11 }}>{new Date(o.when).toLocaleString()}</span>
                     </div>
                     <div className="col right" style={{ gap: 1 }}>
-                      <span className="mono" style={{ fontSize: 13 }}>{fmtETH(o.amt)} USDC · {o.apr}% · {o.term}d</span>
+                      <span className="mono" style={{ fontSize: 13 }}>{fmtUSDC(o.amt)} USDC · {o.apr}% · {o.term}d</span>
                       <span className="muted-2" style={{ fontSize: 11, textTransform: "capitalize" }}>{o.status}</span>
                     </div>
                     {isSeller ? (
@@ -611,7 +611,7 @@ function LoanDetailContent() {
         <div className="col" style={{ gap: 18 }}>
           <div className="card" style={{ padding: 22 }}>
             <div className="eyebrow">Loan terms</div>
-            <div className="kv"><span className="k">Principal</span><span className="v big">{fmtETH(l.amt)} USDC</span></div>
+            <div className="kv"><span className="k">Principal</span><span className="v big">{fmtUSDC(l.amt)} USDC</span></div>
             <div className="kv"><span className="k">Interest ({l.apr}% APR)</span><span className="v">+ {proRatedInterest.toFixed(3)} USDC</span></div>
             <div className="kv"><span className="k">Repayment due</span><span className="v">{repaymentDue.toFixed(3)} USDC {deadlinePassed ? <span style={{ color: "var(--risk)", fontSize: 11 }}>(overdue)</span> : ""}</span></div>
             <div className="kv"><span className="k">Term</span><span className="v">{l.term} days</span></div>
@@ -657,7 +657,7 @@ function LoanDetailContent() {
             </div>
             <div className="muted-2" style={{ fontSize: 11.5, marginTop: 10, textAlign: "center" }}>
               {!isFunded
-                ? `NFT is locked in escrow. Borrower receives ${fmtETH(l.amt)} USDC only when they accept an offer.`
+                ? `NFT is locked in escrow. Borrower receives ${fmtUSDC(l.amt)} USDC only when they accept an offer.`
                 : isRepaid ? "Loan repaid. NFT returned to borrower."
                 : isDefaulted ? "Loan defaulted. NFT claimed by lender."
                 : deadlinePassed && isBorrower
@@ -702,7 +702,7 @@ function LoanDetailContent() {
             <hr className="hr" style={{ margin: "16px 0" }} />
             <div className="tline">
               <div className="ev done"><div className="ttl">NFT locked in escrow</div><div className="sub">{l.contractListingId ? "On-chain synced" : "Pending sync"}</div></div>
-              <div className="ev done"><div className="ttl">Loan funded · {fmtETH(l.amt)} USDC to borrower</div><div className="sub">{isFunded || isRepaid || isDefaulted ? "Funded" : "Awaiting lender"}</div></div>
+              <div className="ev done"><div className="ttl">Loan funded · {fmtUSDC(l.amt)} USDC to borrower</div><div className="sub">{isFunded || isRepaid || isDefaulted ? "Funded" : "Awaiting lender"}</div></div>
               {deadlinePassed ? (
                 <div className="ev now" style={{ color: "var(--risk)" }}><div className="ttl">Deadline passed</div><div className="sub">{deadline ? formatDate(deadline) : ""}</div></div>
               ) : (

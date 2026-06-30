@@ -7,6 +7,7 @@ import Link from "next/link";
 import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
 import { readPaused, readPausedDeals, writePause, writeUnpause, writePauseDeals, writeUnpauseDeals, writeAddAdmin, writeRemoveAdmin, writeSetTreasury, writeSetPlatformFee, writeAddAdminDeals, writeRemoveAdminDeals, writeSetTreasuryDeals, writeSetPlatformFeeDeals, sendContractCalls, VaultNFT_ABI, VaultDeals_ABI, getNftAddress, getDealsAddress, parseContractError, getPublicClient, type ContractCall } from "@/lib/contract";
+import { fmtUSDC } from "@/lib/utils";
 import { type Address } from "viem";
 
 type Summary = {
@@ -144,8 +145,8 @@ export default function AdminDashboardPage() {
       {error && <div className="warn-banner" style={{ marginBottom: 18 }}>{error}</div>}
 
       <div className="grid grid-4" style={{ marginBottom: 22 }}>
-        <div className="metric"><span className="lab">Locked GMV</span><span className="val">{summary.totalLocked.toFixed(3)} Ξ</span><span className="delta">active escrows only</span></div>
-        <div className="metric"><span className="lab">Estimated fees</span><span className="val">{summary.estimatedFees.toFixed(3)} Ξ</span><span className="delta">from current locked value</span></div>
+        <div className="metric"><span className="lab">Locked GMV</span><span className="val">{fmtUSDC(summary.totalLocked)} USDC</span><span className="delta">active escrows only</span></div>
+        <div className="metric"><span className="lab">Estimated fees</span><span className="val">{fmtUSDC(summary.estimatedFees)} USDC</span><span className="delta">from current locked value</span></div>
         <Link href="/admin/disputes" style={{ textDecoration: "none", color: "inherit" }}>
           <div className="metric" style={{ cursor: "pointer" }}><span className="lab">Active disputes</span><span className="val" style={{ color: "var(--warn)" }}>{summary.activeDisputes}</span><span className="delta" style={{ color: "var(--warn)" }}>requires review</span></div>
         </Link>
@@ -162,7 +163,7 @@ export default function AdminDashboardPage() {
         </div>
         <div className="card" style={{ padding: 22 }}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>Settlement Health</div>
-          <div className="metric"><span className="lab">Escrow utilization</span><span className="val">{summary.totalLocked.toFixed(3)} Ξ</span><span className="delta">live locked funds</span></div>
+          <div className="metric"><span className="lab">Escrow utilization</span><span className="val">{fmtUSDC(summary.totalLocked)} USDC</span><span className="delta">live locked funds</span></div>
           <div className="row" style={{ marginTop: 16, gap: 8 }}>
             <span className="smallcaps">NFT</span>
             <span className={"pill" + (paused ? " danger" : " success")} style={{ fontSize: 12 }}>

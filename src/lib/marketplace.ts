@@ -183,7 +183,7 @@ export function mapBundleListing(row: ListingRow): BundleListing {
     imageUrl: asString(data.imageUrl),
     assets,
     totalPrice: asNumber(row.price),
-    currency: asString(row.currency, "ETH"),
+    currency: asString(row.currency, "USDC"),
     sellerAddress: String(row.seller_address || ""),
     chainId: asNumber(row.chain_id),
     contractAddress: asString(row.contract_address),

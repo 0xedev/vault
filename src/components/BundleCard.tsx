@@ -5,7 +5,7 @@ import React from "react";
 import Link from "next/link";
 import Icon from "@/components/icons";
 import { bundleAssetLabel, type BundleListing } from "@/lib/data";
-import { fmtETH } from "@/lib/utils";
+import { fmtUSDC } from "@/lib/utils";
 
 const ASSET_ICONS: Record<string, React.ReactNode> = {
   nft_loan: <Icon.loan />,
@@ -16,7 +16,8 @@ const ASSET_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function BundleCard({ bundle }: { bundle: BundleListing }) {
-  const totalPrice = fmtETH(bundle.totalPrice);
+  const currency = bundle.currency || "USDC";
+  const totalPrice = fmtUSDC(bundle.totalPrice);
 
   return (
     <Link href={`/market?tab=bundles&id=${encodeURIComponent(bundle.id)}`} className="bundle-card">
@@ -41,7 +42,7 @@ export default function BundleCard({ bundle }: { bundle: BundleListing }) {
             <span className="bundle-asset-label">{asset.label}</span>
             <span className="bundle-asset-kind">{bundleAssetLabel(asset.kind)}</span>
             {asset.price > 0 && (
-              <span className="bundle-asset-price">{fmtETH(asset.price)} Ξ</span>
+              <span className="bundle-asset-price">{fmtUSDC(asset.price)} {currency}</span>
             )}
           </div>
         ))}
@@ -52,7 +53,7 @@ export default function BundleCard({ bundle }: { bundle: BundleListing }) {
         )}
       </div>
       <div className="bundle-card-foot">
-        <span className="bundle-price">{totalPrice} Ξ</span>
+        <span className="bundle-price">{totalPrice} {currency}</span>
         <span className="bundle-cta">View <Icon.arrow /></span>
       </div>
     </Link>

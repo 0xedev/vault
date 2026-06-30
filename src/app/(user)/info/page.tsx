@@ -73,7 +73,7 @@ export default function InfoPage() {
           <div className="eyebrow" style={{ marginBottom: 14 }}>Fees & settlement</div>
           <div className="col" style={{ gap: 14 }}>
             <div className="kv"><span className="k">Platform fee</span><span className="v">1.5% of deal principal</span></div>
-            <div className="kv"><span className="k">Escrow currency</span><span className="v">ETH on Base</span></div>
+            <div className="kv"><span className="k">Escrow currency</span><span className="v">USDC on Base</span></div>
             <div className="kv"><span className="k">NFT loan APR</span><span className="v">Market-determined, typically 10–25%</span></div>
             <div className="kv"><span className="k">Deal terms</span><span className="v">Flexible — set by seller</span></div>
             <div className="kv"><span className="k">Disputes</span><span className="v">Admin-mediated with on-chain resolution</span></div>

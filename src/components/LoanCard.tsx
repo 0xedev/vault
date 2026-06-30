@@ -3,7 +3,7 @@ import Link from "next/link";
 import NFTArt from "./NFTArt";
 import StatusPill from "./StatusPill";
 import { COLLECTIONS } from "@/lib/data";
-import { fmtETH } from "@/lib/utils";
+import { fmtETH, fmtUSDC } from "@/lib/utils";
 import type { Loan } from "@/lib/data";
 
 function NftImage({ l }: { l: Loan }) {
@@ -38,7 +38,7 @@ export default function LoanCard({ l }: { l: Loan }) {
       <div className="row between">
         <div className="col" style={{ gap: 1 }}>
           <span className="meta">Borrow</span>
-          <span className="amt">{fmtETH(l.amt)} <span style={{ fontSize: 12, color: "var(--ink-3)" }}>Ξ</span></span>
+          <span className="amt">{fmtUSDC(l.amt)} <span style={{ fontSize: 12, color: "var(--ink-3)" }}>USDC</span></span>
         </div>
         <div className="col" style={{ gap: 1 }}>
           <span className="meta">APR</span>

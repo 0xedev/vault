@@ -10,6 +10,12 @@ export function fmtUSD(n: number) {
   return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
+export function fmtUSDC(n: number) {
+  return n.toLocaleString("en-US", {
+    maximumFractionDigits: 4,
+  });
+}
+
 export function fmtCompact(n: number): string {
   if (n >= 1e6) return (n / 1e6).toFixed(1) + "m";
   if (n >= 1e3) return (n / 1e3).toFixed(n >= 10000 ? 0 : 1) + "k";

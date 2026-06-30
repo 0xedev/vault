@@ -25,7 +25,7 @@ import {
   transferClankerTokenAdmin,
   transferClankerTokenSupply,
 } from "@/lib/clanker-writes";
-import { fmtETH, fmtUSD } from "@/lib/utils";
+import { fmtUSDC } from "@/lib/utils";
 import { selectedRights } from "@/lib/clanker";
 import type { BundleListing, ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount } from "@/lib/data";
 import { type Address, type Hash } from "viem";
@@ -557,8 +557,8 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
               <span className="pill gold">{deal.bundleAssets.length > 0 ? <><Icon.shield style={{ width: 12, height: 12, marginRight: 4 }} />{deal.bundleAssets.length} assets</> : "Buyer confirms"}</span>
             </div>
             <div className="grid grid-3" style={{ marginTop: 12 }}>
-              <div className="metric"><span className="lab">Amount</span><span className="val">{deal.price} {deal.currency}</span><span className="delta">≈ {fmtUSD(deal.price * 3450)}</span></div>
-              <div className="metric"><span className="lab">Monthly fees</span><span className="val">{deal.mrr} {deal.currency}</span><span className="delta">seller-provided</span></div>
+              <div className="metric"><span className="lab">Amount</span><span className="val">{fmtUSDC(deal.price)} {deal.currency}</span><span className="delta">escrow value</span></div>
+              <div className="metric"><span className="lab">Monthly fees</span><span className="val">{fmtUSDC(deal.mrr)} {deal.currency}</span><span className="delta">seller-provided</span></div>
               <div className="metric"><span className="lab">Chain</span><span className="val" style={{ fontSize: 16 }}>{deal.chain}</span><span className="delta">escrow network</span></div>
             </div>
             {deal.isBundle && deal.bundleAssets.length > 0 && (
@@ -704,9 +704,9 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
 
           <div className="card" style={{ padding: 18 }}>
             <div className="eyebrow" style={{ marginBottom: 10 }}>Funds in escrow</div>
-            <div className="kv"><span className="k">Buyer deposit</span><span className="v">{deal.price} {deal.currency}</span></div>
-            <div className="kv"><span className="k">Platform fee ({platformFeeBps / 100}%)</span><span className="v">{(deal.price * platformFeeBps / 10000).toFixed(2)} {deal.currency}</span></div>
-            <div className="kv"><span className="k">Net to seller</span><span className="v" style={{ color: "var(--accent)" }}>{(deal.price * (1 - platformFeeBps / 10000)).toFixed(2)} {deal.currency}</span></div>
+            <div className="kv"><span className="k">Buyer deposit</span><span className="v">{fmtUSDC(deal.price)} {deal.currency}</span></div>
+            <div className="kv"><span className="k">Platform fee ({platformFeeBps / 100}%)</span><span className="v">{fmtUSDC(deal.price * platformFeeBps / 10000)} {deal.currency}</span></div>
+            <div className="kv"><span className="k">Net to seller</span><span className="v" style={{ color: "var(--accent)" }}>{fmtUSDC(deal.price * (1 - platformFeeBps / 10000))} {deal.currency}</span></div>
             {actionNotice && <div className="warn-banner" style={{ marginTop: 12, fontSize: 12 }}>{actionNotice}</div>}
             <div className="row" style={{ gap: 8, marginTop: 16 }}>
               {actorRole === "buyer" ? (
@@ -994,7 +994,7 @@ export default function DealsPage() {
         <div>
           <div className="eyebrow">Profile</div>
           <h1 className="h2" style={{ marginTop: 8 }}>
-            {fmtETH(totalLocked)} Ξ locked · {active.length} active
+            {fmtUSDC(totalLocked)} USDC locked · {active.length} active
           </h1>
         </div>
         <div className="row" style={{ gap: 10 }}>
@@ -1007,7 +1007,7 @@ export default function DealsPage() {
       <div className="grid grid-4" style={{ marginBottom: 24 }}>
         <div className="metric">
           <span className="lab">Funds locked</span>
-          <span className="val">{fmtETH(totalLocked)} Ξ</span>
+          <span className="val">{fmtUSDC(totalLocked)} USDC</span>
           <span className="delta">across {active.length} active deals</span>
         </div>
         <div className="metric">
@@ -1066,7 +1066,7 @@ export default function DealsPage() {
                   <div>
                     <span className="smallcaps">{listing.kind}</span>
                     <strong>{listing.title}</strong>
-                    <small>{listing.price} {listing.currency} · {listing.status}</small>
+                    <small>{fmtUSDC(listing.price)} {listing.currency} · {listing.status}</small>
                   </div>
                   <details className="listing-actions-menu">
                     <summary className="btn sm">Manage</summary>
@@ -1164,7 +1164,7 @@ export default function DealsPage() {
                     </td>
                     <td className="mono hide-mobile">{e.party}</td>
                     <td>{e.asset}</td>
-                    <td className="right mono">{fmtETH(e.amount)} {e.asset_type}</td>
+                    <td className="right mono">{fmtUSDC(e.amount)} {e.asset_type}</td>
                     <td><StatusPill s={e.stage} /></td>
                     <td className="muted hide-mobile">{e.deadline}</td>
                     <td>

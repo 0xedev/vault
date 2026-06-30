@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
-import { appColor, fmtCompact } from "@/lib/utils";
+import { appColor, fmtCompact, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
 import { parseUnits, type Address } from "viem";
@@ -154,11 +154,11 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
               <input className="input mono" value={dau} onChange={e => setDau(e.target.value)} placeholder="1.2k" />
             </div>
             <div className="col" style={{ gap: 4 }}>
-              <span className="label">MRR (Ξ)</span>
+              <span className="label">MRR (USDC)</span>
               <input className="input mono" value={mrr} onChange={e => setMrr(e.target.value)} placeholder="0.5" />
             </div>
             <div className="col" style={{ gap: 4 }}>
-              <span className="label">Price (Ξ)</span>
+              <span className="label">Price (USDC)</span>
               <input className="input mono" value={price} onChange={e => setPrice(e.target.value)} placeholder="12" />
             </div>
           </div>
@@ -404,13 +404,13 @@ export default function MiniAppsPage() {
               <div className="row between"><span className="nm trunc">{a.name}</span><span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{a.id}</span></div>
               <div className="row between">
                 <div className="col" style={{ gap: 1 }}><span className="meta">DAU</span><span className="amt mono" style={{ fontSize: 14 }}>{fmtCompact(a.dau)}</span></div>
-                <div className="col" style={{ gap: 1 }}><span className="meta">MRR</span><span className="amt mono" style={{ fontSize: 14 }}>{a.mrr} Ξ</span></div>
+                <div className="col" style={{ gap: 1 }}><span className="meta">MRR</span><span className="amt mono" style={{ fontSize: 14 }}>{fmtUSDC(a.mrr)} USDC</span></div>
                 <div className="col" style={{ gap: 1 }}><span className="meta">Age</span><span className="amt mono" style={{ fontSize: 14 }}>{a.age}</span></div>
               </div>
               <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 8 }}>{a.stack.map(s => <span key={s} className="chip" style={{ pointerEvents: "none", padding: "2px 7px", fontSize: 10.5 }}>{s}</span>)}</div>
               <div className="row between" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
                 <span className="meta">Asking</span>
-                <span className="mono" style={{ fontSize: 16 }}>{a.price} <span style={{ color: "var(--ink-3)", fontSize: 12 }}>Ξ</span></span>
+                <span className="mono" style={{ fontSize: 16 }}>{fmtUSDC(a.price)} <span style={{ color: "var(--ink-3)", fontSize: 12 }}>USDC</span></span>
               </div>
               <button className="btn primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || a.sellerAddress?.toLowerCase() === address?.toLowerCase()} style={{ width: "100%", justifyContent: "center" }}>
                 {buying === a.id ? "Funding escrow..." : a.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Your listing" : "Buy with escrow"}

@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import LoanCard from "@/components/LoanCard";
 import Dropdown from "@/components/Dropdown";
@@ -13,14 +13,20 @@ import { COLLECTIONS, bundleAssetLabel } from "@/lib/data";
 import { useWallet } from "@/components/WalletProvider";
 import {
   approveNft,
+  getDealsAddress,
+  getEscrowAddress,
+  getPublicClient,
   getNftAddress,
+  writeApproveUsdc,
+  writeFundDeal,
   writeListNFT,
   waitForListingId,
   parseContractError,
   readPlatformFeeBps,
 } from "@/lib/contract";
 import { getActiveWalletProvider } from "@/lib/contract-helpers";
-import { parseUnits } from "viem";
+import { fmtUSDC } from "@/lib/utils";
+import { parseUnits, type Address } from "viem";
 import type {
   ClankerToken,
   FarcasterAccount,
@@ -665,10 +671,22 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function BundleDetailPanel({ bundle }: { bundle: BundleListing }) {
+function BundleDetailPanel({
+  bundle,
+  buying,
+  buyerAddress,
+  onBuy,
+}: {
+  bundle: BundleListing;
+  buying: boolean;
+  buyerAddress?: string | null;
+  onBuy: (bundle: BundleListing) => void;
+}) {
   const seller = bundle.sellerAddress
     ? `${bundle.sellerAddress.slice(0, 6)}...${bundle.sellerAddress.slice(-4)}`
     : "Unknown";
+  const isOwnListing = bundle.sellerAddress?.toLowerCase() === buyerAddress?.toLowerCase();
+  const isPendingSync = !bundle.contractListingId;
 
   return (
     <section className="bundle-detail-panel">
@@ -695,7 +713,7 @@ function BundleDetailPanel({ bundle }: { bundle: BundleListing }) {
         <div className="grid grid-3" style={{ marginTop: 18 }}>
           <div className="metric">
             <span className="lab">Bundle price</span>
-            <span className="val">{bundle.totalPrice} {bundle.currency || "USDC"}</span>
+            <span className="val">{fmtUSDC(bundle.totalPrice)} {bundle.currency || "USDC"}</span>
           </div>
           <div className="metric">
             <span className="lab">Assets</span>
@@ -715,9 +733,25 @@ function BundleDetailPanel({ bundle }: { bundle: BundleListing }) {
                 <strong>{asset.label}</strong>
                 <small>{bundleAssetLabel(asset.kind)}{asset.detail ? ` · ${asset.detail}` : ""}</small>
               </div>
-              {asset.price > 0 && <em>{asset.price} {bundle.currency || "USDC"}</em>}
+              {asset.price > 0 && <em>{fmtUSDC(asset.price)} {bundle.currency || "USDC"}</em>}
             </div>
           ))}
+        </div>
+        <div className="row" style={{ gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
+          <Link href="/market?tab=bundles" className="btn">Back to bundles</Link>
+          <button
+            className="btn primary"
+            onClick={() => onBuy(bundle)}
+            disabled={buying || isOwnListing || isPendingSync}
+          >
+            {buying
+              ? "Funding escrow..."
+              : isOwnListing
+                ? "Your listing"
+                : isPendingSync
+                  ? "Pending chain sync"
+                  : "Buy with escrow"}
+          </button>
         </div>
       </div>
     </section>
@@ -725,6 +759,7 @@ function BundleDetailPanel({ bundle }: { bundle: BundleListing }) {
 }
 
 export default function MarketplacePage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const selectedBundleId = searchParams.get("id");
   const [activeMarket, setActiveMarket] = useState<MarketTab>("all");
@@ -741,6 +776,7 @@ export default function MarketplacePage() {
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [showListModal, setShowListModal] = useState(false);
   const [showBundleModal, setShowBundleModal] = useState(false);
+  const [buyingBundleId, setBuyingBundleId] = useState("");
   const [chainLoading, setChainLoading] = useState(false);
   const [showOnChain, setShowOnChain] = useState(false);
   const { isConnected, connect, isConnecting, address } = useWallet();
@@ -884,6 +920,53 @@ export default function MarketplacePage() {
       return;
     }
     setShowListModal(true);
+  };
+
+  const fundBundleEscrow = async (bundle: BundleListing) => {
+    if (!isConnected || !address) {
+      connect();
+      return;
+    }
+    setBuyingBundleId(bundle.id);
+    setError("");
+    try {
+      if (!bundle.sellerAddress) throw new Error("Listing seller is missing.");
+      if (bundle.sellerAddress.toLowerCase() === address.toLowerCase()) {
+        throw new Error("You cannot buy your own listing.");
+      }
+      if (!bundle.contractListingId) {
+        throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
+      }
+
+      const amountWei = parseUnits(String(bundle.totalPrice), 6);
+      const approveHash = await writeApproveUsdc(address as Address, await getDealsAddress(), amountWei);
+      await getPublicClient().waitForTransactionReceipt({ hash: approveHash });
+      const txHash = await writeFundDeal(address as Address, BigInt(bundle.contractListingId), amountWei);
+
+      const res = await fetch("/api/escrows", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          listingId: bundle.id,
+          buyerAddress: address,
+          sellerAddress: bundle.sellerAddress,
+          amount: bundle.totalPrice,
+          currency: bundle.currency || "USDC",
+          chainId: bundle.chainId || 8453,
+          contractAddress: bundle.contractAddress || getEscrowAddress(),
+          contractListingId: bundle.contractListingId,
+          txHash,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Unable to create escrow");
+      router.push(`/deals?id=${encodeURIComponent(json.data?.id || bundle.id)}`);
+    } catch (err) {
+      setError(parseContractError(err));
+    } finally {
+      setBuyingBundleId("");
+    }
   };
 
   return (
@@ -1432,7 +1515,14 @@ export default function MarketplacePage() {
       {/* BUNDLES TAB */}
       {activeMarket === "bundles" && (
         <>
-          {selectedBundle && <BundleDetailPanel bundle={selectedBundle} />}
+          {selectedBundle && (
+            <BundleDetailPanel
+              bundle={selectedBundle}
+              buying={buyingBundleId === selectedBundle.id}
+              buyerAddress={address}
+              onBuy={fundBundleEscrow}
+            />
+          )}
           <div className="bundle-all-grid">
             {bundles.length === 0 ? (
               <div
