@@ -15,6 +15,10 @@ import {
   disconnectFarcasterMiniAppWallet,
   reconnectFarcasterMiniAppWallet,
 } from "@/lib/farcaster-wagmi";
+import {
+  connectReownAppKitWallet,
+  reconnectReownAppKitWallet,
+} from "@/lib/reown-appkit";
 import { setActiveWalletProvider } from "@/lib/contract-helpers";
 import { logClientError } from "@/lib/client-log";
 
@@ -79,13 +83,32 @@ async function selectWalletProvider(
         ? await connectFarcasterMiniAppWallet()
         : await reconnectFarcasterMiniAppWallet();
       if (wallet) return wallet;
-      logClientError("wallet:selectWalletProvider:mini-app-no-wallet", "Mini app wallet returned null", { requestAccounts: !!options.requestAccounts });
+      logClientError(
+        "wallet:selectWalletProvider:mini-app-no-wallet",
+        "Mini app wallet returned null",
+        { requestAccounts: !!options.requestAccounts },
+      );
       return null;
     } catch (err) {
       logClientError("wallet:selectWalletProvider:mini-app-exception", err);
       console.warn("Farcaster Mini App wallet unavailable:", err);
       return null;
     }
+  }
+
+  // Try Reown AppKit (web modal / wagmi adapter) when requesting accounts or no injected provider
+  try {
+    if (options.requestAccounts) {
+      const reown = await connectReownAppKitWallet().catch(() => null);
+      if (reown) return reown;
+    } else {
+      const reownReconnect = await reconnectReownAppKitWallet().catch(
+        () => null,
+      );
+      if (reownReconnect) return reownReconnect;
+    }
+  } catch {
+    /* ignore */
   }
 
   // Fallback: browser-injected wallet outside Mini App
@@ -141,7 +164,11 @@ async function farcasterSignIn(
   try {
     const result = await signInWithFarcaster(options);
     if (!result?.token) {
-      logClientError("wallet:farcasterSignIn:no-token", "signInWithFarcaster returned no token", { force: !!options.force });
+      logClientError(
+        "wallet:farcasterSignIn:no-token",
+        "signInWithFarcaster returned no token",
+        { force: !!options.force },
+      );
       return null;
     }
 
@@ -155,7 +182,11 @@ async function farcasterSignIn(
     });
     if (!sessionRes.ok) {
       const json = await sessionRes.json().catch(() => ({}));
-      logClientError("wallet:farcasterSignIn:session-failed", json.error || `status ${sessionRes.status}`, { status: sessionRes.status });
+      logClientError(
+        "wallet:farcasterSignIn:session-failed",
+        json.error || `status ${sessionRes.status}`,
+        { status: sessionRes.status },
+      );
       console.warn(
         "Vault Farcaster sign-in failed:",
         json.error || sessionRes.statusText,
@@ -171,7 +202,9 @@ async function farcasterSignIn(
   }
 }
 
-function isEvmAddress(address: string | null | undefined): address is `0x${string}` {
+function isEvmAddress(
+  address: string | null | undefined,
+): address is `0x${string}` {
   return typeof address === "string" && /^0x[a-fA-F0-9]{40}$/.test(address);
 }
 
@@ -182,37 +215,54 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  const attachWallet = useCallback(async (options: { requestAccounts?: boolean } = {}) => {
-    const wallet = await selectWalletProvider(options);
-    if (!wallet) {
-      logClientError("wallet:attachWallet:no-provider", "selectWalletProvider returned null", { requestAccounts: !!options.requestAccounts });
-      return null;
-    }
-    setActiveWalletProvider(wallet.provider);
+  const attachWallet = useCallback(
+    async (options: { requestAccounts?: boolean } = {}) => {
+      const wallet = await selectWalletProvider(options);
+      if (!wallet) {
+        logClientError(
+          "wallet:attachWallet:no-provider",
+          "selectWalletProvider returned null",
+          { requestAccounts: !!options.requestAccounts },
+        );
+        return null;
+      }
+      setActiveWalletProvider(wallet.provider);
 
-    const accounts = wallet.address
-      ? [wallet.address]
-      : ((await wallet.provider.request({
-          method: options.requestAccounts ? "eth_requestAccounts" : "eth_accounts",
-        })) as string[]);
-    if (!Array.isArray(accounts) || !isEvmAddress(accounts[0])) {
-      logClientError("wallet:attachWallet:no-accounts", "No valid accounts returned", { isArray: Array.isArray(accounts) });
-      return null;
-    }
+      const accounts = wallet.address
+        ? [wallet.address]
+        : ((await wallet.provider.request({
+            method: options.requestAccounts
+              ? "eth_requestAccounts"
+              : "eth_accounts",
+          })) as string[]);
+      if (!Array.isArray(accounts) || !isEvmAddress(accounts[0])) {
+        logClientError(
+          "wallet:attachWallet:no-accounts",
+          "No valid accounts returned",
+          { isArray: Array.isArray(accounts) },
+        );
+        return null;
+      }
 
-    const chainIdNum =
-      wallet.chainId ??
-      parseInt(
-        (await wallet.provider.request({
-          method: "eth_chainId",
-        })) as string,
-        16,
-      );
+      const chainIdNum =
+        wallet.chainId ??
+        parseInt(
+          (await wallet.provider.request({
+            method: "eth_chainId",
+          })) as string,
+          16,
+        );
 
-    setAddress(accounts[0]);
-    setChainId(chainIdNum);
-    return { address: accounts[0], chainId: chainIdNum, provider: wallet.provider };
-  }, []);
+      setAddress(accounts[0]);
+      setChainId(chainIdNum);
+      return {
+        address: accounts[0],
+        chainId: chainIdNum,
+        provider: wallet.provider,
+      };
+    },
+    [],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -282,7 +332,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         if (!session) throw new Error("Farcaster sign-in did not complete");
 
         const wallet = await attachWallet({ requestAccounts: true });
-        if (!wallet) throw new Error("Mini App wallet connection did not complete");
+        if (!wallet)
+          throw new Error("Mini App wallet connection did not complete");
 
         setSessionAddress(session.address);
         setRole(session.role === "admin" ? "admin" : "user");
