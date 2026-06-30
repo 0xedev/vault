@@ -47,6 +47,8 @@ export const appkitModal = createAppKit({
   },
   features: {
     analytics: false,
+    email: false,
+    socials: [],
   },
 });
 
