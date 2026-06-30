@@ -4,10 +4,10 @@ import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { base } from "@reown/appkit/networks";
 import type { AppKitNetwork } from "@reown/appkit/networks";
-import { connect, getAccount } from "@wagmi/core";
-import type { Connector } from "wagmi";
+import { getAccount } from "@wagmi/core";
+import type { Config, Connector } from "wagmi";
 
-type ConnectConfig = Parameters<typeof connect>[0];
+type GetAccountConfig = Parameters<typeof getAccount>[0];
 
 interface AccountLike {
   address?: string;
@@ -29,11 +29,11 @@ const projectId =
   "b56e18d47c72ab683b10814fe9495694";
 const networks: [AppKitNetwork, ...AppKitNetwork[]] = [base];
 
-interface WagmiConfigLike {
+type WagmiConfigLike = Config & {
   connectors: Connector[];
-}
+};
 
-export const wagmiAdapter = new WagmiAdapter({ networks, projectId });
+export const wagmiAdapter = new WagmiAdapter({ networks, projectId, ssr: true });
 
 export const appkitModal = createAppKit({
   adapters: [wagmiAdapter],
@@ -45,32 +45,41 @@ export const appkitModal = createAppKit({
     url: process.env.NEXT_PUBLIC_URL || "http://localhost:3000",
     icons: [],
   },
+  features: {
+    analytics: false,
+  },
 });
+
+async function waitForConnectedAccount(config: WagmiConfigLike) {
+  const deadline = Date.now() + 10_000;
+  let account = getAccount(config as GetAccountConfig) as AccountLike;
+
+  while (!account?.address && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    account = getAccount(config as GetAccountConfig) as AccountLike;
+  }
+
+  return account?.address ? account : null;
+}
 
 export async function connectReownAppKitWallet() {
   const config = (wagmiAdapter as unknown as { wagmiConfig?: WagmiConfigLike })
     .wagmiConfig;
   if (!config) return null;
 
-  const connected = await connect(config as unknown as ConnectConfig, {
-    connector: config.connectors[0],
-  }).catch(() => null);
+  await appkitModal.open({ view: "Connect", namespace: "eip155" }).catch(
+    () => null,
+  );
 
-  const accountAfter = getAccount(
-    config as unknown as ConnectConfig,
-  ) as AccountLike;
-  const connector =
-    (accountAfter && accountAfter.connector) || config.connectors[0];
+  const accountAfter = await waitForConnectedAccount(config);
+  if (!accountAfter?.address) return null;
+
+  const connector = accountAfter.connector || config.connectors[0];
   const provider = await connector.getProvider();
 
-  const connectedAccounts = (connected as unknown as { accounts?: string[] })
-    ?.accounts;
-  const connectedChainId = (connected as unknown as { chainId?: number })
-    ?.chainId;
-
   return {
-    address: connectedAccounts?.[0] || accountAfter.address,
-    chainId: connectedChainId || accountAfter.chainId,
+    address: accountAfter.address,
+    chainId: accountAfter.chainId,
     provider: provider as WalletProviderLike,
   };
 }
@@ -83,7 +92,7 @@ export async function reconnectReownAppKitWallet() {
     const connector = config.connectors[0];
     const provider = await connector.getProvider();
     const accountAfter = getAccount(
-      config as unknown as ConnectConfig,
+      config as GetAccountConfig,
     ) as AccountLike;
     if (!accountAfter?.address) return null;
     return {

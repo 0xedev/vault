@@ -38,6 +38,7 @@ export async function middleware(req: NextRequest) {
     "wss://rpc.walletconnect.com",
     "https://bridge.walletconnect.org",
     "wss://bridge.walletconnect.org",
+    "https://pulse.walletconnect.org",
     "https://cca-lite.coinbase.com",
     "https://wallet.coinbase.com",
     "https://*.walletlink.org",
