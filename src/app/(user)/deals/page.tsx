@@ -1197,16 +1197,6 @@ export default function DealsPage() {
     }
   };
 
-  const copyListingShareLink = async (listing: ProfileListing) => {
-    setListingNotice("");
-    try {
-      await navigator.clipboard.writeText(shareUrlForProfileListing(listing));
-      setListingNotice("Listing link copied.");
-    } catch {
-      setListingNotice("Unable to copy listing link.");
-    }
-  };
-
   const shareListing = async (listing: ProfileListing) => {
     const url = shareUrlForProfileListing(listing);
     const text = `${listing.title} — ${fmtUSDC(listing.price)} ${listing.currency} on Vault`;

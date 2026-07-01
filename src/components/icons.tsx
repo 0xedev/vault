@@ -79,9 +79,6 @@ const icons = {
   share: (p: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><circle cx="12" cy="3.5" r="2"/><circle cx="4" cy="8" r="2"/><circle cx="12" cy="12.5" r="2"/><path d="M5.8 7l4.4-2.3M5.8 9l4.4 2.3"/></svg>
   ),
-  copy: (p: React.SVGProps<SVGSVGElement>) => (
-    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><rect x="5" y="5" width="8" height="8" rx="1.5"/><path d="M3 10.5V4a1 1 0 0 1 1-1h6.5"/></svg>
-  ),
   upload: (p: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><path d="M8 11V3M5 6l3-3 3 3"/><path d="M3 11v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2"/></svg>
   ),
