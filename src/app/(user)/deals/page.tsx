@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import ListingMessageModal from "@/components/ListingMessageModal";
 import ShareListingModal from "@/components/ShareListingModal";
+import ListingFeedCard from "@/components/ListingFeedCard";
 import StatusPill from "@/components/StatusPill";
 import { useRole } from "@/components/RoleProvider";
 import { useWallet } from "@/components/WalletProvider";
@@ -1046,6 +1047,15 @@ function shareUrlForProfileListing(listing: ProfileListing) {
   return url.toString();
 }
 
+function profileListingIcon(kind: ProfileListing["shareKind"]) {
+  if (kind === "nft") return <Icon.loan />;
+  if (kind === "miniapps") return <Icon.app />;
+  if (kind === "x") return <Icon.xlogo />;
+  if (kind === "farcaster") return <Icon.cast />;
+  if (kind === "clanker") return <Icon.token />;
+  return <Icon.shield />;
+}
+
 export default function DealsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1374,30 +1384,38 @@ export default function DealsPage() {
               <Link href="/market" className="btn sm">Create listing</Link>
             </Empty>
           ) : (
-            <div className="profile-listings">
+            <div className="profile-listings profile-listings-grid">
               {profileListings.map((listing) => (
                 <div key={`${listing.kind}-${listing.id}`} className="profile-listing-item">
-                  <div className="profile-listing-row">
-                    <div>
-                      <span className="smallcaps">{listing.kind}</span>
-                      <strong>{listing.title}</strong>
-                      <small>{fmtUSDC(listing.price)} {listing.currency} · {listing.status}</small>
-                    </div>
-                    <div className="profile-listing-actions" aria-label={`${listing.title} actions`}>
-                      <Link href={listing.href} className="btn sm icon-only" aria-label={`View ${listing.title}`} title="View">
-                        <Icon.arrow />
-                      </Link>
-                      <button type="button" className="btn sm icon-only" onClick={() => shareListing(listing)} aria-label={`Share ${listing.title}`} title="Share">
-                        <Icon.share />
-                      </button>
-                      <button type="button" className="btn sm icon-only" onClick={() => { setProfileMessageBuyer(""); setProfileMessageListing(listing); }} aria-label={`Messages for ${listing.title}`} title="Messages">
-                        <Icon.send />
-                      </button>
-                      <button type="button" className="btn danger sm icon-only" onClick={() => cancelListing(listing)} disabled={listingAction === listing.id} aria-label={`Cancel ${listing.title}`} title={listingAction === listing.id ? "Cancelling" : "Cancel"}>
-                        {listingAction === listing.id ? <Icon.clock /> : <Icon.x />}
-                      </button>
-                    </div>
-                  </div>
+                  <ListingFeedCard
+                    href={listing.href}
+                    icon={profileListingIcon(listing.shareKind)}
+                    title={listing.title}
+                    subtitle={listing.kind}
+                    stats={[
+                      { label: "Status", value: listing.status },
+                      { label: "Offers", value: listing.offers.length },
+                      { label: "ID", value: listing.id },
+                    ]}
+                    price={fmtUSDC(listing.price)}
+                    priceMeta={listing.currency}
+                    actions={
+                      <>
+                        <Link href={listing.href} className="btn primary sm" aria-label={`View ${listing.title}`}>
+                          <Icon.arrow /> View
+                        </Link>
+                        <button type="button" className="btn sm" onClick={() => shareListing(listing)} aria-label={`Share ${listing.title}`}>
+                          <Icon.share /> Share
+                        </button>
+                        <button type="button" className="btn sm" onClick={() => { setProfileMessageBuyer(""); setProfileMessageListing(listing); }} aria-label={`Messages for ${listing.title}`}>
+                          <Icon.send /> Msg
+                        </button>
+                        <button type="button" className="btn danger sm" onClick={() => cancelListing(listing)} disabled={listingAction === listing.id} aria-label={`Cancel ${listing.title}`}>
+                          {listingAction === listing.id ? <Icon.clock /> : <Icon.x />} Cancel
+                        </button>
+                      </>
+                    }
+                  >
                   {listing.offers.length > 0 && (
                     <div className="profile-offers">
                       {listing.offers.map((offer) => (
@@ -1422,6 +1440,7 @@ export default function DealsPage() {
                       ))}
                     </div>
                   )}
+                  </ListingFeedCard>
                 </div>
               ))}
             </div>

@@ -42,6 +42,7 @@ import ListFidModal from "@/components/ListFidModal";
 import ListClankerModal from "@/components/ListClankerModal";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ShareListingModal from "@/components/ShareListingModal";
+import ListingFeedCard from "@/components/ListingFeedCard";
 import {
   Carousel,
   CarouselContent,
@@ -98,43 +99,6 @@ function MarketAssetCarousel({ children }: { children: React.ReactNode }) {
       <CarouselPrevious className="vault-carousel-prev" />
       <CarouselNext className="vault-carousel-next" />
     </Carousel>
-  );
-}
-
-function MarketListingCard({
-  href,
-  icon,
-  title,
-  meta,
-  price,
-  onShare,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  title: string;
-  meta: React.ReactNode;
-  price: React.ReactNode;
-  onShare: () => void;
-}) {
-  return (
-    <article className="market-listing-card">
-      <Link href={href} className="ghost-hit-area" aria-label={`View ${title}`} />
-      <button
-        type="button"
-        className="card-icon-btn listing-share-btn"
-        onClick={onShare}
-        aria-label={`Share ${title}`}
-        title="Share"
-      >
-        <Icon.share />
-      </button>
-      <span className="market-listing-icon">{icon}</span>
-      <strong>{title}</strong>
-      <small>{meta}</small>
-      <em>
-        {price} <Icon.arrow />
-      </em>
-    </article>
   );
 }
 
@@ -1287,14 +1251,20 @@ export default function MarketplacePage() {
               </div>
               <MarketAssetCarousel>
                 {miniApps.slice(0, 4).map((app) => (
-                  <MarketListingCard
+                  <ListingFeedCard
                     key={app.id}
                     href={`/miniapps?id=${encodeURIComponent(app.id)}`}
                     icon={<Icon.app />}
                     title={app.name}
-                    meta={`${app.kind} · ${app.dau.toLocaleString()} DAU · ${app.mrr} USDC MRR`}
-                    price={`${fmtUSDC(app.price)} USDC`}
+                    subtitle={app.kind}
+                    stats={[
+                      { label: "DAU", value: app.dau.toLocaleString() },
+                      { label: "MRR", value: `${fmtUSDC(app.mrr)} USDC` },
+                      { label: "Age", value: app.age },
+                    ]}
+                    price={fmtUSDC(app.price)}
                     onShare={() => openShareModal(shareMiniAppTarget(app))}
+                    actions={<Link href={`/miniapps?id=${encodeURIComponent(app.id)}`} className="btn primary sm">View app</Link>}
                   />
                 ))}
               </MarketAssetCarousel>
@@ -1318,14 +1288,20 @@ export default function MarketplacePage() {
               </div>
               <MarketAssetCarousel>
                 {xAccounts.slice(0, 4).map((account) => (
-                  <MarketListingCard
+                  <ListingFeedCard
                     key={account.id}
                     href={`/x?id=${encodeURIComponent(account.id)}`}
                     icon={<Icon.xlogo />}
                     title={account.handle}
-                    meta={`${account.followers.toLocaleString()} followers · ${account.engagement}% engagement`}
-                    price={`${fmtUSDC(account.price)} USDC`}
+                    subtitle={account.niche || "X handle"}
+                    stats={[
+                      { label: "Followers", value: account.followers.toLocaleString() },
+                      { label: "Engage", value: `${account.engagement}%` },
+                      { label: "30d growth", value: account.growth },
+                    ]}
+                    price={fmtUSDC(account.price)}
                     onShare={() => openShareModal(shareXTarget(account))}
+                    actions={<Link href={`/x?id=${encodeURIComponent(account.id)}`} className="btn primary sm">View account</Link>}
                   />
                 ))}
               </MarketAssetCarousel>
@@ -1349,14 +1325,21 @@ export default function MarketplacePage() {
               </div>
               <MarketAssetCarousel>
                 {farcaster.slice(0, 4).map((account) => (
-                  <MarketListingCard
+                  <ListingFeedCard
                     key={account.id}
                     href={`/farcaster?id=${encodeURIComponent(account.id)}`}
                     icon={<Icon.cast />}
                     title={`@${account.handle}`}
-                    meta={`${account.followers.toLocaleString()} followers · FID #${account.fid}`}
-                    price={`${fmtUSDC(account.price)} USDC`}
+                    subtitle={`FID #${account.fid}${account.channel ? ` · /${account.channel}` : ""}`}
+                    stats={[
+                      { label: "Followers", value: account.followers.toLocaleString() },
+                      { label: "Casts / 30d", value: account.casts_30d },
+                      { label: "Revenue", value: account.rev_30d > 0 ? fmtUSDC(account.rev_30d) : "0" },
+                    ]}
+                    price={fmtUSDC(account.price)}
+                    badge={account.power_badge ? "Power" : undefined}
                     onShare={() => openShareModal(shareFarcasterTarget(account))}
+                    actions={<Link href={`/farcaster?id=${encodeURIComponent(account.id)}`} className="btn primary sm">View FID</Link>}
                   />
                 ))}
               </MarketAssetCarousel>
@@ -1380,14 +1363,21 @@ export default function MarketplacePage() {
               </div>
               <MarketAssetCarousel>
                 {clankerTokens.slice(0, 4).map((token) => (
-                  <MarketListingCard
+                  <ListingFeedCard
                     key={token.id}
                     href={`/clanker?id=${encodeURIComponent(token.id)}`}
                     icon={<Icon.token />}
                     title={`${token.name} (${token.symbol})`}
-                    meta={`${token.chain} · ${token.totalSupply.toLocaleString()} supply`}
-                    price={`${fmtUSDC(token.price)} USDC`}
+                    subtitle={token.chain}
+                    stats={[
+                      { label: "Supply", value: token.totalSupply.toLocaleString() },
+                      { label: "Remaining", value: token.remainingSupply.toLocaleString() },
+                      { label: "Fees", value: token.feeEarnings.toLocaleString() },
+                    ]}
+                    price={fmtUSDC(token.price)}
+                    badge={token.verified ? "Verified" : undefined}
                     onShare={() => openShareModal(shareClankerTarget(token))}
+                    actions={<Link href={`/clanker?id=${encodeURIComponent(token.id)}`} className="btn primary sm">View token</Link>}
                   />
                 ))}
               </MarketAssetCarousel>
@@ -1530,14 +1520,20 @@ export default function MarketplacePage() {
           ) : (
             <MarketAssetCarousel>
               {miniApps.map((app) => (
-                <MarketListingCard
+                <ListingFeedCard
                   key={app.id}
                   href={`/miniapps?id=${encodeURIComponent(app.id)}`}
                   icon={<Icon.app />}
                   title={app.name}
-                  meta={`${app.kind} · ${app.dau.toLocaleString()} DAU · ${app.mrr} USDC MRR`}
-                  price={`${fmtUSDC(app.price)} USDC`}
+                  subtitle={app.kind}
+                  stats={[
+                    { label: "DAU", value: app.dau.toLocaleString() },
+                    { label: "MRR", value: `${fmtUSDC(app.mrr)} USDC` },
+                    { label: "Age", value: app.age },
+                  ]}
+                  price={fmtUSDC(app.price)}
                   onShare={() => openShareModal(shareMiniAppTarget(app))}
+                  actions={<Link href={`/miniapps?id=${encodeURIComponent(app.id)}`} className="btn primary sm">View app</Link>}
                 />
               ))}
             </MarketAssetCarousel>
@@ -1555,14 +1551,20 @@ export default function MarketplacePage() {
           ) : (
             <MarketAssetCarousel>
               {xAccounts.map((account) => (
-                <MarketListingCard
+                <ListingFeedCard
                   key={account.id}
                   href={`/x?id=${encodeURIComponent(account.id)}`}
                   icon={<Icon.xlogo />}
                   title={account.handle}
-                  meta={`${account.followers.toLocaleString()} followers · ${account.engagement}% engagement`}
-                  price={`${fmtUSDC(account.price)} USDC`}
+                  subtitle={account.niche || "X handle"}
+                  stats={[
+                    { label: "Followers", value: account.followers.toLocaleString() },
+                    { label: "Engage", value: `${account.engagement}%` },
+                    { label: "30d growth", value: account.growth },
+                  ]}
+                  price={fmtUSDC(account.price)}
                   onShare={() => openShareModal(shareXTarget(account))}
+                  actions={<Link href={`/x?id=${encodeURIComponent(account.id)}`} className="btn primary sm">View account</Link>}
                 />
               ))}
             </MarketAssetCarousel>
@@ -1580,14 +1582,21 @@ export default function MarketplacePage() {
           ) : (
             <MarketAssetCarousel>
               {farcaster.map((account) => (
-                <MarketListingCard
+                <ListingFeedCard
                   key={account.id}
                   href={`/farcaster?id=${encodeURIComponent(account.id)}`}
                   icon={<Icon.cast />}
                   title={`@${account.handle}`}
-                  meta={`${account.followers.toLocaleString()} followers · FID #${account.fid}`}
-                  price={`${fmtUSDC(account.price)} USDC`}
+                  subtitle={`FID #${account.fid}${account.channel ? ` · /${account.channel}` : ""}`}
+                  stats={[
+                    { label: "Followers", value: account.followers.toLocaleString() },
+                    { label: "Casts / 30d", value: account.casts_30d },
+                    { label: "Revenue", value: account.rev_30d > 0 ? fmtUSDC(account.rev_30d) : "0" },
+                  ]}
+                  price={fmtUSDC(account.price)}
+                  badge={account.power_badge ? "Power" : undefined}
                   onShare={() => openShareModal(shareFarcasterTarget(account))}
+                  actions={<Link href={`/farcaster?id=${encodeURIComponent(account.id)}`} className="btn primary sm">View FID</Link>}
                 />
               ))}
             </MarketAssetCarousel>
@@ -1605,14 +1614,21 @@ export default function MarketplacePage() {
           ) : (
             <MarketAssetCarousel>
               {clankerTokens.map((token) => (
-                <MarketListingCard
+                <ListingFeedCard
                   key={token.id}
                   href={`/clanker?id=${encodeURIComponent(token.id)}`}
                   icon={<Icon.token />}
                   title={`${token.name} (${token.symbol})`}
-                  meta={`${token.chain} · ${token.totalSupply.toLocaleString()} supply`}
-                  price={`${fmtUSDC(token.price)} USDC`}
+                  subtitle={token.chain}
+                  stats={[
+                    { label: "Supply", value: token.totalSupply.toLocaleString() },
+                    { label: "Remaining", value: token.remainingSupply.toLocaleString() },
+                    { label: "Fees", value: token.feeEarnings.toLocaleString() },
+                  ]}
+                  price={fmtUSDC(token.price)}
+                  badge={token.verified ? "Verified" : undefined}
                   onShare={() => openShareModal(shareClankerTarget(token))}
+                  actions={<Link href={`/clanker?id=${encodeURIComponent(token.id)}`} className="btn primary sm">View token</Link>}
                 />
               ))}
             </MarketAssetCarousel>
