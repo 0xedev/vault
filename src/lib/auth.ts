@@ -155,7 +155,7 @@ export async function createFarcasterQuickAuthSession(req: NextRequest) {
   const db = getDatabase();
   if (!db) return databaseRequired();
 
-  const { token } = await req.json();
+  const { token, walletAddress, chainId } = await req.json();
   if (typeof token !== "string" || !token) {
     return NextResponse.json({ error: "Quick Auth token is required" }, { status: 400 });
   }
@@ -190,7 +190,11 @@ export async function createFarcasterQuickAuthSession(req: NextRequest) {
       return NextResponse.json({ error: "Invalid Farcaster user" }, { status: 401 });
     }
 
-    return createSession(db, farcasterAddress(fid));
+    const sessionAddress = isEvmAddress(walletAddress)
+      ? walletAddress.toLowerCase()
+      : farcasterAddress(fid);
+    const sessionChainId = Number.isFinite(Number(chainId)) ? Number(chainId) : undefined;
+    return createSession(db, sessionAddress, sessionChainId);
   } catch (err) {
     console.warn("[auth/farcaster] Quick Auth sign-in failed", {
       domains,
