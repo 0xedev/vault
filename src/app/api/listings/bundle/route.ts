@@ -136,15 +136,20 @@ export async function DELETE(req: NextRequest) {
   if ("response" in auth) return auth.response;
 
   const url = new URL(req.url);
+  const body = await req.json().catch(() => ({})) as { actorAddress?: string; txHash?: string };
   const bundleId = url.searchParams.get("id");
   if (!bundleId) return badRequest("Missing bundle id parameter");
 
-  const actorAddress = actorAddressForRequest(auth.user, url.searchParams.get("walletAddress"));
-  const listing = await auth.db`SELECT * FROM listings WHERE id = ${bundleId} AND seller_address = ${actorAddress} AND marketplace = 'bundle' LIMIT 1` as Record<string, unknown>[];
+  const actorAddress = actorAddressForRequest(auth.user, body.actorAddress || url.searchParams.get("walletAddress"));
+  const listing = await auth.db`SELECT * FROM listings WHERE id = ${bundleId} AND lower(seller_address) = ${actorAddress.toLowerCase()} AND marketplace = 'bundle' LIMIT 1` as Record<string, unknown>[];
   if (listing.length === 0) return NextResponse.json({ error: "Bundle not found or not yours" }, { status: 404 });
 
-  await auth.db`DELETE FROM listing_assets WHERE listing_id = ${bundleId}`;
-  await auth.db`UPDATE listings SET status = 'cancelled', updated_at = NOW() WHERE id = ${bundleId}`;
+  await auth.db`UPDATE listings SET
+    status = 'cancelled',
+    tx_hash = COALESCE(${body.txHash || null}, tx_hash),
+    tx_status = CASE WHEN ${body.txHash || null} IS NULL THEN tx_status ELSE 'confirmed' END,
+    updated_at = NOW()
+  WHERE id = ${bundleId}`;
 
   return NextResponse.json({ data: { id: bundleId, status: "cancelled" } });
 }

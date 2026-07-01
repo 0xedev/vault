@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(url.searchParams.get("limit") || "20");
   const offset = parseInt(url.searchParams.get("offset") || "0");
   const chain = url.searchParams.get("chain") === "true";
+  const includeOffchain = url.searchParams.get("includeOffchain") === "true";
   const sellerAddressParam = url.searchParams.get("sellerAddress") || url.searchParams.get("borrower");
   const parsedSellerAddress = sellerAddressParam ? walletAddressSchema.safeParse(sellerAddressParam) : null;
 
@@ -153,10 +154,17 @@ export async function GET(req: NextRequest) {
     rows = [];
   } else if (parsedSellerAddress?.success) {
     const sellerAddress = parsedSellerAddress.data.toLowerCase();
-    rows = (status === "all"
-      ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
-      : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
-    ) as Record<string, unknown>[];
+    if (includeOffchain) {
+      rows = (status === "all"
+        ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} AND (contract_address IS NULL OR lower(contract_address) = ${activeContract}) ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+        : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} AND lower(seller_address) = ${sellerAddress} AND (contract_address IS NULL OR lower(contract_address) = ${activeContract}) ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+      ) as Record<string, unknown>[];
+    } else {
+      rows = (status === "all"
+        ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+        : await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND collateral_data->>'status' = ${status} AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
+      ) as Record<string, unknown>[];
+    }
   } else {
     rows = (status === "all"
       ? await db`SELECT *, COUNT(*) OVER() AS total_count FROM listings WHERE marketplace = 'nft_loan' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`
@@ -186,7 +194,7 @@ export async function GET(req: NextRequest) {
       });
     rows = mergeIndexedListingRows(rows, indexedRows);
   } catch {
-    rows = await filterContractLiveLoanRows(rows);
+    if (!includeOffchain) rows = await filterContractLiveLoanRows(rows);
   }
 
   const total = rows.length;

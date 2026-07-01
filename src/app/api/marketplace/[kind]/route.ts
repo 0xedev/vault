@@ -54,6 +54,7 @@ export async function GET(
   const activeContract = await activeListingContractAddress(dbKind);
   const indexedContract = dbKind === "nft_loan" ? activeContract : (await getDealsAddress()).toLowerCase();
   const url = new URL(req.url);
+  const includeOffchain = url.searchParams.get("includeOffchain") === "true";
   const sellerAddressParam = url.searchParams.get("sellerAddress");
   const parsedSellerAddress = sellerAddressParam ? walletAddressSchema.safeParse(sellerAddressParam) : null;
   const sellerAddress = parsedSellerAddress?.success ? parsedSellerAddress.data.toLowerCase() : "";
@@ -62,7 +63,32 @@ export async function GET(
 
   if (dbKind === "bundle") {
     rows = sellerAddress
-      ? await db`
+      ? includeOffchain
+        ? await db`
+      SELECT
+        l.*,
+        COALESCE(
+          jsonb_agg(
+            jsonb_build_object(
+              'id', la.id,
+              'assetType', la.asset_type,
+              'assetData', la.asset_data,
+              'position', la.position
+            ) ORDER BY la.position
+          ) FILTER (WHERE la.id IS NOT NULL),
+          '[]'::jsonb
+        ) AS listing_assets_data
+      FROM listings l
+      LEFT JOIN listing_assets la ON la.listing_id = l.id
+      WHERE l.marketplace = 'bundle'
+        AND l.moderation_status = 'approved'
+        AND l.status <> 'cancelled'
+        AND lower(l.seller_address) = ${sellerAddress}
+        AND (l.contract_address IS NULL OR lower(l.contract_address) = ${activeContract})
+      GROUP BY l.id
+      ORDER BY l.created_at DESC
+    ` as Record<string, unknown>[]
+        : await db`
       SELECT
         l.*,
         COALESCE(
@@ -112,7 +138,9 @@ export async function GET(
     ` as Record<string, unknown>[];
   } else {
     rows = sellerAddress
-      ? await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC` as Record<string, unknown>[]
+      ? includeOffchain
+        ? await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} AND (contract_address IS NULL OR lower(contract_address) = ${activeContract}) ORDER BY created_at DESC` as Record<string, unknown>[]
+        : await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(seller_address) = ${sellerAddress} AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC` as Record<string, unknown>[]
       : await db`SELECT * FROM listings WHERE marketplace = ${dbKind} AND moderation_status = 'approved' AND status <> 'cancelled' AND lower(contract_address) = ${activeContract} AND contract_listing_id IS NOT NULL ORDER BY created_at DESC` as Record<string, unknown>[];
   }
 
@@ -134,7 +162,7 @@ export async function GET(
       });
     rows = mergeIndexedListingRows(rows, indexedRows);
   } catch {
-    rows = await filterContractLiveRows(rows);
+    if (!includeOffchain) rows = await filterContractLiveRows(rows);
   }
 
   const data =

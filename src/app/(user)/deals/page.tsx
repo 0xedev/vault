@@ -19,6 +19,9 @@ import {
   writeRefundDeal,
   writeAcceptSignedDealOffer,
   writeAcceptSignedLoanOffer,
+  writeCancelDeal,
+  writeCancelListing,
+  writeCancelMiniApp,
   writeCancelDealOfferNonce,
   writeCancelNftOfferNonce,
   readPlatformFeeBps,
@@ -130,25 +133,17 @@ interface ChatMessage {
 interface ProfileListing {
   id: string;
   kind: string;
+  shareKind: "nft" | "miniapps" | "x" | "farcaster" | "clanker" | "bundles";
   title: string;
   price: number;
   currency: string;
   status: string;
   href: string;
   sellerAddress?: string;
+  contractListingId?: string;
   cancelPath: string;
   cancelMethod: "PATCH" | "DELETE";
   offers: ProfileOffer[];
-}
-
-interface ProfileDigitalDeal {
-  id: string;
-  name: string;
-  type?: string;
-  price: number;
-  sellerAddress?: string;
-  contractListingId?: string;
-  txStatus?: string;
 }
 
 interface ListingInboxThread {
@@ -907,20 +902,18 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
   const seller = address.toLowerCase();
   const [
     loansResult,
-    dealsResult,
     miniAppsResult,
     xAccountsResult,
     farcasterResult,
     clankerResult,
     bundlesResult,
   ] = await Promise.allSettled([
-    fetch(`/api/listings?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
-    fetch(`/api/deals?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
-    fetch(`/api/marketplace/mini-apps?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
-    fetch(`/api/marketplace/x-accounts?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
-    fetch(`/api/marketplace/farcaster?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
-    fetch(`/api/marketplace/clanker?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
-    fetch(`/api/marketplace/bundles?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/listings?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/marketplace/mini-apps?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/marketplace/x-accounts?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/marketplace/farcaster?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/marketplace/clanker?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/marketplace/bundles?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true`, { credentials: "include" }).then((r) => r.json()),
   ]);
 
   const dataFrom = <T,>(result: PromiseSettledResult<{ data?: T[] }>) =>
@@ -936,40 +929,29 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
     ...mine(dataFrom<ProfileLoan>(loansResult)).map((listing) => ({
       id: listing.id,
       kind: "NFT loan",
+      shareKind: "nft" as const,
       title: `${listing.collection || "NFT"} ${listing.token}`,
       price: listing.amt,
       currency: "USDC",
       status: listing.status,
       href: `/detail?id=${encodeURIComponent(listing.id)}`,
       sellerAddress: listing.sellerAddress,
+      contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
       offers: [],
     })),
-    ...mine(dataFrom<ProfileDigitalDeal>(dealsResult))
-      .filter((listing) => (listing.type || "").toLowerCase() !== "mini app")
-      .map((listing) => ({
-        id: listing.id,
-        kind: listing.type || "Deal",
-        title: listing.name,
-        price: listing.price,
-        currency: "USDC",
-        status: listing.txStatus || "active",
-        href: `/deals?id=${encodeURIComponent(listing.id)}`,
-        sellerAddress: listing.sellerAddress,
-        cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
-        cancelMethod: "PATCH" as const,
-        offers: [],
-      })),
     ...mine(dataFrom<MiniApp>(miniAppsResult)).map((listing) => ({
       id: listing.id,
       kind: "Mini app",
+      shareKind: "miniapps" as const,
       title: listing.name,
       price: listing.price,
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/miniapps?id=${encodeURIComponent(listing.id)}`,
       sellerAddress: listing.sellerAddress,
+      contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
       offers: [],
@@ -977,12 +959,14 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
     ...mine(dataFrom<XAccount>(xAccountsResult)).map((listing) => ({
       id: listing.id,
       kind: "X account",
+      shareKind: "x" as const,
       title: listing.handle,
       price: listing.price,
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/x?id=${encodeURIComponent(listing.id)}`,
       sellerAddress: listing.sellerAddress,
+      contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
       offers: [],
@@ -990,12 +974,14 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
     ...mine(dataFrom<FarcasterAccount>(farcasterResult)).map((listing) => ({
       id: listing.id,
       kind: "Farcaster",
+      shareKind: "farcaster" as const,
       title: `@${listing.handle}`,
       price: listing.price,
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/farcaster?id=${encodeURIComponent(listing.id)}`,
       sellerAddress: listing.sellerAddress,
+      contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
       offers: [],
@@ -1003,12 +989,14 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
     ...mine(dataFrom<ClankerToken>(clankerResult)).map((listing) => ({
       id: listing.id,
       kind: "Clanker",
+      shareKind: "clanker" as const,
       title: `${listing.name}${listing.symbol ? ` (${listing.symbol})` : ""}`,
       price: listing.price,
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/clanker?id=${encodeURIComponent(listing.id)}`,
       sellerAddress: listing.sellerAddress,
+      contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
       offers: [],
@@ -1016,19 +1004,45 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
     ...mine(dataFrom<BundleListing>(bundlesResult)).map((listing) => ({
       id: listing.id,
       kind: "Bundle",
+      shareKind: "bundles" as const,
       title: listing.name,
       price: listing.totalPrice,
       currency: listing.currency || "USDC",
       status: listing.txStatus || "active",
       href: `/market?tab=bundles&id=${encodeURIComponent(listing.id)}`,
       sellerAddress: listing.sellerAddress,
+      contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/bundle?id=${encodeURIComponent(listing.id)}`,
       cancelMethod: "DELETE" as const,
       offers: [],
     })),
   ];
-  const offers = await Promise.all(listings.map((listing) => loadOffersForListing(listing.id)));
-  return listings.map((listing, index) => ({ ...listing, offers: offers[index] || [] }));
+  const uniqueListings = Array.from(
+    listings
+      .reduce((map, listing) => {
+        const key = `${listing.shareKind}:${listing.id}`;
+        if (!map.has(key)) map.set(key, listing);
+        return map;
+      }, new Map<string, ProfileListing>())
+      .values()
+  );
+  const offers = await Promise.all(uniqueListings.map((listing) => loadOffersForListing(listing.id)));
+  return uniqueListings.map((listing, index) => ({ ...listing, offers: offers[index] || [] }));
+}
+
+function shareUrlForProfileListing(listing: ProfileListing) {
+  const url = new URL(
+    listing.shareKind === "nft" ? "/detail" :
+    listing.shareKind === "miniapps" ? "/miniapps" :
+    listing.shareKind === "x" ? "/x" :
+    listing.shareKind === "farcaster" ? "/farcaster" :
+    listing.shareKind === "clanker" ? "/clanker" :
+    "/market",
+    window.location.origin
+  );
+  if (listing.shareKind === "bundles") url.searchParams.set("tab", "bundles");
+  url.searchParams.set("id", listing.id);
+  return url.toString();
 }
 
 export default function DealsPage() {
@@ -1051,6 +1065,7 @@ export default function DealsPage() {
   const [outgoingOffers, setOutgoingOffers] = useState<ProfileOffer[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [listingNotice, setListingNotice] = useState("");
+  const [listingAction, setListingAction] = useState("");
   const [offerAction, setOfferAction] = useState("");
   const { isConnected, isConnecting, connect, role, address, sessionAddress } = useWallet();
   const actorAddress = React.useMemo(() => currentActorAddress({ address, sessionAddress }), [address, sessionAddress]);
@@ -1151,21 +1166,61 @@ export default function DealsPage() {
   const cancelListing = async (listing: ProfileListing) => {
     if (!window.confirm(`Cancel ${listing.title}?`)) return;
     setListingNotice("");
+    setListingAction(listing.id);
     try {
+      let txHash: Hash | undefined;
+      if (listing.contractListingId) {
+        if (!address) throw new Error("Connect the seller wallet before cancelling this on-chain listing.");
+        const account = address as Address;
+        const contractId = BigInt(listing.contractListingId);
+        txHash = listing.shareKind === "nft"
+          ? await writeCancelListing(account, contractId)
+          : listing.shareKind === "miniapps"
+            ? await writeCancelMiniApp(account, contractId)
+            : await writeCancelDeal(account, contractId);
+        await getPublicClient().waitForTransactionReceipt({ hash: txHash });
+      }
       const res = await fetch(listing.cancelPath, {
         method: listing.cancelMethod,
         credentials: "include",
-        headers: listing.cancelMethod === "PATCH" ? { "Content-Type": "application/json" } : undefined,
-        body: listing.cancelMethod === "PATCH"
-          ? JSON.stringify({ status: "cancelled", action: "cancel_listing", actorAddress })
-          : undefined,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "cancelled", action: "cancel_listing", actorAddress, txHash }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Unable to cancel listing");
-      setListingNotice("Listing cancelled.");
+      setListingNotice(txHash ? "Listing cancelled on-chain." : "Listing cancelled.");
       await refreshProfileListings();
     } catch (err) {
-      setListingNotice(err instanceof Error ? err.message : "Unable to cancel listing");
+      setListingNotice(parseContractError(err));
+    } finally {
+      setListingAction("");
+    }
+  };
+
+  const copyListingShareLink = async (listing: ProfileListing) => {
+    setListingNotice("");
+    try {
+      await navigator.clipboard.writeText(shareUrlForProfileListing(listing));
+      setListingNotice("Listing link copied.");
+    } catch {
+      setListingNotice("Unable to copy listing link.");
+    }
+  };
+
+  const shareListing = async (listing: ProfileListing) => {
+    const url = shareUrlForProfileListing(listing);
+    const text = `${listing.title} — ${fmtUSDC(listing.price)} ${listing.currency} on Vault`;
+    setListingNotice("");
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: listing.title, text, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setListingNotice("Listing link copied.");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setListingNotice("Unable to share listing.");
     }
   };
 
@@ -1348,14 +1403,16 @@ export default function DealsPage() {
                       <strong>{listing.title}</strong>
                       <small>{fmtUSDC(listing.price)} {listing.currency} · {listing.status}</small>
                     </div>
-                    <details className="listing-actions-menu">
-                      <summary className="btn sm">Manage</summary>
-                      <div>
-                        <Link href={listing.href}>View listing</Link>
-                        <button type="button" onClick={() => { setProfileMessageBuyer(""); setProfileMessageListing(listing); }}>Messages</button>
-                        <button type="button" onClick={() => cancelListing(listing)}>Cancel listing</button>
-                      </div>
-                    </details>
+                    <div className="profile-listing-actions" aria-label={`${listing.title} actions`}>
+                      <Link href={listing.href} className="btn sm">View</Link>
+                      <button type="button" className="btn sm" onClick={() => shareListing(listing)}>
+                        <Icon.share /> Share
+                      </button>
+                      <button type="button" className="btn sm" onClick={() => { setProfileMessageBuyer(""); setProfileMessageListing(listing); }}>Messages</button>
+                      <button type="button" className="btn danger sm" onClick={() => cancelListing(listing)} disabled={listingAction === listing.id}>
+                        {listingAction === listing.id ? "Cancelling..." : "Cancel"}
+                      </button>
+                    </div>
                   </div>
                   {listing.offers.length > 0 && (
                     <div className="profile-offers">
@@ -1406,6 +1463,7 @@ export default function DealsPage() {
                   setProfileMessageListing({
                     id: thread.listingId,
                     kind: thread.marketplace || "Listing",
+                    shareKind: "miniapps",
                     title: thread.listingTitle,
                     price: 0,
                     currency: "USDC",
@@ -1414,6 +1472,7 @@ export default function DealsPage() {
                     cancelPath: `/api/listings/${encodeURIComponent(thread.listingId)}`,
                     cancelMethod: "PATCH",
                     sellerAddress: thread.sellerAddress,
+                    contractListingId: "",
                     offers: [],
                   });
                 }}
