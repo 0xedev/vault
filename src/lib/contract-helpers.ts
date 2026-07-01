@@ -106,6 +106,22 @@ export function getUSDCAddress(): Address {
 let _nftAddress: Address | null = null;
 let _dealsAddress: Address | null = null;
 
+function baseRpcTransports() {
+  const explicitRpc =
+    process.env.CHAIN_8453_RPC_URL ||
+    process.env.BASE_RPC_URL ||
+    process.env.NEXT_PUBLIC_BASE_RPC_URL;
+  const alchemyRpc = process.env.ALCHEMY_KEY
+    ? `https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`
+    : "";
+  const primaryRpc = alchemyRpc || explicitRpc;
+  const publicRpc = "https://mainnet.base.org";
+
+  return primaryRpc && primaryRpc !== publicRpc
+    ? [http(primaryRpc), http(publicRpc)]
+    : [http(publicRpc)];
+}
+
 export async function getNftAddress(): Promise<Address> {
   if (_nftAddress) return _nftAddress;
   const client = getPublicClient();
@@ -131,7 +147,7 @@ export async function getDealsAddress(): Promise<Address> {
 export function getPublicClient() {
   return createPublicClient({
     chain: base,
-    transport: http(),
+    transport: fallback(baseRpcTransports()),
   });
 }
 
@@ -142,7 +158,7 @@ export function getWalletClient() {
   }
   const client = createWalletClient({
     chain: base,
-    transport: fallback([custom(provider as never), http()]),
+    transport: fallback([custom(provider as never), ...baseRpcTransports()]),
   });
   const origWrite = client.writeContract.bind(client);
   client.writeContract = ((args: Parameters<typeof origWrite>[0]) => {

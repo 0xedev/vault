@@ -32,9 +32,12 @@ export async function GET() {
     checks.chain_rpc = `error: ${err instanceof Error ? err.message : String(err)}`;
   }
 
-  const allHealthy = Object.values(checks).every(
-    (v) => v === "healthy" || v === "configured",
-  );
+  const allHealthy =
+    checks.database === "healthy" &&
+    checks.escrow_contract === "configured" &&
+    checks.alchemy === "configured" &&
+    checks.encryption === "configured" &&
+    checks.chain_rpc === "healthy";
 
   return NextResponse.json(
     {

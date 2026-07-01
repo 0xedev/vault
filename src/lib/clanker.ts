@@ -1,7 +1,7 @@
 import { asNumber, asString, jsonRecord } from "@/lib/api";
 import type { ClankerToken } from "@/lib/data";
 import { Clanker } from "clanker-sdk/v4";
-import { createPublicClient, formatUnits, http, type Chain } from "viem";
+import { createPublicClient, fallback, formatUnits, http, type Chain } from "viem";
 import { arbitrum, base, baseSepolia, bsc, mainnet, optimism } from "viem/chains";
 
 const CLANKER_BASE = "https://clanker.world/api";
@@ -153,12 +153,27 @@ function rpcForChain(chainId: number) {
   return process.env[envKey] || process.env.BASE_RPC_URL || undefined;
 }
 
+function rpcTransportsForChain(chainId: number) {
+  const explicitRpc = rpcForChain(chainId);
+  const alchemyRpc =
+    chainId === base.id && process.env.ALCHEMY_KEY
+      ? `https://base-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_KEY}`
+      : "";
+  const primaryRpc = alchemyRpc || explicitRpc;
+  const publicRpc = chainId === base.id ? "https://mainnet.base.org" : "";
+
+  if (primaryRpc && publicRpc && primaryRpc !== publicRpc) {
+    return fallback([http(primaryRpc), http(publicRpc)]);
+  }
+  return http(primaryRpc || undefined);
+}
+
 function clankerForChain(chainId: number) {
   const chain = chainForId(chainId);
   return new Clanker({
     publicClient: createPublicClient({
       chain,
-      transport: http(rpcForChain(chain.id)),
+      transport: rpcTransportsForChain(chain.id),
     }),
   });
 }
@@ -167,7 +182,7 @@ function publicClientForChain(chainId: number) {
   const chain = chainForId(chainId);
   return createPublicClient({
     chain,
-    transport: http(rpcForChain(chain.id)),
+    transport: rpcTransportsForChain(chain.id),
   });
 }
 
