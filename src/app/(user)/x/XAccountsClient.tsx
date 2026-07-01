@@ -6,18 +6,34 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
+import ShareListingModal from "@/components/ShareListingModal";
 import { useWallet } from "@/components/WalletProvider";
-import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
+import {
+  getEscrowAddress,
+  getPublicClient,
+  getDealsAddress,
+  writeFundDeal,
+  writeListDeal,
+  waitForDealId,
+  hashMetadata,
+  parseContractError,
+  writeApproveUsdc,
+} from "@/lib/contract";
 import { isOwnListing as ownsListing } from "@/lib/identity";
 import { parseUnits, type Address } from "viem";
 import type { XAccount } from "@/lib/data";
-import { fmtCompact } from "@/lib/utils";
+import { fmtCompact, fmtUSDC } from "@/lib/utils";
 
 function Stat({ lab, v, good }: { lab: string; v: string; good?: boolean }) {
   return (
     <div className="col" style={{ gap: 1 }}>
       <span className="meta">{lab}</span>
-      <span className="amt mono" style={{ color: good ? "var(--accent)" : undefined, fontSize: 14 }}>{v}</span>
+      <span
+        className="amt mono"
+        style={{ color: good ? "var(--accent)" : undefined, fontSize: 14 }}
+      >
+        {v}
+      </span>
     </div>
   );
 }
@@ -25,10 +41,16 @@ function Stat({ lab, v, good }: { lab: string; v: string; good?: boolean }) {
 function Bar({ label, pct, sub }: { label: string; pct: number; sub: string }) {
   return (
     <div>
-      <div className="row between" style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 4 }}>
-        <span>{label}</span><span>{sub}</span>
+      <div
+        className="row between"
+        style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 4 }}
+      >
+        <span>{label}</span>
+        <span>{sub}</span>
       </div>
-      <div className="bar"><i style={{ width: pct + "%", background: "var(--accent)" }}/></div>
+      <div className="bar">
+        <i style={{ width: pct + "%", background: "var(--accent)" }} />
+      </div>
     </div>
   );
 }
@@ -38,7 +60,10 @@ export default function XAccountsPage() {
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
   const { address, sessionAddress, isConnected, connect } = useWallet();
-  const walletIdentity = useMemo(() => ({ address, sessionAddress }), [address, sessionAddress]);
+  const walletIdentity = useMemo(
+    () => ({ address, sessionAddress }),
+    [address, sessionAddress],
+  );
   const [accounts, setAccounts] = useState<XAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -50,6 +75,7 @@ export default function XAccountsPage() {
   const [buying, setBuying] = useState("");
   const [offerListing, setOfferListing] = useState<XAccount | null>(null);
   const [messageListing, setMessageListing] = useState<XAccount | null>(null);
+  const [shareListing, setShareListing] = useState<XAccount | null>(null);
 
   const submitListing = async () => {
     if (!address) return;
@@ -68,7 +94,11 @@ export default function XAccountsPage() {
       const metaHash = hashMetadata(metadata);
 
       // On-chain
-      const txHash = await writeListDeal(address as Address, parseUnits(price || "0", 6), metaHash);
+      const txHash = await writeListDeal(
+        address as Address,
+        parseUnits(price || "0", 6),
+        metaHash,
+      );
       const contractListingId = await waitForDealId(txHash);
 
       // API
@@ -76,24 +106,24 @@ export default function XAccountsPage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sellerAddress: address,
-            title: normalized,
-            price: Number(price),
-            description: null,
-            chainId: 8453,
-            contractAddress: getEscrowAddress(),
-            contractListingId,
-            txHash,
-            data: {
-              handle: normalized,
-              followers: Number(followers || 0),
-              engagement: 0,
-              posts_30d: 0,
-              growth: "0%",
-              metadataHash: metaHash,
-            },
-          }),
+        body: JSON.stringify({
+          sellerAddress: address,
+          title: normalized,
+          price: Number(price),
+          description: null,
+          chainId: 8453,
+          contractAddress: getEscrowAddress(),
+          contractListingId,
+          txHash,
+          data: {
+            handle: normalized,
+            followers: Number(followers || 0),
+            engagement: 0,
+            posts_30d: 0,
+            growth: "0%",
+            metadataHash: metaHash,
+          },
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to submit X listing");
@@ -117,26 +147,43 @@ export default function XAccountsPage() {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error || "Unable to load X accounts");
         return json;
-      }).then((j) => { setAccounts(j.data || []); setLoading(false); })
-      .catch((err) => { setError(err instanceof Error ? err.message : "Unable to load X accounts"); setLoading(false); });
+      })
+      .then((j) => {
+        setAccounts(j.data || []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(
+          err instanceof Error ? err.message : "Unable to load X accounts",
+        );
+        setLoading(false);
+      });
   }, []);
 
   const chips: [string, string, number][] = [
-    ["all",      "All",       accounts.length],
-    ["small",    "<25k",      accounts.filter(a => a.followers < 25000).length],
-    ["mid",      "25k-100k",  accounts.filter(a => a.followers >= 25000 && a.followers < 100000).length],
-    ["large",    "100k+",     accounts.filter(a => a.followers >= 100000).length],
+    ["all", "All", accounts.length],
+    ["small", "<25k", accounts.filter((a) => a.followers < 25000).length],
+    [
+      "mid",
+      "25k-100k",
+      accounts.filter((a) => a.followers >= 25000 && a.followers < 100000)
+        .length,
+    ],
+    ["large", "100k+", accounts.filter((a) => a.followers >= 100000).length],
   ];
 
   const filt = useMemo(() => {
     let r = accounts;
     const effectiveFilter = selectedId ? "all" : filter;
-    if (effectiveFilter === "small")    r = r.filter(a => a.followers < 25000);
-    if (effectiveFilter === "mid")      r = r.filter(a => a.followers >= 25000 && a.followers < 100000);
-    if (effectiveFilter === "large")    r = r.filter(a => a.followers >= 100000);
-    if (sort === "followers") r = [...r].sort((a, b) => b.followers - a.followers);
-    if (sort === "engage")    r = [...r].sort((a, b) => b.engagement - a.engagement);
-    if (sort === "price")     r = [...r].sort((a, b) => a.price - b.price);
+    if (effectiveFilter === "small") r = r.filter((a) => a.followers < 25000);
+    if (effectiveFilter === "mid")
+      r = r.filter((a) => a.followers >= 25000 && a.followers < 100000);
+    if (effectiveFilter === "large") r = r.filter((a) => a.followers >= 100000);
+    if (sort === "followers")
+      r = [...r].sort((a, b) => b.followers - a.followers);
+    if (sort === "engage")
+      r = [...r].sort((a, b) => b.engagement - a.engagement);
+    if (sort === "price") r = [...r].sort((a, b) => a.price - b.price);
     return r;
   }, [filter, selectedId, sort, accounts]);
   const displayedAccounts = useMemo(() => {
@@ -155,12 +202,24 @@ export default function XAccountsPage() {
     setError("");
     try {
       if (!account.sellerAddress) throw new Error("Listing seller is missing.");
-      if (ownsListing(account, walletIdentity)) throw new Error("You cannot buy your own listing.");
-      if (!account.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
+      if (ownsListing(account, walletIdentity))
+        throw new Error("You cannot buy your own listing.");
+      if (!account.contractListingId)
+        throw new Error(
+          "Listing is pending chain sync. Try again after the listing transaction is confirmed.",
+        );
       const amtWei = parseUnits(String(account.price), 6);
-      const approveHash = await writeApproveUsdc(address as Address, await getDealsAddress(), amtWei);
+      const approveHash = await writeApproveUsdc(
+        address as Address,
+        await getDealsAddress(),
+        amtWei,
+      );
       await getPublicClient().waitForTransactionReceipt({ hash: approveHash });
-      const txHash = await writeFundDeal(address as Address, BigInt(account.contractListingId), amtWei);
+      const txHash = await writeFundDeal(
+        address as Address,
+        BigInt(account.contractListingId),
+        amtWei,
+      );
       const res = await fetch("/api/escrows", {
         method: "POST",
         credentials: "include",
@@ -195,22 +254,41 @@ export default function XAccountsPage() {
     setMessageListing(account);
   };
 
+  const shareUrl = (account: XAccount) =>
+    `${window.location.origin}/x?id=${encodeURIComponent(account.id)}`;
+
   return (
-    <main id="main-content" role="main" aria-label="Main content" className="main">
-      <div className="row between" style={{ alignItems: "center", marginBottom: 22, gap: 24, rowGap: 16, flexWrap: "wrap" }}>
+    <main
+      id="main-content"
+      role="main"
+      aria-label="Main content"
+      className="main"
+    >
+      <div
+        className="row between"
+        style={{
+          alignItems: "center",
+          marginBottom: 22,
+          gap: 24,
+          rowGap: 16,
+          flexWrap: "wrap",
+        }}
+      >
         <div style={{ flex: "1 1 320px", minWidth: 0 }}>
           <div className="eyebrow">X Account Marketplace</div>
           <h1 className="h2" style={{ marginTop: 8 }}>
-            Buy or sell <em style={{ fontFamily: "var(--display)", fontStyle: "italic" }}>X handles</em> through escrow.
+            Buy or sell{" "}
+            <em style={{ fontFamily: "var(--display)", fontStyle: "italic" }}>
+              X handles
+            </em>{" "}
+            through escrow.
           </h1>
         </div>
         <div className="row" style={{ gap: 18, alignItems: "center" }}>
-          <div className="market-inline-stats">
-            <span><strong>{accounts.length}</strong> listings</span>
-            <span><strong>{fmtCompact(accounts.reduce((a, b) => a + b.followers, 0) / (accounts.length || 1))}</strong> avg followers</span>
-            <span><strong>{accounts.filter(a => a.followers >= 100000).length}</strong> 100k+</span>
-          </div>
-          <button className="btn primary" onClick={() => isConnected ? setListing(true) : connect()}>
+          <button
+            className="btn primary"
+            onClick={() => (isConnected ? setListing(true) : connect())}
+          >
             {isConnected ? "List account" : "Connect to list"}
           </button>
         </div>
@@ -218,23 +296,74 @@ export default function XAccountsPage() {
 
       {listing && (
         <div className="modal-bg" onClick={() => setListing(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+          <div
+            className="modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 520 }}
+          >
             <div className="modal-h">
-              <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>List X account</h3>
-              <button className="btn ghost sm" onClick={() => setListing(false)}><Icon.x /></button>
+              <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>
+                List X account
+              </h3>
+              <button
+                className="btn ghost sm"
+                onClick={() => setListing(false)}
+              >
+                <Icon.x />
+              </button>
             </div>
-            <div className="modal-b col" style={{ gap: 14, maxHeight: "70vh", overflowY: "auto" }}>
-              <div><span className="label">Handle</span><input className="input" value={handle} onChange={(e) => setHandle(e.target.value)} placeholder="@handle" /></div>
-              <div className="grid grid-2" style={{ gap: 12 }}>
-                <div><span className="label">Followers</span><input className="input mono" type="number" value={followers} onChange={(e) => setFollowers(e.target.value)} /></div>
-                <div><span className="label">Amount (USDC)</span><input className="input mono" type="number" step="0.1" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
+            <div
+              className="modal-b col"
+              style={{ gap: 14, maxHeight: "70vh", overflowY: "auto" }}
+            >
+              <div>
+                <span className="label">Handle</span>
+                <input
+                  className="input"
+                  value={handle}
+                  onChange={(e) => setHandle(e.target.value)}
+                  placeholder="@handle"
+                />
               </div>
-              <div className="warn-banner"><Icon.warn /><div style={{ fontSize: 12 }}>Listing stored on-chain. Buyer releases escrow after confirming transfer.</div></div>
-              {error && <div className="warn-banner" style={{ color: "var(--risk)" }}>{error}</div>}
+              <div className="grid grid-2" style={{ gap: 12 }}>
+                <div>
+                  <span className="label">Followers</span>
+                  <input
+                    className="input mono"
+                    type="number"
+                    value={followers}
+                    onChange={(e) => setFollowers(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <span className="label">Amount (USDC)</span>
+                  <input
+                    className="input mono"
+                    type="number"
+                    step="0.1"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                  />
+                </div>
+              </div>
+              {/* <div className="warn-banner"><Icon.warn /><div style={{ fontSize: 12 }}>Listing stored on-chain. Buyer releases escrow after confirming transfer.</div></div> */}
+              {error && (
+                <div className="warn-banner" style={{ color: "var(--risk)" }}>
+                  {error}
+                </div>
+              )}
             </div>
             <div className="modal-f">
-              <button className="btn" onClick={() => setListing(false)}>Close</button>
-              <button className="btn primary" disabled={submitting || !handle || !price} onClick={submitListing}>{submitting ? "Signing & listing…" : "List account"}</button>
+              <button className="btn" onClick={() => setListing(false)}>
+                Close
+              </button>
+              <button
+                className="btn primary"
+                disabled={submitting || !handle || !price}
+                onClick={submitListing}
+              >
+                {submitting ? "Signing & listing…" : "List account"}
+              </button>
             </div>
           </div>
         </div>
@@ -244,11 +373,17 @@ export default function XAccountsPage() {
         <div className="row" style={{ gap: 16, flexWrap: "wrap" }}>
           <div className="row" style={{ gap: 6 }}>
             <Icon.filter style={{ color: "var(--ink-4)" }} />
-            <span className="smallcaps" style={{ marginRight: 8 }}>Filter</span>
+            <span className="smallcaps" style={{ marginRight: 8 }}>
+              Filter
+            </span>
           </div>
           <div className="chips">
             {chips.map(([k, t, n]) => (
-              <button key={k} className={"chip" + (filter === k ? " active" : "")} onClick={() => setFilter(k)}>
+              <button
+                key={k}
+                className={"chip" + (filter === k ? " active" : "")}
+                onClick={() => setFilter(k)}
+              >
                 {t} <span className="count">{n}</span>
               </button>
             ))}
@@ -257,63 +392,160 @@ export default function XAccountsPage() {
           <div className="row" style={{ gap: 6 }}>
             <span className="smallcaps">Sort</span>
             <div className="seg">
-              {[["followers", "Followers ↓"], ["engage", "Engagement"], ["price", "Price ↑"]].map(([k, t]) => (
-                <button key={k} className={sort === k ? "active" : ""} onClick={() => setSort(k)}>{t}</button>
+              {[
+                ["followers", "Followers ↓"],
+                ["engage", "Engagement"],
+                ["price", "Price ↑"],
+              ].map(([k, t]) => (
+                <button
+                  key={k}
+                  className={sort === k ? "active" : ""}
+                  onClick={() => setSort(k)}
+                >
+                  {t}
+                </button>
               ))}
             </div>
           </div>
         </div>
       </div>
 
-      {loading ? <div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div> : error ? <div className="warn-banner" style={{ padding: 18 }}>{error}</div> : (
-      <>
-      <div className="grid grid-3">
-        {displayedAccounts.map(a => {
-          const isOwnListing = ownsListing(a, walletIdentity);
-          return (
-          <article key={a.id} className="x-card market-action-card" style={a.id === selectedId ? { borderColor: "var(--accent)" } : undefined}>
-            <div className="x-head">
-              <div className="x-avatar">
-                {a.imageUrl ? (
-                  <img src={a.imageUrl} alt={`${a.handle} avatar`} style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                ) : (
-                  a.handle.slice(1, 3).toUpperCase()
-                )}
-              </div>
-              <div className="col" style={{ gap: 2, flex: 1, minWidth: 0 }}>
-                <div className="row" style={{ gap: 6, alignItems: "center" }}>
-                  <span style={{ fontSize: 15, fontWeight: 500 }} className="trunc">{a.handle}</span>
-                </div>
-                <span className="muted-2" style={{ fontSize: 11.5 }}>{a.niche || "X handle"} · buyer-confirmed escrow</span>
-              </div>
-              <Icon.xlogo style={{ color: "var(--ink-4)" }}/>
-            </div>
-            <div className="x-stats">
-              <Stat lab="Followers" v={fmtCompact(a.followers)} />
-              <Stat lab="Engage" v={a.engagement + "%"} />
-              <Stat lab="30d growth" v={a.growth} good={a.growth.startsWith("+")} />
-            </div>
-            <Bar label="Activity" pct={Math.min(100, a.posts_30d)} sub={`${a.posts_30d} posts / 30d`} />
-            <div className="row between" style={{ borderTop: "1px solid var(--line)", paddingTop: 12, marginTop: 4 }}>
-              <span className="meta">{a.id}</span>
-              <span className="mono" style={{ fontSize: 16 }}>{a.price} <span style={{ color: "var(--ink-3)", fontSize: 12 }}>USDC</span></span>
-            </div>
-            <div className="market-card-actions">
-              <button className="btn primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || isOwnListing}>
-                {buying === a.id ? "Funding..." : isOwnListing ? "Your listing" : "Buy now"}
-              </button>
-              <button className="btn" onClick={() => setOfferListing(a)} disabled={isOwnListing}>
-                Propose offer
-              </button>
-              <button className="btn ghost" onClick={() => messageSeller(a)} disabled={isOwnListing}>
-                Msg seller
-              </button>
-            </div>
-          </article>
-          );
-        })}
-      </div>
-      </>
+      {loading ? (
+        <div className="muted" style={{ padding: 80, textAlign: "center" }}>
+          Loading…
+        </div>
+      ) : error ? (
+        <div className="warn-banner" style={{ padding: 18 }}>
+          {error}
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-3">
+            {displayedAccounts.map((a) => {
+              const isOwnListing = ownsListing(a, walletIdentity);
+              return (
+                <article
+                  key={a.id}
+                  className="x-card market-action-card"
+                  style={
+                    a.id === selectedId
+                      ? { borderColor: "var(--accent)" }
+                      : undefined
+                  }
+                >
+                  <button
+                    type="button"
+                    className="card-icon-btn listing-share-btn"
+                    onClick={() => setShareListing(a)}
+                    aria-label={`Share ${a.handle}`}
+                    title="Share"
+                  >
+                    <Icon.share />
+                  </button>
+                  <div className="x-head">
+                    <div className="x-avatar">
+                      {a.imageUrl ? (
+                        <img
+                          src={a.imageUrl}
+                          alt={`${a.handle} avatar`}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            borderRadius: "50%",
+                            objectFit: "cover",
+                          }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display =
+                              "none";
+                          }}
+                        />
+                      ) : (
+                        a.handle.slice(1, 3).toUpperCase()
+                      )}
+                    </div>
+                    <div
+                      className="col"
+                      style={{ gap: 2, flex: 1, minWidth: 0 }}
+                    >
+                      <div
+                        className="row"
+                        style={{ gap: 6, alignItems: "center" }}
+                      >
+                        <span
+                          style={{ fontSize: 15, fontWeight: 500 }}
+                          className="trunc"
+                        >
+                          {a.handle}
+                        </span>
+                      </div>
+                      <span className="muted-2" style={{ fontSize: 11.5 }}>
+                        {a.niche || "X handle"} · buyer-confirmed escrow
+                      </span>
+                    </div>
+                    <Icon.xlogo style={{ color: "var(--ink-4)" }} />
+                  </div>
+                  <div className="x-stats">
+                    <Stat lab="Followers" v={fmtCompact(a.followers)} />
+                    <Stat lab="Engage" v={a.engagement + "%"} />
+                    <Stat
+                      lab="30d growth"
+                      v={a.growth}
+                      good={a.growth.startsWith("+")}
+                    />
+                  </div>
+                  <Bar
+                    label="Activity"
+                    pct={Math.min(100, a.posts_30d)}
+                    sub={`${a.posts_30d} posts / 30d`}
+                  />
+                  <div
+                    className="row between"
+                    style={{
+                      borderTop: "1px solid var(--line)",
+                      paddingTop: 12,
+                      marginTop: 4,
+                    }}
+                  >
+                    <span className="meta">{a.id}</span>
+                    <span className="mono" style={{ fontSize: 16 }}>
+                      {a.price}{" "}
+                      <span style={{ color: "var(--ink-3)", fontSize: 12 }}>
+                        USDC
+                      </span>
+                    </span>
+                  </div>
+                  <div className="market-card-actions">
+                    <button
+                      className="btn primary"
+                      onClick={() => fundEscrow(a)}
+                      disabled={buying === a.id || isOwnListing}
+                    >
+                      {buying === a.id
+                        ? "Funding..."
+                        : isOwnListing
+                          ? "Your listing"
+                          : "Buy now"}
+                    </button>
+                    <button
+                      className="btn"
+                      onClick={() => setOfferListing(a)}
+                      disabled={isOwnListing}
+                    >
+                      Propose offer
+                    </button>
+                    <button
+                      className="btn ghost"
+                      onClick={() => messageSeller(a)}
+                      disabled={isOwnListing}
+                    >
+                      Msg seller
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </>
       )}
       {offerListing && (
         <SubmitDealOfferModal
@@ -337,6 +569,14 @@ export default function XAccountsPage() {
             sellerAddress: messageListing.sellerAddress,
           }}
           onClose={() => setMessageListing(null)}
+        />
+      )}
+      {shareListing && (
+        <ShareListingModal
+          title={shareListing.handle}
+          text={`${shareListing.handle} — ${fmtUSDC(shareListing.price)} USDC X account listing on Vault`}
+          url={shareUrl(shareListing)}
+          onClose={() => setShareListing(null)}
         />
       )}
     </main>

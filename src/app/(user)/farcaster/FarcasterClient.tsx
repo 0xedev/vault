@@ -7,6 +7,7 @@ import Icon from "@/components/icons";
 import ListFidModal from "@/components/ListFidModal";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
+import ShareListingModal from "@/components/ShareListingModal";
 import BackButton from "@/components/BackButton";
 import type { FarcasterAccount } from "@/lib/data";
 import { fmtCompact, fmtUSDC } from "@/lib/utils";
@@ -42,6 +43,9 @@ export default function FarcasterPage() {
     null,
   );
   const [messageListing, setMessageListing] = useState<FarcasterAccount | null>(
+    null,
+  );
+  const [shareListing, setShareListing] = useState<FarcasterAccount | null>(
     null,
   );
 
@@ -150,6 +154,9 @@ export default function FarcasterPage() {
     setMessageListing(account);
   };
 
+  const shareUrl = (account: FarcasterAccount) =>
+    `${window.location.origin}/farcaster?id=${encodeURIComponent(account.id)}`;
+
   return (
     <main
       id="main-content"
@@ -189,34 +196,6 @@ export default function FarcasterPage() {
           </h1>
         </div>
         <div className="row" style={{ gap: 18, alignItems: "center" }}>
-          <div className="market-inline-stats">
-            <span>
-              <strong>{accounts.length}</strong> listings
-            </span>
-            <span>
-              <strong>
-                {accounts.filter((account) => account.power_badge).length}
-              </strong>{" "}
-              power
-            </span>
-            <span>
-              <strong>
-                {fmtCompact(
-                  accounts[Math.floor(accounts.length / 2)]?.followers || 0,
-                )}
-              </strong>{" "}
-              median followers
-            </span>
-            <span>
-              <strong>
-                {(
-                  accounts.reduce((a, b) => a + b.price, 0) /
-                  (accounts.length || 1)
-                ).toFixed(1)}
-              </strong>{" "}
-              avg USDC
-            </span>
-          </div>
           <button
             className="btn primary"
             onClick={() => (isConnected ? setListing(true) : connect())}
@@ -284,13 +263,22 @@ export default function FarcasterPage() {
               return (
                 <article
                   key={a.id}
-                  className="x-card farcaster-card"
+                  className="x-card farcaster-card market-action-card"
                   style={
                     a.id === selectedId
                       ? { borderColor: "var(--accent)" }
                       : undefined
                   }
                 >
+                  <button
+                    type="button"
+                    className="card-icon-btn listing-share-btn"
+                    onClick={() => setShareListing(a)}
+                    aria-label={`Share @${a.handle}`}
+                    title="Share"
+                  >
+                    <Icon.share />
+                  </button>
                   <div className="x-head">
                     <div className="x-avatar farcaster-avatar">
                       {a.imageUrl ? (
@@ -435,6 +423,14 @@ export default function FarcasterPage() {
             sellerAddress: messageListing.sellerAddress,
           }}
           onClose={() => setMessageListing(null)}
+        />
+      )}
+      {shareListing && (
+        <ShareListingModal
+          title={`@${shareListing.handle}`}
+          text={`@${shareListing.handle} — ${fmtUSDC(shareListing.price)} USDC Farcaster listing on Vault`}
+          url={shareUrl(shareListing)}
+          onClose={() => setShareListing(null)}
         />
       )}
     </main>

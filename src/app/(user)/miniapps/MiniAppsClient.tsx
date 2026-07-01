@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
+import ShareListingModal from "@/components/ShareListingModal";
 import { appColor, fmtCompact, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
@@ -282,6 +283,7 @@ export default function MiniAppsPage() {
   const [buying, setBuying] = useState("");
   const [offerListing, setOfferListing] = useState<MiniApp | null>(null);
   const [messageListing, setMessageListing] = useState<MiniApp | null>(null);
+  const [shareListing, setShareListing] = useState<MiniApp | null>(null);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("dau");
 
@@ -361,6 +363,9 @@ export default function MiniAppsPage() {
     setMessageListing(app);
   };
 
+  const shareUrl = (app: MiniApp) =>
+    `${window.location.origin}/miniapps?id=${encodeURIComponent(app.id)}`;
+
   return (
     <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row between" style={{ alignItems: "center", marginBottom: 22, gap: 24, rowGap: 16, flexWrap: "wrap" }}>
@@ -371,11 +376,6 @@ export default function MiniAppsPage() {
           </h1>
         </div>
         <div className="row" style={{ gap: 18, alignItems: "center", flex: "0 0 auto", flexWrap: "wrap" }}>
-          <div className="market-inline-stats">
-            <span><strong>{apps.length}</strong> listings</span>
-            <span><strong>{fmtCompact(apps.reduce((a, b) => a + b.dau, 0) / (apps.length || 1))}</strong> avg DAU</span>
-            <span><strong>{fmtUSDC(apps.reduce((a, b) => a + b.mrr, 0))}</strong> MRR</span>
-          </div>
           <button className="btn primary" onClick={() => isConnected ? setShowListModal(true) : connect()}>
             {isConnected ? "List Mini App" : "Connect to list"}
           </button>
@@ -412,6 +412,15 @@ export default function MiniAppsPage() {
             const isOwnListing = ownsListing(a, walletIdentity);
             return (
             <article key={a.id} className="loan-card market-action-card" style={a.id === selectedId ? { borderColor: "var(--accent)" } : undefined}>
+              <button
+                type="button"
+                className="card-icon-btn listing-share-btn"
+                onClick={() => setShareListing(a)}
+                aria-label={`Share ${a.name}`}
+                title="Share"
+              >
+                <Icon.share />
+              </button>
               <div style={{ position: "relative", aspectRatio: "16/10", background: `linear-gradient(135deg, ${appColor(a.id, 0)}, ${appColor(a.id, 1)})`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                 {a.imageUrl ? (
                   <img src={a.imageUrl} alt={a.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -470,6 +479,14 @@ export default function MiniAppsPage() {
             sellerAddress: messageListing.sellerAddress,
           }}
           onClose={() => setMessageListing(null)}
+        />
+      )}
+      {shareListing && (
+        <ShareListingModal
+          title={shareListing.name}
+          text={`${shareListing.name} — ${fmtUSDC(shareListing.price)} USDC Mini App listing on Vault`}
+          url={shareUrl(shareListing)}
+          onClose={() => setShareListing(null)}
         />
       )}
     </main>

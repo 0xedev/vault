@@ -8,6 +8,7 @@ import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
 import BackButton from "@/components/BackButton";
 import ListClankerModal from "@/components/ListClankerModal";
+import ShareListingModal from "@/components/ShareListingModal";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, parseContractError, writeApproveUsdc } from "@/lib/contract";
 import { isOwnListing as ownsListing } from "@/lib/identity";
@@ -38,6 +39,7 @@ export default function ClankerPage() {
   const [selectedToken, setSelectedToken] = useState<ClankerToken | null>(null);
   const [offerToken, setOfferToken] = useState<ClankerToken | null>(null);
   const [messageToken, setMessageToken] = useState<ClankerToken | null>(null);
+  const [shareToken, setShareToken] = useState<ClankerToken | null>(null);
   const [buying, setBuying] = useState("");
   const [openAfterAuth, setOpenAfterAuth] = useState(false);
 
@@ -135,8 +137,8 @@ export default function ClankerPage() {
     setMessageToken(token);
   };
 
-  const totalLocked = tokens.reduce((s, t) => s + (t.vaultedAmount || 0), 0);
-  const totalFees = tokens.reduce((s, t) => s + (t.feeEarnings || 0), 0);
+  const shareUrl = (token: ClankerToken) =>
+    `${window.location.origin}/clanker?id=${encodeURIComponent(token.id)}`;
 
   if (loading) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
 
@@ -149,20 +151,9 @@ export default function ClankerPage() {
           <h1 className="h2" style={{ margin: "8px 0 0" }}>Deployer ownership marketplace</h1>
           <p className="muted" style={{ margin: "4px 0 0", fontSize: 13 }}>Buy & sell Clanker-deployed token supply, vaulted allocations, and fee rights.</p>
         </div>
-        <div className="market-inline-stats">
-          <span><strong>{tokens.length}</strong> listings</span>
-          <span><strong>{tokens.filter(t => t.verified).length}</strong> verified</span>
-          <span><strong>{fmtCompact(totalLocked)}</strong> vaulted</span>
-          <span><strong>{fmtCompact(totalFees)}</strong> fees</span>
-        </div>
-      </div>
-
-      <div className="row between" style={{ marginBottom: 14 }}>
-        <div className="row" style={{ gap: 8 }}>
-          <button className="btn primary" onClick={openListingModal} disabled={isConnecting}>
-            {isSignedIn ? "List token" : isConnecting || openAfterAuth ? "Connecting..." : isConnected ? "Sign in to list" : "Connect to list"}
-          </button>
-        </div>
+        <button className="btn primary" onClick={openListingModal} disabled={isConnecting}>
+          {isSignedIn ? "List token" : isConnecting || openAfterAuth ? "Connecting..." : isConnected ? "Sign in to list" : "Connect to list"}
+        </button>
       </div>
 
       {error && <div className="warn-banner" style={{ marginBottom: 14, color: "var(--risk)" }}>{error}</div>}
@@ -181,6 +172,15 @@ export default function ClankerPage() {
             return (
             <div key={t.id} className="card market-action-card" style={{ padding: 16, ...(t.id === selectedId ? { borderColor: "var(--accent)" } : {}) }}>
               <button className="ghost-hit-area" type="button" onClick={() => setSelectedToken(t)} aria-label={`View ${t.name}`} />
+              <button
+                type="button"
+                className="card-icon-btn listing-share-btn"
+                onClick={() => setShareToken(t)}
+                aria-label={`Share ${t.name}`}
+                title="Share"
+              >
+                <Icon.share />
+              </button>
               <div className="row" style={{ gap: 10, marginBottom: 10 }}>
                 {t.imageUrl ? (
                   <img src={t.imageUrl} alt={t.name} style={{ width: 40, height: 40, borderRadius: 20, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -292,6 +292,14 @@ export default function ClankerPage() {
             sellerAddress: messageToken.sellerAddress,
           }}
           onClose={() => setMessageToken(null)}
+        />
+      )}
+      {shareToken && (
+        <ShareListingModal
+          title={`${shareToken.name} (${shareToken.symbol})`}
+          text={`${shareToken.name} (${shareToken.symbol}) — ${fmtUSDC(shareToken.price)} USDC Clanker token listing on Vault`}
+          url={shareUrl(shareToken)}
+          onClose={() => setShareToken(null)}
         />
       )}
 
