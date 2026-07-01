@@ -4,9 +4,17 @@ import { badRequest, shortAddress } from "@/lib/api";
 import { actorAddressForRequest, isEvmAddress, requireUser, type AuthUser } from "@/lib/auth";
 import { decryptMessage, encryptMessage } from "@/lib/crypto";
 import { ensureListingMessagesSchema, listingThreadKey } from "@/lib/listing-messages";
+import { resolveHypersnapNames } from "@/lib/hypersnap";
+import { notifyCounterparty } from "@/lib/notifications";
 
-function mapMessage(row: Record<string, unknown>, actorAddress: string, listingId: string) {
+function mapMessage(
+  row: Record<string, unknown>,
+  actorAddress: string,
+  listingId: string,
+  names: Record<string, { name: string }> = {},
+) {
   const buyerAddress = String(row.buyer_address || "");
+  const senderAddress = String(row.sender_address || "").toLowerCase();
   let body = "";
   try {
     body = decryptMessage(listingThreadKey(listingId, buyerAddress), String(row.body || ""));
@@ -19,11 +27,12 @@ function mapMessage(row: Record<string, unknown>, actorAddress: string, listingI
     buyerAddress,
     sellerAddress: String(row.seller_address || ""),
     sender: shortAddress(row.sender_address),
-    senderAddress: String(row.sender_address || ""),
+    senderName: names[senderAddress]?.name || shortAddress(senderAddress),
+    senderAddress,
     body,
     readAt: row.read_at || null,
     createdAt: String(row.created_at),
-    me: String(row.sender_address || "").toLowerCase() === actorAddress.toLowerCase(),
+    me: senderAddress === actorAddress.toLowerCase(),
   };
 }
 
@@ -67,11 +76,23 @@ export async function GET(
         buyer_address,
         sender_address,
         body,
-        created_at
+        created_at,
+        (
+          SELECT COUNT(*)
+          FROM listing_messages unread
+          WHERE unread.listing_id = ${listingId}
+            AND unread.buyer_address = listing_messages.buyer_address
+            AND unread.sender_address <> ${actorAddress}
+            AND unread.read_at IS NULL
+        ) AS unread_count
       FROM listing_messages
       WHERE listing_id = ${listingId} AND seller_address = ${actorAddress}
       ORDER BY buyer_address, created_at DESC
     ` as Record<string, unknown>[];
+    const names = await resolveHypersnapNames(threads.flatMap((thread) => [
+      thread.buyer_address,
+      thread.sender_address,
+    ]));
 
     return NextResponse.json({
       listing: { id: listingId, title: String(listingRows[0].title || "Listing") },
@@ -85,10 +106,11 @@ export async function GET(
         }
         return {
           buyerAddress: buyer,
-          buyer: shortAddress(buyer),
-          lastSender: shortAddress(thread.sender_address),
+          buyer: names[buyer.toLowerCase()]?.name || shortAddress(buyer),
+          lastSender: names[String(thread.sender_address || "").toLowerCase()]?.name || shortAddress(thread.sender_address),
           preview,
           createdAt: String(thread.created_at),
+          unreadCount: Number(thread.unread_count || 0),
         };
       }),
       data: [],
@@ -107,10 +129,23 @@ export async function GET(
     ORDER BY created_at ASC
     LIMIT 100
   ` as Record<string, unknown>[];
+  await db`
+    UPDATE listing_messages
+    SET read_at = NOW()
+    WHERE listing_id = ${listingId}
+      AND buyer_address = ${buyerAddress}
+      AND sender_address <> ${actorAddress}
+      AND read_at IS NULL
+  `;
+  const names = await resolveHypersnapNames(rows.flatMap((row) => [
+    row.buyer_address,
+    row.seller_address,
+    row.sender_address,
+  ]));
 
   return NextResponse.json({
     listing: { id: listingId, title: String(listingRows[0].title || "Listing") },
-    data: rows.map((row) => mapMessage(row, actorAddress, listingId)),
+    data: rows.map((row) => mapMessage(row, actorAddress, listingId, names)),
   });
 }
 
@@ -169,7 +204,16 @@ export async function POST(
     RETURNING *
   ` as Record<string, unknown>[];
 
+  const preview = parsed.data.body.length > 100 ? `${parsed.data.body.slice(0, 97)}...` : parsed.data.body;
+  notifyCounterparty(db, {
+    id: `listing ${listingId}`,
+    buyer_address: buyerAddress,
+    seller_address: sellerAddress,
+  }, actorAddress, preview);
+
+  const names = await resolveHypersnapNames([actorAddress, buyerAddress, sellerAddress]);
+
   return NextResponse.json({
-    data: mapMessage(inserted[0], actorAddress, listingId),
+    data: mapMessage(inserted[0], actorAddress, listingId, names),
   }, { status: 201 });
 }

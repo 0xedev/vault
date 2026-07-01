@@ -9,6 +9,7 @@ type ListingMessage = {
   buyerAddress: string;
   sellerAddress: string;
   sender: string;
+  senderName?: string;
   senderAddress: string;
   body: string;
   createdAt: string;
@@ -20,6 +21,7 @@ type ListingThread = {
   buyer: string;
   preview: string;
   createdAt: string;
+  unreadCount?: number;
 };
 
 type Props = {
@@ -29,6 +31,7 @@ type Props = {
     sellerAddress?: string;
   };
   onClose: () => void;
+  initialBuyerAddress?: string;
 };
 
 function shortAddress(address?: string) {
@@ -36,11 +39,11 @@ function shortAddress(address?: string) {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-export default function ListingMessageModal({ listing, onClose }: Props) {
+export default function ListingMessageModal({ listing, onClose, initialBuyerAddress = "" }: Props) {
   const { address, sessionAddress, isConnected, isConnecting, connect } = useWallet();
   const [messages, setMessages] = useState<ListingMessage[]>([]);
   const [threads, setThreads] = useState<ListingThread[]>([]);
-  const [selectedBuyer, setSelectedBuyer] = useState("");
+  const [selectedBuyer, setSelectedBuyer] = useState(initialBuyerAddress);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -149,7 +152,7 @@ export default function ListingMessageModal({ listing, onClose }: Props) {
                     <div className="muted" style={{ padding: 24, textAlign: "center" }}>No buyer messages yet.</div>
                   ) : threads.map((thread) => (
                     <button key={thread.buyerAddress} type="button" onClick={() => setSelectedBuyer(thread.buyerAddress)}>
-                      <strong>{thread.buyer}</strong>
+                      <strong>{thread.buyer}{thread.unreadCount ? ` (${thread.unreadCount})` : ""}</strong>
                       <span>{thread.preview}</span>
                       <small>{new Date(thread.createdAt).toLocaleString()}</small>
                     </button>
@@ -173,7 +176,7 @@ export default function ListingMessageModal({ listing, onClose }: Props) {
                       </div>
                     ) : messages.map((message) => (
                       <div key={message.id} className={"listing-message" + (message.me ? " me" : "")}>
-                        <small>{message.me ? "You" : shortAddress(message.senderAddress)} · {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>
+                        <small>{message.me ? "You" : message.senderName || shortAddress(message.senderAddress)} · {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</small>
                         <span>{message.body}</span>
                       </div>
                     ))}

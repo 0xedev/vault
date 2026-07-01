@@ -134,6 +134,7 @@ interface ProfileListing {
   currency: string;
   status: string;
   href: string;
+  sellerAddress?: string;
   cancelPath: string;
   cancelMethod: "PATCH" | "DELETE";
   offers: ProfileOffer[];
@@ -147,6 +148,21 @@ interface ProfileDigitalDeal {
   sellerAddress?: string;
   contractListingId?: string;
   txStatus?: string;
+}
+
+interface ListingInboxThread {
+  listingId: string;
+  listingTitle: string;
+  marketplace: string;
+  buyerAddress: string;
+  sellerAddress: string;
+  counterpartyAddress: string;
+  counterpartyName: string;
+  lastSenderName: string;
+  preview: string;
+  createdAt: string;
+  unreadCount: number;
+  role: "buyer" | "seller";
 }
 
 interface ProfileOffer {
@@ -922,6 +938,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: "USDC",
       status: listing.status,
       href: `/detail?id=${encodeURIComponent(listing.id)}`,
+      sellerAddress: listing.sellerAddress,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
       offers: [],
@@ -936,6 +953,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
         currency: "USDC",
         status: listing.txStatus || "active",
         href: `/deals?id=${encodeURIComponent(listing.id)}`,
+        sellerAddress: listing.sellerAddress,
         cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
         cancelMethod: "PATCH" as const,
         offers: [],
@@ -948,6 +966,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/miniapps?id=${encodeURIComponent(listing.id)}`,
+      sellerAddress: listing.sellerAddress,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
       offers: [],
@@ -960,6 +979,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/x?id=${encodeURIComponent(listing.id)}`,
+      sellerAddress: listing.sellerAddress,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
       offers: [],
@@ -972,6 +992,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/farcaster?id=${encodeURIComponent(listing.id)}`,
+      sellerAddress: listing.sellerAddress,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
       offers: [],
@@ -984,6 +1005,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/clanker?id=${encodeURIComponent(listing.id)}`,
+      sellerAddress: listing.sellerAddress,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
       offers: [],
@@ -996,6 +1018,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: listing.currency || "USDC",
       status: listing.txStatus || "active",
       href: `/market?tab=bundles&id=${encodeURIComponent(listing.id)}`,
+      sellerAddress: listing.sellerAddress,
       cancelPath: `/api/listings/bundle?id=${encodeURIComponent(listing.id)}`,
       cancelMethod: "DELETE" as const,
       offers: [],
@@ -1020,6 +1043,8 @@ export default function DealsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [profileListings, setProfileListings] = useState<ProfileListing[]>([]);
   const [profileMessageListing, setProfileMessageListing] = useState<ProfileListing | null>(null);
+  const [profileMessageBuyer, setProfileMessageBuyer] = useState("");
+  const [listingInbox, setListingInbox] = useState<ListingInboxThread[]>([]);
   const [outgoingOffers, setOutgoingOffers] = useState<ProfileOffer[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [listingNotice, setListingNotice] = useState("");
@@ -1067,12 +1092,24 @@ export default function DealsPage() {
       .catch(() => setOutgoingOffers([]));
   }, [address]);
 
+  const refreshListingInbox = React.useCallback(() => {
+    if (!address) {
+      setListingInbox([]);
+      return Promise.resolve();
+    }
+    return fetch(`/api/listings/messages?walletAddress=${encodeURIComponent(address)}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((json) => setListingInbox(json.data || []))
+      .catch(() => setListingInbox([]));
+  }, [address]);
+
   useEffect(() => {
     queueMicrotask(() => {
       refreshProfileListings();
       refreshOutgoingOffers();
+      refreshListingInbox();
     });
-  }, [refreshOutgoingOffers, refreshProfileListings]);
+  }, [refreshListingInbox, refreshOutgoingOffers, refreshProfileListings]);
 
   useEffect(() => {
     if (linkedDealId) queueMicrotask(() => setSelectedDealId(linkedDealId));
@@ -1311,7 +1348,7 @@ export default function DealsPage() {
                       <summary className="btn sm">Manage</summary>
                       <div>
                         <Link href={listing.href}>View listing</Link>
-                        <button type="button" onClick={() => setProfileMessageListing(listing)}>Messages</button>
+                        <button type="button" onClick={() => { setProfileMessageBuyer(""); setProfileMessageListing(listing); }}>Messages</button>
                         <button type="button" onClick={() => cancelListing(listing)}>Cancel listing</button>
                       </div>
                     </details>
@@ -1344,6 +1381,54 @@ export default function DealsPage() {
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {!selectedDealId && listingInbox.length > 0 && (
+        <section className="card profile-listings-card">
+          <div className="profile-listings-head">
+            <div className="eyebrow">Pre-deal messages</div>
+            <h2 className="serif" style={{ fontSize: 22, margin: "4px 0 0" }}>Listing inbox</h2>
+          </div>
+          <div className="profile-listings">
+            {listingInbox.map((thread) => (
+              <button
+                key={`${thread.listingId}-${thread.buyerAddress}`}
+                type="button"
+                className="profile-listing-item"
+                style={{ textAlign: "left" }}
+                onClick={() => {
+                  setProfileMessageBuyer(thread.role === "seller" ? thread.buyerAddress : "");
+                  setProfileMessageListing({
+                    id: thread.listingId,
+                    kind: thread.marketplace || "Listing",
+                    title: thread.listingTitle,
+                    price: 0,
+                    currency: "USDC",
+                    status: "active",
+                    href: `/market?id=${encodeURIComponent(thread.listingId)}`,
+                    cancelPath: `/api/listings/${encodeURIComponent(thread.listingId)}`,
+                    cancelMethod: "PATCH",
+                    sellerAddress: thread.sellerAddress,
+                    offers: [],
+                  });
+                }}
+              >
+                <div className="profile-listing-row">
+                  <div>
+                    <span className="smallcaps">{thread.role === "seller" ? "Buyer thread" : "Seller thread"}</span>
+                    <strong>{thread.listingTitle}</strong>
+                    <small>
+                      {thread.counterpartyName} · {thread.lastSenderName}: {thread.preview}
+                    </small>
+                  </div>
+                  {thread.unreadCount > 0 && (
+                    <span className="pill warn">{thread.unreadCount} new</span>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
         </section>
       )}
 
@@ -1475,12 +1560,18 @@ export default function DealsPage() {
       )}
       {profileMessageListing && (
         <ListingMessageModal
+          key={`${profileMessageListing.id}-${profileMessageBuyer}`}
           listing={{
             id: profileMessageListing.id,
             title: profileMessageListing.title,
-            sellerAddress: address || undefined,
+            sellerAddress: profileMessageListing.sellerAddress,
           }}
-          onClose={() => setProfileMessageListing(null)}
+          initialBuyerAddress={profileMessageBuyer}
+          onClose={() => {
+            setProfileMessageListing(null);
+            setProfileMessageBuyer("");
+            refreshListingInbox();
+          }}
         />
       )}
     </main>
