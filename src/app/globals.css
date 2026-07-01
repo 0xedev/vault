@@ -1997,14 +1997,20 @@ select:focus-visible {
   .market-listing-card {
     min-height: unset;
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr auto auto;
     grid-template-areas:
-      "icon title price"
-      "icon desc  price";
+      "icon title price share"
+      "icon desc  price share";
     column-gap: 12px;
     row-gap: 2px;
     padding: 12px;
     align-items: center;
+  }
+  .market-listing-card > .listing-share-btn {
+    position: static;
+    grid-area: share;
+    width: 30px;
+    height: 30px;
   }
   .market-listing-card > .market-listing-icon {
     grid-area: icon;
