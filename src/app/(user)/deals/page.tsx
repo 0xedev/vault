@@ -139,6 +139,16 @@ interface ProfileListing {
   offers: ProfileOffer[];
 }
 
+interface ProfileDigitalDeal {
+  id: string;
+  name: string;
+  type?: string;
+  price: number;
+  sellerAddress?: string;
+  contractListingId?: string;
+  txStatus?: string;
+}
+
 interface ProfileOffer {
   id: string;
   listingId: string;
@@ -878,6 +888,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
   const seller = address.toLowerCase();
   const [
     loansResult,
+    dealsResult,
     miniAppsResult,
     xAccountsResult,
     farcasterResult,
@@ -885,6 +896,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
     bundlesResult,
   ] = await Promise.allSettled([
     fetch(`/api/listings?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/deals?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
     fetch(`/api/marketplace/mini-apps?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
     fetch(`/api/marketplace/x-accounts?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
     fetch(`/api/marketplace/farcaster?sellerAddress=${encodeURIComponent(address)}`, { credentials: "include" }).then((r) => r.json()),
@@ -914,6 +926,20 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       cancelMethod: "PATCH" as const,
       offers: [],
     })),
+    ...mine(dataFrom<ProfileDigitalDeal>(dealsResult))
+      .filter((listing) => (listing.type || "").toLowerCase() !== "mini app")
+      .map((listing) => ({
+        id: listing.id,
+        kind: listing.type || "Deal",
+        title: listing.name,
+        price: listing.price,
+        currency: "USDC",
+        status: listing.txStatus || "active",
+        href: `/deals?id=${encodeURIComponent(listing.id)}`,
+        cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
+        cancelMethod: "PATCH" as const,
+        offers: [],
+      })),
     ...mine(dataFrom<MiniApp>(miniAppsResult)).map((listing) => ({
       id: listing.id,
       kind: "Mini app",

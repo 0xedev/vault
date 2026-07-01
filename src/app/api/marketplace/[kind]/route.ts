@@ -5,7 +5,7 @@ import { mapClankerListing, mapFarcasterListing, mapLoanListing, mapMiniAppListi
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { verifyClankerTokenOwnership } from "@/lib/clanker";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
-import { mapDealStage, readDeal } from "@/lib/contract";
+import { getDealsAddress, mapDealStage, readDeal } from "@/lib/contract";
 import { dealListingRowFromSubgraph, fetchIndexedDealListings, mergeIndexedListingRows } from "@/lib/subgraph";
 
 const walletAddressSchema = z.string().startsWith("0x").length(42);
@@ -52,6 +52,7 @@ export async function GET(
   const dbKind = dbKindMap[kind];
   if (!dbKind) return NextResponse.json({ error: "Unknown marketplace kind" }, { status: 404 });
   const activeContract = await activeListingContractAddress(dbKind);
+  const indexedContract = dbKind === "nft_loan" ? activeContract : (await getDealsAddress()).toLowerCase();
   const url = new URL(req.url);
   const sellerAddressParam = url.searchParams.get("sellerAddress");
   const parsedSellerAddress = sellerAddressParam ? walletAddressSchema.safeParse(sellerAddressParam) : null;
@@ -121,12 +122,11 @@ export async function GET(
       kind: dbKind === "mini_app" ? "mini_app" : undefined,
     });
     const indexedRows = indexed
-      .filter((listing) => listing.contract.toLowerCase() === activeContract)
+      .filter((listing) => listing.contract.toLowerCase() === indexedContract)
       .filter((listing) => listing.status !== "cancelled")
       .flatMap((listing) => {
         const existing = rows.find((row) =>
-          String(row.contract_listing_id || "") === listing.dealId &&
-          String(row.contract_address || "").toLowerCase() === listing.contract.toLowerCase()
+          String(row.contract_listing_id || "") === listing.dealId
         );
         if (dbKind !== "mini_app" && !existing) return [];
         if (existing && String(existing.marketplace || "") !== dbKind) return [];

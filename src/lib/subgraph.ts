@@ -188,7 +188,7 @@ export function dealListingRowFromSubgraph(listing: SubgraphDealListing, existin
     status: statusForDealListing(listing.status),
     moderation_status: "approved",
     chain_id: 8453,
-    contract_address: listing.contract,
+    contract_address: existing?.contract_address || listing.contract,
     contract_listing_id: listing.dealId,
     tx_status: "indexed",
     created_at: new Date(Number(listing.createdAt) * 1000).toISOString(),
