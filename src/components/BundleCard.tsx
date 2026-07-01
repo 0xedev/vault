@@ -17,12 +17,24 @@ const ASSET_ICONS: Record<string, React.ReactNode> = {
   clanker: <Icon.token />,
 };
 
-export default function BundleCard({ bundle }: { bundle: BundleListing }) {
+export default function BundleCard({ bundle, onShare }: { bundle: BundleListing; onShare?: (bundle: BundleListing) => void }) {
   const currency = bundle.currency || "USDC";
   const totalPrice = fmtUSDC(bundle.totalPrice);
 
   return (
-    <Link href={`/market?tab=bundles&id=${encodeURIComponent(bundle.id)}`} className="bundle-card">
+    <article className="bundle-card">
+      <Link href={`/market?tab=bundles&id=${encodeURIComponent(bundle.id)}`} className="ghost-hit-area" aria-label={`View ${bundle.name}`} />
+      {onShare && (
+        <button
+          type="button"
+          className="card-icon-btn listing-share-btn"
+          onClick={() => onShare(bundle)}
+          aria-label={`Share ${bundle.name}`}
+          title="Share"
+        >
+          <Icon.share />
+        </button>
+      )}
       {bundle.imageUrl && (
         <div className="bundle-card-img">
           <img src={bundle.imageUrl} alt={bundle.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -59,6 +71,6 @@ export default function BundleCard({ bundle }: { bundle: BundleListing }) {
         <span className="bundle-price">{totalPrice} {currency}</span>
         <span className="bundle-cta">View <Icon.arrow /></span>
       </div>
-    </Link>
+    </article>
   );
 }

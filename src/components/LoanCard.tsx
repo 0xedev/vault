@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import Icon from "./icons";
 import NFTArt from "./NFTArt";
 import StatusPill from "./StatusPill";
 import { Badge } from "@/components/ui/badge";
@@ -21,10 +22,22 @@ function NftImage({ l }: { l: Loan }) {
   return <NFTArt seed={l.coll} label={l.token} />;
 }
 
-export default function LoanCard({ l }: { l: Loan }) {
+export default function LoanCard({ l, onShare }: { l: Loan; onShare?: (loan: Loan) => void }) {
   return (
-    <Link href={`/detail?id=${l.id}`} className="loan-card">
-      <div style={{ position: "relative" }}>
+    <article className="loan-card">
+      <Link href={`/detail?id=${l.id}`} className="ghost-hit-area" aria-label={`View ${COLLECTIONS[l.coll]} ${l.token}`} />
+      {onShare && (
+        <button
+          type="button"
+          className="card-icon-btn loan-share-btn"
+          onClick={() => onShare(l)}
+          aria-label={`Share ${COLLECTIONS[l.coll]} ${l.token}`}
+          title="Share"
+        >
+          <Icon.share />
+        </button>
+      )}
+      <div className="loan-card-media" style={{ position: "relative" }}>
         <NftImage l={l} />
         <Badge variant="outline" className="pill floor-pill" style={{ position: "absolute", top: 8, right: 8, gap: 4 }}>
           <span className="pdot" style={{ background: "var(--gold)" }} />
@@ -56,6 +69,6 @@ export default function LoanCard({ l }: { l: Loan }) {
         </div>
         <div className="bar"><i style={{ width: l.ltv + "%", background: l.ltv > 65 ? "var(--warn)" : "var(--accent)" }} /></div>
       </div>
-    </Link>
+    </article>
   );
 }

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import ListingMessageModal from "@/components/ListingMessageModal";
+import ShareListingModal from "@/components/ShareListingModal";
 import StatusPill from "@/components/StatusPill";
 import { useRole } from "@/components/RoleProvider";
 import { useWallet } from "@/components/WalletProvider";
@@ -1060,6 +1061,7 @@ export default function DealsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [profileListings, setProfileListings] = useState<ProfileListing[]>([]);
   const [profileMessageListing, setProfileMessageListing] = useState<ProfileListing | null>(null);
+  const [profileShareListing, setProfileShareListing] = useState<ProfileListing | null>(null);
   const [profileMessageBuyer, setProfileMessageBuyer] = useState("");
   const [listingInbox, setListingInbox] = useState<ListingInboxThread[]>([]);
   const [outgoingOffers, setOutgoingOffers] = useState<ProfileOffer[]>([]);
@@ -1197,21 +1199,9 @@ export default function DealsPage() {
     }
   };
 
-  const shareListing = async (listing: ProfileListing) => {
-    const url = shareUrlForProfileListing(listing);
-    const text = `${listing.title} — ${fmtUSDC(listing.price)} ${listing.currency} on Vault`;
+  const shareListing = (listing: ProfileListing) => {
     setListingNotice("");
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: listing.title, text, url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      setListingNotice("Listing link copied.");
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
-      setListingNotice("Unable to share listing.");
-    }
+    setProfileShareListing(listing);
   };
 
   const patchOfferStatus = async (offer: ProfileOffer, status: "accepted" | "rejected" | "cancelled", txHash?: Hash) => {
@@ -1394,13 +1384,17 @@ export default function DealsPage() {
                       <small>{fmtUSDC(listing.price)} {listing.currency} · {listing.status}</small>
                     </div>
                     <div className="profile-listing-actions" aria-label={`${listing.title} actions`}>
-                      <Link href={listing.href} className="btn sm">View</Link>
-                      <button type="button" className="btn sm" onClick={() => shareListing(listing)}>
-                        <Icon.share /> Share
+                      <Link href={listing.href} className="btn sm icon-only" aria-label={`View ${listing.title}`} title="View">
+                        <Icon.arrow />
+                      </Link>
+                      <button type="button" className="btn sm icon-only" onClick={() => shareListing(listing)} aria-label={`Share ${listing.title}`} title="Share">
+                        <Icon.share />
                       </button>
-                      <button type="button" className="btn sm" onClick={() => { setProfileMessageBuyer(""); setProfileMessageListing(listing); }}>Messages</button>
-                      <button type="button" className="btn danger sm" onClick={() => cancelListing(listing)} disabled={listingAction === listing.id}>
-                        {listingAction === listing.id ? "Cancelling..." : "Cancel"}
+                      <button type="button" className="btn sm icon-only" onClick={() => { setProfileMessageBuyer(""); setProfileMessageListing(listing); }} aria-label={`Messages for ${listing.title}`} title="Messages">
+                        <Icon.send />
+                      </button>
+                      <button type="button" className="btn danger sm icon-only" onClick={() => cancelListing(listing)} disabled={listingAction === listing.id} aria-label={`Cancel ${listing.title}`} title={listingAction === listing.id ? "Cancelling" : "Cancel"}>
+                        {listingAction === listing.id ? <Icon.clock /> : <Icon.x />}
                       </button>
                     </div>
                   </div>
@@ -1625,6 +1619,15 @@ export default function DealsPage() {
             setProfileMessageBuyer("");
             refreshListingInbox();
           }}
+        />
+      )}
+      {profileShareListing && (
+        <ShareListingModal
+          title={profileShareListing.title}
+          text={`${profileShareListing.title} — ${fmtUSDC(profileShareListing.price)} ${profileShareListing.currency} on Vault`}
+          url={shareUrlForProfileListing(profileShareListing)}
+          onClose={() => setProfileShareListing(null)}
+          onCopied={() => setListingNotice("Listing link copied.")}
         />
       )}
     </main>
