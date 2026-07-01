@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import Icon from "./icons";
+import { useWallet } from "./WalletProvider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -14,6 +15,7 @@ interface SidebarItem {
   tab?: string;
   t?: string;
   icon?: React.ReactNode;
+  adminOnly?: boolean;
 }
 
 const items: SidebarItem[] = [
@@ -27,6 +29,7 @@ const items: SidebarItem[] = [
   { k: "/market", href: "/market?tab=bundles", tab: "bundles", t: "Bundles",  icon: <Icon.shield/> },
   { sec: "Account" },
   { k: "/deals",     t: "Profile",           icon: <Icon.escrow/> },
+  { k: "/admin/dash", t: "Admin",            icon: <Icon.shield/>, adminOnly: true },
   { sec: "About" },
   { k: "/info",      t: "How it works",       icon: <Icon.shield/> },
 ];
@@ -35,6 +38,7 @@ export default function SideBar({ open, onClose }: { open: boolean; onClose: () 
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeTab = searchParams.get("tab");
+  const { role } = useWallet();
 
   return (
     <aside className={"sidebar" + (open ? " open" : "")}>
@@ -43,6 +47,7 @@ export default function SideBar({ open, onClose }: { open: boolean; onClose: () 
       </Button>
 
       {items.map((it, i) => {
+        if (it.adminOnly && role !== "admin") return null;
         if (it.sec) return (
           <div key={"s"+i}>
             {i > 0 && <Separator style={{ margin: "14px 0" }} />}

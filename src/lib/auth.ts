@@ -6,6 +6,7 @@ import { getDatabase, databaseRequired, type DbClient } from "@/lib/api";
 import { csrfCheck } from "@/lib/security";
 import { rateLimit } from "@/lib/rate-limit";
 import { authLogger } from "@/lib/logger";
+import { readIsVaultAdmin } from "@/lib/contract-reads";
 
 export type AuthUser = {
   address: string;
@@ -19,13 +20,6 @@ const NONCE_TTL_MS = 10 * 60 * 1000;
 
 function uniqueValues(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-}
-
-function adminWallets() {
-  return (process.env.ADMIN_WALLETS || "")
-    .split(",")
-    .map((a) => a.trim().toLowerCase())
-    .filter(Boolean);
 }
 
 function isFarcasterAddress(address: string) {
@@ -50,8 +44,9 @@ export function actorAddressForRequest(user: AuthUser, walletAddress: unknown) {
   return isEvmAddress(walletAddress) ? walletAddress.toLowerCase() : user.address;
 }
 
-function isBootstrapAdmin(address: string) {
-  return !isFarcasterAddress(address) && adminWallets().includes(address.toLowerCase());
+async function isOnchainAdmin(address: string) {
+  if (!isEvmAddress(address)) return false;
+  return readIsVaultAdmin(address).catch(() => false);
 }
 
 function newId(prefix: string) {
@@ -82,22 +77,17 @@ async function consumeNonce(db: DbClient, nonce: string) {
 
 async function createSession(db: DbClient, addressInput: string, chainId?: number) {
   const address = addressInput.toLowerCase();
-  const role = isBootstrapAdmin(address) ? "admin" : "user";
+  const role = await isOnchainAdmin(address) ? "admin" : "user";
   await db`INSERT INTO users (address, role) VALUES (${address}, ${role})
-    ON CONFLICT (address) DO UPDATE SET role = CASE
-      WHEN users.role = 'admin' OR ${role} = 'admin' THEN 'admin'::user_role
-      ELSE users.role
-    END`;
+    ON CONFLICT (address) DO UPDATE SET role = ${role}`;
 
   const sessionId = newId("S");
   const expires = new Date(Date.now() + SESSION_TTL_MS);
-  const userRows = await db`SELECT role FROM users WHERE address = ${address} LIMIT 1` as Record<string, unknown>[];
-  const effectiveRole = String(userRows[0]?.role || role) === "admin" ? "admin" : "user";
-  await db`INSERT INTO sessions (id, address, role, expires_at) VALUES (${sessionId}, ${address}, ${effectiveRole}, ${expires})`;
+  await db`INSERT INTO sessions (id, address, role, expires_at) VALUES (${sessionId}, ${address}, ${role}, ${expires})`;
 
-  const res = NextResponse.json({ address, chainId, role: effectiveRole });
+  const res = NextResponse.json({ address, chainId, role });
   res.cookies.set(SESSION_COOKIE, sessionId, sessionCookieOptions(expires));
-  authLogger("login", address, { role: effectiveRole });
+  authLogger("login", address, { role });
   return res;
 }
 
@@ -230,15 +220,14 @@ export async function getSession(req: NextRequest): Promise<AuthUser | null> {
   const sessionId = req.cookies.get(SESSION_COOKIE)?.value;
   if (!sessionId) return null;
   const rows = await db`
-    SELECT s.address, COALESCE(u.role, s.role) AS role
+    SELECT s.address
     FROM sessions s
-    LEFT JOIN users u ON u.address = s.address
     WHERE s.id = ${sessionId} AND s.expires_at > NOW()
     LIMIT 1
   ` as Record<string, unknown>[];
   if (rows.length === 0) return null;
   const address = String(rows[0].address || "").toLowerCase();
-  const role = String(rows[0].role || "user") === "admin" || isBootstrapAdmin(address) ? "admin" : "user";
+  const role = await isOnchainAdmin(address) ? "admin" : "user";
   const fid = isFarcasterAddress(address) ? Number(address.replace("farcaster:", "")) : undefined;
   return { address, role, fid: Number.isFinite(fid) ? fid : undefined };
 }

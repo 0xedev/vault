@@ -280,6 +280,27 @@ export async function readPausedDeals(): Promise<boolean> {
   }) as Promise<boolean>;
 }
 
+export async function readIsVaultAdmin(address: Address): Promise<boolean> {
+  const [nft, deals] = await Promise.allSettled([
+    client().readContract({
+      address: await nftAddress(),
+      abi: VaultNFT_ABI,
+      functionName: "admins",
+      args: [address],
+    }) as Promise<boolean>,
+    client().readContract({
+      address: await dealsAddress(),
+      abi: VaultDeals_ABI,
+      functionName: "admins",
+      args: [address],
+    }) as Promise<boolean>,
+  ]);
+  return (
+    (nft.status === "fulfilled" && nft.value) ||
+    (deals.status === "fulfilled" && deals.value)
+  );
+}
+
 // ── Stage mapping ────────────────────────────────────────────
 
 export type EscrowStage =

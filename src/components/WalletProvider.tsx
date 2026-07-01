@@ -6,6 +6,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from "react";
 import { SiweMessage } from "siwe";
 import { getAddress } from "viem";
@@ -20,6 +21,7 @@ import {
   reconnectReownAppKitWallet,
 } from "@/lib/reown-appkit";
 import { setActiveWalletProvider } from "@/lib/contract-helpers";
+import { readIsVaultAdmin } from "@/lib/contract-reads";
 import { logClientError } from "@/lib/client-log";
 
 type WalletLike = {
@@ -222,6 +224,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<"user" | "admin" | null>(null);
   const [chainId, setChainId] = useState<number | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const adminUpgradeAttemptedFor = useRef<string | null>(null);
 
   const attachWallet = useCallback(
     async (options: { requestAccounts?: boolean } = {}) => {
@@ -336,12 +339,23 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     setIsConnecting(true);
     try {
       if (await isMiniApp()) {
-        const session = await farcasterSignIn({ force: true });
-        if (!session) throw new Error("Farcaster sign-in did not complete");
-
         const wallet = await attachWallet({ requestAccounts: true });
         if (!wallet)
           throw new Error("Mini App wallet connection did not complete");
+
+        const walletSession = await siweSignIn(
+          wallet.address,
+          wallet.chainId,
+          wallet.provider,
+        );
+        if (walletSession?.role === "admin") {
+          setSessionAddress(walletSession.address);
+          setRole("admin");
+          return;
+        }
+
+        const session = await farcasterSignIn({ force: true });
+        if (!session) throw new Error("Farcaster sign-in did not complete");
 
         setSessionAddress(session.address);
         setRole(session.role === "admin" ? "admin" : "user");
@@ -368,11 +382,41 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }, [attachWallet]);
 
+  useEffect(() => {
+    if (
+      role === "admin" ||
+      !address ||
+      !chainId ||
+      !sessionAddress?.startsWith("farcaster:")
+    ) return;
+
+    const normalizedAddress = address.toLowerCase();
+    if (adminUpgradeAttemptedFor.current === normalizedAddress) return;
+    adminUpgradeAttemptedFor.current = normalizedAddress;
+
+    let active = true;
+    (async () => {
+      const isAdminWallet = await readIsVaultAdmin(address as `0x${string}`).catch(() => false);
+      if (!active || !isAdminWallet) return;
+      const wallet = await attachWallet({ requestAccounts: true });
+      if (!active || !wallet) return;
+      const session = await siweSignIn(wallet.address, wallet.chainId, wallet.provider);
+      if (!active || session?.role !== "admin") return;
+      setSessionAddress(session.address);
+      setRole("admin");
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [address, attachWallet, chainId, role, sessionAddress]);
+
   const disconnect = useCallback(() => {
     setAddress(null);
     setSessionAddress(null);
     setRole(null);
     setChainId(null);
+    adminUpgradeAttemptedFor.current = null;
     setActiveWalletProvider(null);
     disconnectFarcasterMiniAppWallet();
     fetch("/api/auth/logout", { method: "POST", credentials: "include" }).catch(

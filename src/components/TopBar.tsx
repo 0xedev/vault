@@ -9,7 +9,14 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const topNavItems = [
+type TopNavItem = {
+  href: string;
+  label: string;
+  match: string;
+  tab?: string;
+};
+
+const topNavItems: TopNavItem[] = [
   { href: "/market", label: "NFT Loans", match: "/market" },
   { href: "/miniapps", label: "Mini Apps", match: "/miniapps" },
   { href: "/x", label: "X Accounts", match: "/x" },
@@ -18,6 +25,8 @@ const topNavItems = [
   { href: "/market?tab=bundles", label: "Bundles", match: "/market", tab: "bundles" },
   { href: "/deals", label: "Profile", match: "/deals" },
 ];
+
+const adminNavItem: TopNavItem = { href: "/admin/dash", label: "Admin", match: "/admin" };
 
 function formatIdentity(address: string | null) {
   if (!address) return "";
@@ -38,7 +47,9 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
     isConnecting,
     connect,
     disconnect,
+    role,
   } = useWallet();
+  const navItems = role === "admin" ? [...topNavItems, adminNavItem] : topNavItems;
 
   return (
     <header className="topbar">
@@ -51,7 +62,7 @@ export default function TopBar({ onMenu }: { onMenu: () => void }) {
           <span className="name hide-mobile">Baseshire Hethaway<em></em></span>
         </Link>
         <nav className="topnav">
-          {topNavItems.map((item) => {
+          {navItems.map((item) => {
             const isActive =
               item.tab
                 ? pathname === item.match && activeTab === item.tab
