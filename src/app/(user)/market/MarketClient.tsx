@@ -23,6 +23,7 @@ import {
   readPlatformFeeBps,
 } from "@/lib/contract";
 import { getActiveWalletProvider } from "@/lib/contract-helpers";
+import { isOwnListing as ownsListing } from "@/lib/identity";
 import { fmtUSDC } from "@/lib/utils";
 import { parseUnits, type Address } from "viem";
 import type {
@@ -706,19 +707,21 @@ function BundleDetailPanel({
   bundle,
   buying,
   buyerAddress,
+  sessionAddress,
   onBuy,
   onOffer,
 }: {
   bundle: BundleListing;
   buying: boolean;
   buyerAddress?: string | null;
+  sessionAddress?: string | null;
   onBuy: (bundle: BundleListing) => void;
   onOffer: (bundle: BundleListing) => void;
 }) {
   const seller = bundle.sellerAddress
     ? `${bundle.sellerAddress.slice(0, 6)}...${bundle.sellerAddress.slice(-4)}`
     : "Unknown";
-  const isOwnListing = bundle.sellerAddress?.toLowerCase() === buyerAddress?.toLowerCase();
+  const isOwnListing = ownsListing(bundle, { address: buyerAddress, sessionAddress });
   const isPendingSync = !bundle.contractListingId;
 
   return (
@@ -821,7 +824,8 @@ export default function MarketplacePage() {
   const [buyingBundleId, setBuyingBundleId] = useState("");
   const [chainLoading, setChainLoading] = useState(false);
   const [showOnChain, setShowOnChain] = useState(false);
-  const { isConnected, connect, isConnecting, address } = useWallet();
+  const { isConnected, connect, isConnecting, address, sessionAddress } = useWallet();
+  const walletIdentity = useMemo(() => ({ address, sessionAddress }), [address, sessionAddress]);
 
   useEffect(() => {
     const tab = searchParams.get("tab") as MarketTab | null;
@@ -910,11 +914,7 @@ export default function MarketplacePage() {
     let r = loans.filter((l) => {
       if (filter === "all") return true;
       if (filter === "my")
-        return (
-          Boolean(address) &&
-          (l as LoanWithSeller).sellerAddress?.toLowerCase() ===
-            address?.toLowerCase()
-        );
+        return ownsListing(l as LoanWithSeller, walletIdentity);
       return l.status === filter;
     });
     if (collectionFilter !== "all") {
@@ -927,7 +927,7 @@ export default function MarketplacePage() {
     if (sort === "amt") r = [...r].sort((a, b) => b.amt - a.amt);
     if (sort === "ltv") r = [...r].sort((a, b) => a.ltv - b.ltv);
     return r;
-  }, [filter, sort, loans, collectionFilter, address]);
+  }, [filter, sort, loans, collectionFilter, walletIdentity]);
 
   const selectedBundle = useMemo(
     () => bundles.find((bundle) => bundle.id === selectedBundleId) || null,
@@ -939,12 +939,7 @@ export default function MarketplacePage() {
     [
       "my",
       "My Listings",
-      loans.filter(
-        (l) =>
-          Boolean(address) &&
-          (l as LoanWithSeller).sellerAddress?.toLowerCase() ===
-            address?.toLowerCase(),
-      ).length,
+      loans.filter((l) => ownsListing(l as LoanWithSeller, walletIdentity)).length,
     ],
     ["open", "Open", loans.filter((l) => l.status === "open").length],
     ["funded", "Funded", loans.filter((l) => l.status === "funded").length],
@@ -973,7 +968,7 @@ export default function MarketplacePage() {
     setError("");
     try {
       if (!bundle.sellerAddress) throw new Error("Listing seller is missing.");
-      if (bundle.sellerAddress.toLowerCase() === address.toLowerCase()) {
+      if (ownsListing(bundle, walletIdentity)) {
         throw new Error("You cannot buy your own listing.");
       }
       if (!bundle.contractListingId) {
@@ -1597,6 +1592,7 @@ export default function MarketplacePage() {
               bundle={selectedBundle}
               buying={buyingBundleId === selectedBundle.id}
               buyerAddress={address}
+              sessionAddress={sessionAddress}
               onBuy={fundBundleEscrow}
               onOffer={setOfferBundle}
             />

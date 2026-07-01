@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
@@ -10,6 +10,7 @@ import BackButton from "@/components/BackButton";
 import ListClankerModal from "@/components/ListClankerModal";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, parseContractError, writeApproveUsdc } from "@/lib/contract";
+import { isOwnListing as ownsListing } from "@/lib/identity";
 import { parseUnits, type Address } from "viem";
 import type { ClankerToken } from "@/lib/data";
 import { fmtCompact, fmtUSDC } from "@/lib/utils";
@@ -27,7 +28,8 @@ export default function ClankerPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
-  const { address, isConnected, isConnecting, role, connect } = useWallet();
+  const { address, sessionAddress, isConnected, isConnecting, role, connect } = useWallet();
+  const walletIdentity = useMemo(() => ({ address, sessionAddress }), [address, sessionAddress]);
   const isSignedIn = Boolean(address && role);
   const [tokens, setTokens] = useState<ClankerToken[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +95,7 @@ export default function ClankerPage() {
     setError("");
     try {
       if (!token.sellerAddress) throw new Error("Listing seller is missing.");
-      if (token.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
+      if (ownsListing(token, walletIdentity)) throw new Error("You cannot buy your own listing.");
       if (!token.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       const amtWei = parseUnits(String(token.price), 6);
       const approveHash = await writeApproveUsdc(address as Address, await getDealsAddress(), amtWei);
@@ -174,7 +176,7 @@ export default function ClankerPage() {
       ) : (
         <div className="grid grid-3" style={{ gap: 16 }}>
           {tokens.map((t) => {
-            const isOwnListing = t.sellerAddress?.toLowerCase() === address?.toLowerCase();
+            const isOwnListing = ownsListing(t, walletIdentity);
             const isPendingSync = !t.contractListingId;
             return (
             <div key={t.id} className="card market-action-card" style={{ padding: 16, ...(t.id === selectedId ? { borderColor: "var(--accent)" } : {}) }}>
@@ -256,12 +258,12 @@ export default function ClankerPage() {
               <button
                 className="btn"
                 onClick={() => setOfferToken(selectedToken)}
-                disabled={!selectedToken.contractListingId || selectedToken.sellerAddress?.toLowerCase() === address?.toLowerCase()}
+                disabled={!selectedToken.contractListingId || ownsListing(selectedToken, walletIdentity)}
               >
                 Submit offer
               </button>
-              <button className="btn primary" onClick={() => fundEscrow(selectedToken)} disabled={buying === selectedToken.id || selectedToken.sellerAddress?.toLowerCase() === address?.toLowerCase()}>
-                {buying === selectedToken.id ? "Funding escrow..." : selectedToken.sellerAddress?.toLowerCase() === address?.toLowerCase() ? "Your listing" : "Buy with escrow"}
+              <button className="btn primary" onClick={() => fundEscrow(selectedToken)} disabled={buying === selectedToken.id || ownsListing(selectedToken, walletIdentity)}>
+                {buying === selectedToken.id ? "Funding escrow..." : ownsListing(selectedToken, walletIdentity) ? "Your listing" : "Buy with escrow"}
               </button>
             </div>
           </div>

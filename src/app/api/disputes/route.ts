@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, shortAddress } from "@/lib/api";
-import { requireUser } from "@/lib/auth";
+import { actorAddressForRequest, requireUser } from "@/lib/auth";
 
 const disputeSchema = z.object({
   escrowId: z.string().min(1),
@@ -19,26 +19,29 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return badRequest("Invalid dispute", parsed.error.flatten());
   }
+  const actorAddress = actorAddressForRequest(auth.user, parsed.data.filerAddress);
 
   const db = auth.db;
-  const escrowRows = await db`SELECT * FROM escrows WHERE id = ${parsed.data.escrowId} AND (buyer_address = ${auth.user.address} OR seller_address = ${auth.user.address}) LIMIT 1` as Record<string, unknown>[];
+  const escrowRows = await db`SELECT * FROM escrows WHERE id = ${parsed.data.escrowId} AND (buyer_address = ${actorAddress} OR seller_address = ${actorAddress}) LIMIT 1` as Record<string, unknown>[];
   if (escrowRows.length === 0) return NextResponse.json({ error: "Escrow not found for this session" }, { status: 404 });
   const escrow = escrowRows[0];
-  const againstAddress = String(escrow.buyer_address).toLowerCase() === auth.user.address
+  const againstAddress = String(escrow.buyer_address).toLowerCase() === actorAddress
     ? String(escrow.seller_address)
     : String(escrow.buyer_address);
   const id = `D-${Date.now()}`;
 
-  await db`INSERT INTO disputes (id, escrow_id, filer_address, against_address, reason, status, priority) VALUES (${id}, ${parsed.data.escrowId}, ${auth.user.address}, ${againstAddress}, ${parsed.data.reason}, 'open', 'medium')`;
+  await db`INSERT INTO disputes (id, escrow_id, filer_address, against_address, reason, status, priority) VALUES (${id}, ${parsed.data.escrowId}, ${actorAddress}, ${againstAddress}, ${parsed.data.reason}, 'open', 'medium')`;
   await db`UPDATE escrows SET stage = 'disputed', updated_at = NOW() WHERE id = ${parsed.data.escrowId}`;
 
-  return NextResponse.json({ data: { id, ...parsed.data, filerAddress: auth.user.address, againstAddress, status: "open", createdAt: new Date().toISOString() } }, { status: 201 });
+  return NextResponse.json({ data: { id, ...parsed.data, filerAddress: actorAddress, againstAddress, status: "open", createdAt: new Date().toISOString() } }, { status: 201 });
 }
 
 export async function GET(req: NextRequest) {
   const auth = await requireUser(req);
   if ("response" in auth) return auth.response;
   const db = auth.db;
+  const url = new URL(req.url);
+  const actorAddress = actorAddressForRequest(auth.user, url.searchParams.get("walletAddress"));
 
   const rows = auth.user.role === "admin" ? await db`
     SELECT d.*, e.amount, e.currency, l.marketplace, l.title
@@ -51,7 +54,7 @@ export async function GET(req: NextRequest) {
     FROM disputes d
     LEFT JOIN escrows e ON e.id = d.escrow_id
     LEFT JOIN listings l ON l.id = e.listing_id
-    WHERE d.filer_address = ${auth.user.address} OR d.against_address = ${auth.user.address}
+    WHERE d.filer_address = ${actorAddress} OR d.against_address = ${actorAddress}
     ORDER BY d.created_at DESC
   ` as Record<string, unknown>[];
 

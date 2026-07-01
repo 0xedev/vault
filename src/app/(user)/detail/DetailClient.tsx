@@ -12,6 +12,7 @@ import { fmtETH, fmtUSDC } from "@/lib/utils";
 import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
 import { getPublicClient, getWalletClient, writeAcceptOffer, writeAcceptSignedLoanOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline, writeApproveUsdc, getNftAddress, readPlatformFeeBps } from "@/lib/contract";
+import { currentActorAddress, isOwnListing as ownsListing } from "@/lib/identity";
 import { parseUnits, type Address, type Hash } from "viem";
 import type { Loan } from "@/lib/data";
 import { shareAsCast } from "@/lib/farcaster-sdk";
@@ -205,7 +206,8 @@ function LoanDetailContent() {
   const [deadline, setDeadline] = useState<number | null>(null);
   const [platformFeeBps, setPlatformFeeBps] = useState(500);
   const [now, setNow] = useState(0);
-  const { address } = useWallet();
+  const { address, sessionAddress } = useWallet();
+  const actorAddress = currentActorAddress({ address, sessionAddress });
 
   // Live countdown tick
   useEffect(() => {
@@ -326,7 +328,7 @@ function LoanDetailContent() {
 
   const l = loan;
   const collectionName = l.collection || COLLECTIONS[l.coll] || "Unknown collection";
-  const isSeller = Boolean(address && l.sellerAddress && address.toLowerCase() === l.sellerAddress.toLowerCase());
+  const isSeller = ownsListing(l, { address, sessionAddress });
   const updateOfferStatus = async (id: string, status: "accepted" | "rejected", offer: OfferRecord) => {
     setOfferAction(id);
     try {
@@ -359,7 +361,7 @@ function LoanDetailContent() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status, actorAddress: address, txHash }),
+        body: JSON.stringify({ id, status, actorAddress, txHash }),
       });
       if (!res.ok) throw new Error("Unable to update offer");
       setOffers((current) => current.map((o) => o.id === id ? { ...o, status } : o));
@@ -414,7 +416,7 @@ function LoanDetailContent() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "repaid", txHash: repayHash, actorAddress: address, action: "repay" }),
+        body: JSON.stringify({ status: "repaid", txHash: repayHash, actorAddress, action: "repay" }),
       }).catch(() => {});
       setLoan((prev) => prev ? { ...prev, status: "repaid" as Loan["status"] } : prev);
     } catch (err) {
@@ -441,7 +443,7 @@ function LoanDetailContent() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "funded", txHash: partialHash, actorAddress: address, action: "repay_partial" }),
+        body: JSON.stringify({ status: "funded", txHash: partialHash, actorAddress, action: "repay_partial" }),
       }).catch(() => {});
       setPartialAmt("");
     } catch (err) {
@@ -462,7 +464,7 @@ function LoanDetailContent() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "cancelled", txHash: cancelHash, actorAddress: address, action: "cancel_listing" }),
+        body: JSON.stringify({ status: "cancelled", txHash: cancelHash, actorAddress, action: "cancel_listing" }),
       }).catch(() => {});
       setLoan((prev) => prev ? { ...prev, status: "cancelled" as Loan["status"] } : prev);
     } catch (err) {
@@ -482,7 +484,7 @@ function LoanDetailContent() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: offerId, status: "rejected", actorAddress: address }),
+        body: JSON.stringify({ id: offerId, status: "rejected", actorAddress }),
       });
       setOffers((current) => current.map((o) => o.id === offerId ? { ...o, status: "withdrawn" } : o));
     } catch (err) {
@@ -506,7 +508,7 @@ function LoanDetailContent() {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "default", txHash: claimHash, actorAddress: address, action: "claim_collateral" }),
+        body: JSON.stringify({ status: "default", txHash: claimHash, actorAddress, action: "claim_collateral" }),
       }).catch(() => {});
       setLoan((prev) => prev ? { ...prev, status: "default" as Loan["status"] } : prev);
     } catch (err) {
@@ -517,7 +519,7 @@ function LoanDetailContent() {
   };
 
   const isBorrower = isSeller;
-  const isLender = offers.some((o) => o.status === "accepted" && o.offererAddress?.toLowerCase() === address?.toLowerCase());
+  const isLender = offers.some((o) => o.status === "accepted" && o.offererAddress?.toLowerCase() === actorAddress);
   const isFunded = l.status === "funded";
   const isRepaid = l.status === "repaid";
   const isDefaulted = l.status === "default";
@@ -592,7 +594,7 @@ function LoanDetailContent() {
                         <button className="btn sm primary" onClick={() => updateOfferStatus(o.id, "accepted", o)} disabled={o.status !== "pending" || offerAction === o.id}>Accept</button>
                         <button className="btn sm danger" onClick={() => updateOfferStatus(o.id, "rejected", o)} disabled={o.status !== "pending" || offerAction === o.id}>Reject</button>
                       </div>
-                    ) : o.offererAddress?.toLowerCase() === address?.toLowerCase() && o.status === "pending" ? (
+                    ) : o.offererAddress?.toLowerCase() === actorAddress && o.status === "pending" ? (
                       <div className="row" style={{ gap: 6 }}>
                         <button className="btn sm danger" onClick={() => withdrawOfferAction(o.id)} disabled={offerAction === o.id}>Withdraw</button>
                       </div>

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWallet } from "@/components/WalletProvider";
 import { getDealsAddress, getWalletClient, parseContractError } from "@/lib/contract";
+import { isOwnListing as ownsListing } from "@/lib/identity";
 import { buildSignedDealOfferTypedData, expiryFromHours, offerNonce } from "@/lib/signed-offers";
 import type { Address } from "viem";
 
@@ -26,7 +27,7 @@ type Props = {
 };
 
 export default function SubmitDealOfferModal({ listing, onClose, onSubmitted }: Props) {
-  const { address, isConnected, isConnecting, connect } = useWallet();
+  const { address, sessionAddress, isConnected, isConnecting, connect } = useWallet();
   const [amount, setAmount] = useState(String(listing.price || ""));
   const [expiresInHours, setExpiresInHours] = useState(24);
   const [submitting, setSubmitting] = useState(false);
@@ -40,7 +41,7 @@ export default function SubmitDealOfferModal({ listing, onClose, onSubmitted }: 
     setNotice("");
     try {
       if (!listing.sellerAddress) throw new Error("Listing seller is missing.");
-      if (listing.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot offer on your own listing.");
+      if (ownsListing(listing, { address, sessionAddress })) throw new Error("You cannot offer on your own listing.");
       if (!listing.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       const expiry = expiryFromHours(expiresInHours);
       const nonce = offerNonce();

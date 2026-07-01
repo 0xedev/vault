@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireUser } from "@/lib/auth";
+import { actorAddressForRequest, requireUser } from "@/lib/auth";
 import { fetchIndexedUserProfile } from "@/lib/subgraph";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ address: string }> }
 ) {
   const { address } = await params;
-  const auth = await requireUser(_req);
+  const auth = await requireUser(req);
   if ("response" in auth) return auth.response;
-  if (auth.user.role !== "admin" && auth.user.address !== address.toLowerCase()) {
+  const url = new URL(req.url);
+  const actorAddress = actorAddressForRequest(auth.user, url.searchParams.get("walletAddress"));
+  if (auth.user.role !== "admin" && actorAddress !== address.toLowerCase()) {
     return NextResponse.json({ error: "Profile access denied" }, { status: 403 });
   }
   const db = auth.db;

@@ -139,7 +139,8 @@ export async function DELETE(req: NextRequest) {
   const bundleId = url.searchParams.get("id");
   if (!bundleId) return badRequest("Missing bundle id parameter");
 
-  const listing = await auth.db`SELECT * FROM listings WHERE id = ${bundleId} AND seller_address = ${auth.user.address} AND marketplace = 'bundle' LIMIT 1` as Record<string, unknown>[];
+  const actorAddress = actorAddressForRequest(auth.user, url.searchParams.get("walletAddress"));
+  const listing = await auth.db`SELECT * FROM listings WHERE id = ${bundleId} AND seller_address = ${actorAddress} AND marketplace = 'bundle' LIMIT 1` as Record<string, unknown>[];
   if (listing.length === 0) return NextResponse.json({ error: "Bundle not found or not yours" }, { status: 404 });
 
   await auth.db`DELETE FROM listing_assets WHERE listing_id = ${bundleId}`;

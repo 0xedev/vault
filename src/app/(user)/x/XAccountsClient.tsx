@@ -8,6 +8,7 @@ import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
+import { isOwnListing as ownsListing } from "@/lib/identity";
 import { parseUnits, type Address } from "viem";
 import type { XAccount } from "@/lib/data";
 import { fmtCompact } from "@/lib/utils";
@@ -36,7 +37,8 @@ export default function XAccountsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
-  const { address, isConnected, connect } = useWallet();
+  const { address, sessionAddress, isConnected, connect } = useWallet();
+  const walletIdentity = useMemo(() => ({ address, sessionAddress }), [address, sessionAddress]);
   const [accounts, setAccounts] = useState<XAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -153,7 +155,7 @@ export default function XAccountsPage() {
     setError("");
     try {
       if (!account.sellerAddress) throw new Error("Listing seller is missing.");
-      if (account.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
+      if (ownsListing(account, walletIdentity)) throw new Error("You cannot buy your own listing.");
       if (!account.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       const amtWei = parseUnits(String(account.price), 6);
       const approveHash = await writeApproveUsdc(address as Address, await getDealsAddress(), amtWei);
@@ -267,7 +269,7 @@ export default function XAccountsPage() {
       <>
       <div className="grid grid-3">
         {displayedAccounts.map(a => {
-          const isOwnListing = a.sellerAddress?.toLowerCase() === address?.toLowerCase();
+          const isOwnListing = ownsListing(a, walletIdentity);
           return (
           <article key={a.id} className="x-card market-action-card" style={a.id === selectedId ? { borderColor: "var(--accent)" } : undefined}>
             <div className="x-head">

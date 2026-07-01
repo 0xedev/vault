@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { badRequest } from "@/lib/api";
-import { requireUser } from "@/lib/auth";
+import { actorAddressForRequest, requireUser } from "@/lib/auth";
 
 export async function POST(
   req: NextRequest,
@@ -10,11 +10,13 @@ export async function POST(
   const { id: escrowId } = await params;
   const auth = await requireUser(req);
   if ("response" in auth) return auth.response;
+  const url = new URL(req.url);
+  const actorAddress = actorAddressForRequest(auth.user, url.searchParams.get("walletAddress"));
 
   const escrowRows = await auth.db`
     SELECT id FROM escrows
     WHERE id = ${escrowId}
-      AND (buyer_address = ${auth.user.address} OR seller_address = ${auth.user.address})
+      AND (buyer_address = ${actorAddress} OR seller_address = ${actorAddress})
     LIMIT 1
   ` as Record<string, unknown>[];
   if (escrowRows.length === 0) return NextResponse.json({ error: "Deal not found" }, { status: 404 });

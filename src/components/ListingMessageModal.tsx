@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Icon from "@/components/icons";
 import { useWallet } from "@/components/WalletProvider";
+import { currentActorAddress, isOwnListing as ownsListing } from "@/lib/identity";
 
 type ListingMessage = {
   id: string;
@@ -41,6 +42,7 @@ function shortAddress(address?: string) {
 
 export default function ListingMessageModal({ listing, onClose, initialBuyerAddress = "" }: Props) {
   const { address, sessionAddress, isConnected, isConnecting, connect } = useWallet();
+  const actorAddress = currentActorAddress({ address, sessionAddress });
   const [messages, setMessages] = useState<ListingMessage[]>([]);
   const [threads, setThreads] = useState<ListingThread[]>([]);
   const [selectedBuyer, setSelectedBuyer] = useState(initialBuyerAddress);
@@ -50,8 +52,8 @@ export default function ListingMessageModal({ listing, onClose, initialBuyerAddr
   const [error, setError] = useState("");
 
   const isSeller = useMemo(
-    () => Boolean(address && listing.sellerAddress && address.toLowerCase() === listing.sellerAddress.toLowerCase()),
-    [address, listing.sellerAddress],
+    () => ownsListing(listing, { address, sessionAddress }),
+    [address, listing, sessionAddress],
   );
   const hasSessionForWallet = useMemo(
     () => Boolean(
@@ -102,7 +104,7 @@ export default function ListingMessageModal({ listing, onClose, initialBuyerAddr
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorAddress: address,
+          actorAddress,
           body: draft,
           ...(isSeller ? { buyerAddress: selectedBuyer } : {}),
         }),

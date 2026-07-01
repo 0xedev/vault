@@ -9,6 +9,7 @@ import ListingMessageModal from "@/components/ListingMessageModal";
 import { appColor, fmtCompact, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
+import { isOwnListing as ownsListing } from "@/lib/identity";
 import { parseUnits, type Address } from "viem";
 import type { MiniApp } from "@/lib/data";
 
@@ -272,7 +273,8 @@ export default function MiniAppsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
-  const { isConnected, connect, address } = useWallet();
+  const { isConnected, connect, address, sessionAddress } = useWallet();
+  const walletIdentity = useMemo(() => ({ address, sessionAddress }), [address, sessionAddress]);
   const [showListModal, setShowListModal] = useState(false);
   const [apps, setApps] = useState<MiniApp[]>([]);
   const [loading, setLoading] = useState(true);
@@ -319,7 +321,7 @@ export default function MiniAppsPage() {
     setError("");
     try {
       if (!app.sellerAddress) throw new Error("Listing seller is missing.");
-      if (app.sellerAddress.toLowerCase() === address.toLowerCase()) throw new Error("You cannot buy your own listing.");
+      if (ownsListing(app, walletIdentity)) throw new Error("You cannot buy your own listing.");
       if (!app.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
       const amtWei = parseUnits(String(app.price), 6);
       const approveHash = await writeApproveUsdc(address as Address, await getDealsAddress(), amtWei);
@@ -407,7 +409,7 @@ export default function MiniAppsPage() {
         <>
         <div className="grid grid-3">
           {displayedApps.map(a => {
-            const isOwnListing = a.sellerAddress?.toLowerCase() === address?.toLowerCase();
+            const isOwnListing = ownsListing(a, walletIdentity);
             return (
             <article key={a.id} className="loan-card market-action-card" style={a.id === selectedId ? { borderColor: "var(--accent)" } : undefined}>
               <div style={{ position: "relative", aspectRatio: "16/10", background: `linear-gradient(135deg, ${appColor(a.id, 0)}, ${appColor(a.id, 1)})`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>

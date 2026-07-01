@@ -33,6 +33,7 @@ import {
 import { fmtUSDC } from "@/lib/utils";
 import type { SignedDealOfferMessage, SignedLoanOfferMessage } from "@/lib/signed-offers";
 import { selectedRights } from "@/lib/clanker";
+import { currentActorAddress } from "@/lib/identity";
 import type { BundleListing, ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount } from "@/lib/data";
 import { type Address, type Hash } from "viem";
 import { shareAsCast } from "@/lib/farcaster-sdk";
@@ -240,7 +241,7 @@ function clankerRightLabels(rights: string[]) {
 
 function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () => void; onChanged: () => void }) {
   const { role } = useRole();
-  const { address } = useWallet();
+  const { address, sessionAddress } = useWallet();
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sending, setSending] = useState(false);
@@ -252,7 +253,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
   const [uploading, setUploading] = useState(false);
   const seenRef = useRef<Set<string>>(new Set());
   const step = stageToStep(deal.stageRaw);
-  const walletAddress = address?.toLowerCase();
+  const walletAddress = currentActorAddress({ address, sessionAddress });
   const buyerAddress = deal.buyerAddress.toLowerCase();
   const sellerAddress = deal.sellerAddress.toLowerCase();
   const actorRole = walletAddress === sellerAddress ? "seller" : walletAddress === buyerAddress ? "buyer" : role;
@@ -272,7 +273,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
     fetch(`/api/deals/${deal.id}/messages/read`, {
       method: "POST", credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageIds: unread }),
+      body: JSON.stringify({ messageIds: unread, actorAddress: walletAddress }),
     }).catch(() => {});
   };
 
@@ -284,6 +285,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
       pusher = new Pusher(process.env.NEXT_PUBLIC_PUSHER_KEY!, {
         cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!,
         authEndpoint: "/api/pusher/auth",
+        auth: { params: { walletAddress } },
       });
 
       const channel = pusher.subscribe(`private-deal-${deal.id}`);
@@ -317,7 +319,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
 
   // Initial message load
   useEffect(() => {
-    const query = address ? `?walletAddress=${encodeURIComponent(address)}` : "";
+    const query = walletAddress ? `?walletAddress=${encodeURIComponent(walletAddress)}` : "";
     fetch(`/api/deals/${deal.id}/messages${query}`)
       .then(r => r.json())
       .then(json => {
@@ -325,13 +327,13 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
         setHasMore(json.hasMore);
       })
       .catch(() => {});
-  }, [address, deal.id]);
+  }, [deal.id, walletAddress]);
 
   const loadMore = async () => {
     if (loadingMore || messages.length === 0) return;
     setLoadingMore(true);
     const cursor = messages[0].createdAt;
-    const query = address ? `?walletAddress=${encodeURIComponent(address)}&cursor=${encodeURIComponent(cursor)}` : `?cursor=${encodeURIComponent(cursor)}`;
+    const query = walletAddress ? `?walletAddress=${encodeURIComponent(walletAddress)}&cursor=${encodeURIComponent(cursor)}` : `?cursor=${encodeURIComponent(cursor)}`;
     const res = await fetch(`/api/deals/${deal.id}/messages${query}`);
     const json = await res.json();
     setMessages(prev => [...(json.data || []).reverse(), ...prev]);
@@ -402,7 +404,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...body, actorAddress: address, ...(txHash ? { txHash } : {}) }),
+        body: JSON.stringify({ ...body, actorAddress: walletAddress, ...(txHash ? { txHash } : {}) }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Escrow action failed");
@@ -423,7 +425,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         proofType: "transfer",
-        actorAddress: address,
+        actorAddress: walletAddress,
         url: `https://basescan.org/tx/${txHash}`,
         contentHash: txHash,
         txHash,
@@ -536,7 +538,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ actorAddress: address, body }),
+        body: JSON.stringify({ actorAddress: walletAddress, body }),
       });
       const json = await res.json();
       if (json.data) setMessages(prev => [...prev, json.data]);
@@ -551,7 +553,8 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
     try {
       const form = new FormData();
       form.set("file", file);
-      const uploadRes = await fetch(`/api/deals/${deal.id}/messages/image`, {
+      const uploadQuery = walletAddress ? `?walletAddress=${encodeURIComponent(walletAddress)}` : "";
+      const uploadRes = await fetch(`/api/deals/${deal.id}/messages/image${uploadQuery}`, {
         method: "POST", credentials: "include", body: form,
       });
       const uploadJson = await uploadRes.json();
@@ -561,7 +564,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          actorAddress: address,
+          actorAddress: walletAddress,
           messageType: "image",
           imageUrl: uploadJson.url,
           body: file.name,
@@ -1049,10 +1052,11 @@ export default function DealsPage() {
   const [listingsLoading, setListingsLoading] = useState(false);
   const [listingNotice, setListingNotice] = useState("");
   const [offerAction, setOfferAction] = useState("");
-  const { isConnected, isConnecting, connect, role, address } = useWallet();
+  const { isConnected, isConnecting, connect, role, address, sessionAddress } = useWallet();
+  const actorAddress = React.useMemo(() => currentActorAddress({ address, sessionAddress }), [address, sessionAddress]);
 
   const loadEscrows = React.useCallback(() => {
-    const query = address ? `?walletAddress=${encodeURIComponent(address)}` : "";
+    const query = actorAddress ? `?walletAddress=${encodeURIComponent(actorAddress)}` : "";
     return fetch(`/api/escrows${query}`)
       .then(async (r) => {
         const json = await r.json();
@@ -1060,7 +1064,7 @@ export default function DealsPage() {
         return json;
       })
       .then((json) => { setEscrows(json.data || []); setLoading(false); });
-  }, [address]);
+  }, [actorAddress]);
 
   useEffect(() => {
     if (!isConnected || !role) { queueMicrotask(() => { setLoading(false); setError("Authentication required"); }); return; }
@@ -1070,38 +1074,38 @@ export default function DealsPage() {
   }, [isConnected, role, loadEscrows]);
 
   const refreshProfileListings = React.useCallback(() => {
-    if (!address) {
+    if (!actorAddress) {
       setProfileListings([]);
       return Promise.resolve();
     }
     setListingsLoading(true);
-    return loadProfileListings(address)
+    return loadProfileListings(actorAddress)
       .then(setProfileListings)
       .catch((err) => setListingNotice(err instanceof Error ? err.message : "Unable to load active listings"))
       .finally(() => setListingsLoading(false));
-  }, [address]);
+  }, [actorAddress]);
 
   const refreshOutgoingOffers = React.useCallback(() => {
-    if (!address) {
+    if (!actorAddress) {
       setOutgoingOffers([]);
       return Promise.resolve();
     }
-    return fetch(`/api/offers?offererAddress=${encodeURIComponent(address)}`, { credentials: "include" })
+    return fetch(`/api/offers?offererAddress=${encodeURIComponent(actorAddress)}`, { credentials: "include" })
       .then((r) => r.json())
       .then((json) => setOutgoingOffers((json.data || []).filter((offer: ProfileOffer) => offer.status === "pending")))
       .catch(() => setOutgoingOffers([]));
-  }, [address]);
+  }, [actorAddress]);
 
   const refreshListingInbox = React.useCallback(() => {
-    if (!address) {
+    if (!actorAddress) {
       setListingInbox([]);
       return Promise.resolve();
     }
-    return fetch(`/api/listings/messages?walletAddress=${encodeURIComponent(address)}`, { credentials: "include" })
+    return fetch(`/api/listings/messages?walletAddress=${encodeURIComponent(actorAddress)}`, { credentials: "include" })
       .then((r) => r.json())
       .then((json) => setListingInbox(json.data || []))
       .catch(() => setListingInbox([]));
-  }, [address]);
+  }, [actorAddress]);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -1118,12 +1122,12 @@ export default function DealsPage() {
   useEffect(() => {
     if (!selectedDealId) { queueMicrotask(() => setDealDetail(null)); return; }
     queueMicrotask(() => setDetailLoading(true));
-    const query = address ? `?walletAddress=${encodeURIComponent(address)}` : "";
+    const query = actorAddress ? `?walletAddress=${encodeURIComponent(actorAddress)}` : "";
     fetch(`/api/escrows/${selectedDealId}${query}`)
       .then(r => r.json())
       .then(json => { setDealDetail(json.data || null); setDetailLoading(false); })
       .catch(() => setDetailLoading(false));
-  }, [address, selectedDealId]);
+  }, [actorAddress, selectedDealId]);
 
   /* -- computed -- */
   const active     = escrows.filter(e => e.stage !== "Released" && e.stage !== "Refunded");
@@ -1153,7 +1157,7 @@ export default function DealsPage() {
         credentials: "include",
         headers: listing.cancelMethod === "PATCH" ? { "Content-Type": "application/json" } : undefined,
         body: listing.cancelMethod === "PATCH"
-          ? JSON.stringify({ status: "cancelled", action: "cancel_listing", actorAddress: address })
+          ? JSON.stringify({ status: "cancelled", action: "cancel_listing", actorAddress })
           : undefined,
       });
       const json = await res.json().catch(() => ({}));
@@ -1170,7 +1174,7 @@ export default function DealsPage() {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: offer.id, status, actorAddress: address, txHash }),
+      body: JSON.stringify({ id: offer.id, status, actorAddress, txHash }),
     });
     const json = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(json.error || "Unable to update offer");
@@ -1291,7 +1295,7 @@ export default function DealsPage() {
         <div className="metric">
           <span className="lab">Active listings</span>
           <span className="val">{activeListingCount}</span>
-          <span className="delta">listed from {shortWallet(address || "")}</span>
+          <span className="delta">listed from {shortWallet(actorAddress || "")}</span>
         </div>
       </div>
 

@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest } from "@/lib/api";
-import { requireUser } from "@/lib/auth";
+import { actorAddressForRequest, requireUser } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const auth = await requireUser(req);
   if ("response" in auth) return auth.response;
+  const url = new URL(req.url);
+  const actorAddress = actorAddressForRequest(auth.user, url.searchParams.get("walletAddress"));
 
   const rows = await auth.db`
     SELECT platform, token, verified, created_at
-    FROM notification_tokens WHERE user_address = ${auth.user.address}
+    FROM notification_tokens WHERE user_address = ${actorAddress}
   ` as Record<string, unknown>[];
 
   return NextResponse.json({ data: rows });
@@ -18,6 +20,7 @@ export async function GET(req: NextRequest) {
 const upsertSchema = z.object({
   platform: z.enum(["email"]),
   token: z.string().email(),
+  walletAddress: z.string().startsWith("0x").length(42).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -26,11 +29,12 @@ export async function POST(req: NextRequest) {
 
   const parsed = upsertSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid request", parsed.error.flatten());
+  const actorAddress = actorAddressForRequest(auth.user, parsed.data.walletAddress);
 
   const id = `NT-${Date.now()}`;
   await auth.db`
     INSERT INTO notification_tokens (id, user_address, platform, token, verified)
-    VALUES (${id}, ${auth.user.address}, ${parsed.data.platform}, ${parsed.data.token}, true)
+    VALUES (${id}, ${actorAddress}, ${parsed.data.platform}, ${parsed.data.token}, true)
     ON CONFLICT (user_address, platform)
     DO UPDATE SET token = ${parsed.data.token}, verified = true
   `;
@@ -40,6 +44,7 @@ export async function POST(req: NextRequest) {
 
 const deleteSchema = z.object({
   platform: z.enum(["email"]),
+  walletAddress: z.string().startsWith("0x").length(42).optional(),
 });
 
 export async function DELETE(req: NextRequest) {
@@ -48,10 +53,11 @@ export async function DELETE(req: NextRequest) {
 
   const parsed = deleteSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid request", parsed.error.flatten());
+  const actorAddress = actorAddressForRequest(auth.user, parsed.data.walletAddress);
 
   await auth.db`
     DELETE FROM notification_tokens
-    WHERE user_address = ${auth.user.address} AND platform = ${parsed.data.platform}
+    WHERE user_address = ${actorAddress} AND platform = ${parsed.data.platform}
   `;
 
   return NextResponse.json({ ok: true });
