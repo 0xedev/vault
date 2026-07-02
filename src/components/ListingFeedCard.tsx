@@ -29,6 +29,8 @@ export default function ListingFeedCard({
   price,
   priceMeta = "USDC",
   badge,
+  imageUrl,
+  imageAlt,
   onShare,
   actions,
   children,
@@ -42,12 +44,15 @@ export default function ListingFeedCard({
   price: React.ReactNode;
   priceMeta?: React.ReactNode;
   badge?: React.ReactNode;
+  imageUrl?: string | null;
+  imageAlt?: string;
   onShare?: () => void;
   actions?: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
 }) {
   const visibleStats = stats.filter((stat) => hasVisibleStatValue(stat.value)).slice(0, 3);
+  const mediaUrl = typeof imageUrl === "string" ? imageUrl.trim() : "";
 
   return (
     <article className={`listing-feed-card market-action-card ${className}`.trim()}>
@@ -66,7 +71,20 @@ export default function ListingFeedCard({
         </button>
       )}
       <div className="listing-feed-head">
-        <span className="listing-feed-icon">{icon}</span>
+        <span className="listing-feed-icon">
+          {icon}
+          {mediaUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="listing-feed-image"
+              src={mediaUrl}
+              alt={imageAlt || `${title} preview`}
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
+          )}
+        </span>
         <div className="listing-feed-title">
           <strong className="trunc">{title}</strong>
           {subtitle && <span>{subtitle}</span>}

@@ -1295,6 +1295,8 @@ export default function MarketplacePage() {
                     key={app.id}
                     href={`/miniapps?id=${encodeURIComponent(app.id)}`}
                     icon={<Icon.app />}
+                    imageUrl={app.imageUrl}
+                    imageAlt={`${app.name} preview`}
                     title={app.name}
                     subtitle={app.kind}
                     stats={[
@@ -1332,6 +1334,8 @@ export default function MarketplacePage() {
                     key={account.id}
                     href={`/x?id=${encodeURIComponent(account.id)}`}
                     icon={<Icon.xlogo />}
+                    imageUrl={account.imageUrl}
+                    imageAlt={`${account.handle} preview`}
                     title={account.handle}
                     subtitle={account.niche || "X handle"}
                     stats={[
@@ -1369,6 +1373,8 @@ export default function MarketplacePage() {
                     key={account.id}
                     href={`/farcaster?id=${encodeURIComponent(account.id)}`}
                     icon={<Icon.cast />}
+                    imageUrl={account.imageUrl}
+                    imageAlt={`${fmtFarcasterAccount(account)} preview`}
                     title={fmtFarcasterAccount(account)}
                     subtitle={`FID #${account.fid}${account.channel ? ` · /${account.channel}` : ""}`}
                     stats={[
@@ -1407,6 +1413,8 @@ export default function MarketplacePage() {
                     key={token.id}
                     href={`/clanker?id=${encodeURIComponent(token.id)}`}
                     icon={<Icon.token />}
+                    imageUrl={token.imageUrl}
+                    imageAlt={`${token.name} token preview`}
                     title={`${token.name} (${token.symbol})`}
                     subtitle={token.chain}
                     stats={[
@@ -1564,6 +1572,8 @@ export default function MarketplacePage() {
                   key={app.id}
                   href={`/miniapps?id=${encodeURIComponent(app.id)}`}
                   icon={<Icon.app />}
+                  imageUrl={app.imageUrl}
+                  imageAlt={`${app.name} preview`}
                   title={app.name}
                   subtitle={app.kind}
                   stats={[
@@ -1595,6 +1605,8 @@ export default function MarketplacePage() {
                   key={account.id}
                   href={`/x?id=${encodeURIComponent(account.id)}`}
                   icon={<Icon.xlogo />}
+                  imageUrl={account.imageUrl}
+                  imageAlt={`${account.handle} preview`}
                   title={account.handle}
                   subtitle={account.niche || "X handle"}
                   stats={[
@@ -1626,6 +1638,8 @@ export default function MarketplacePage() {
                   key={account.id}
                   href={`/farcaster?id=${encodeURIComponent(account.id)}`}
                   icon={<Icon.cast />}
+                  imageUrl={account.imageUrl}
+                  imageAlt={`${fmtFarcasterAccount(account)} preview`}
                   title={fmtFarcasterAccount(account)}
                   subtitle={`FID #${account.fid}${account.channel ? ` · /${account.channel}` : ""}`}
                   stats={[
@@ -1658,6 +1672,8 @@ export default function MarketplacePage() {
                   key={token.id}
                   href={`/clanker?id=${encodeURIComponent(token.id)}`}
                   icon={<Icon.token />}
+                  imageUrl={token.imageUrl}
+                  imageAlt={`${token.name} token preview`}
                   title={`${token.name} (${token.symbol})`}
                   subtitle={token.chain}
                   stats={[

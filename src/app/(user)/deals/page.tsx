@@ -141,6 +141,7 @@ interface ProfileListing {
   currency: string;
   status: string;
   href: string;
+  imageUrl?: string | null;
   sellerAddress?: string;
   contractListingId?: string;
   cancelPath: string;
@@ -955,6 +956,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: "USDC",
       status: listing.status,
       href: `/detail?id=${encodeURIComponent(listing.id)}`,
+      imageUrl: listing.imageUrl,
       sellerAddress: listing.sellerAddress,
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
@@ -970,6 +972,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/miniapps?id=${encodeURIComponent(listing.id)}`,
+      imageUrl: listing.imageUrl,
       sellerAddress: listing.sellerAddress,
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
@@ -985,6 +988,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/x?id=${encodeURIComponent(listing.id)}`,
+      imageUrl: listing.imageUrl,
       sellerAddress: listing.sellerAddress,
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
@@ -1000,6 +1004,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/farcaster?id=${encodeURIComponent(listing.id)}`,
+      imageUrl: listing.imageUrl,
       sellerAddress: listing.sellerAddress,
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
@@ -1015,6 +1020,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: "USDC",
       status: listing.txStatus || "active",
       href: `/clanker?id=${encodeURIComponent(listing.id)}`,
+      imageUrl: listing.imageUrl,
       sellerAddress: listing.sellerAddress,
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
@@ -1030,6 +1036,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       currency: listing.currency || "USDC",
       status: listing.txStatus || "active",
       href: `/market?tab=bundles&id=${encodeURIComponent(listing.id)}`,
+      imageUrl: listing.imageUrl,
       sellerAddress: listing.sellerAddress,
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/bundle?id=${encodeURIComponent(listing.id)}`,
@@ -1408,6 +1415,8 @@ export default function DealsPage() {
                   <ListingFeedCard
                     href={listing.href}
                     icon={profileListingIcon(listing.shareKind)}
+                    imageUrl={listing.imageUrl}
+                    imageAlt={`${listing.title} preview`}
                     title={listing.title}
                     subtitle={listing.kind}
                     stats={[
