@@ -4260,6 +4260,7 @@ select:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   padding-top: 8px;
   border-top: 1px solid var(--line);
 }
@@ -4280,6 +4281,22 @@ select:focus-visible {
 .bundle-cta svg {
   width: 12px;
   height: 12px;
+}
+.bundle-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 2;
+}
+.bundle-card-actions .btn {
+  min-height: 30px;
+  padding: 6px 9px;
+  gap: 5px;
+}
+.bundle-card-actions .btn svg {
+  width: 13px;
+  height: 13px;
 }
 
 /* ── Bundle form ── */

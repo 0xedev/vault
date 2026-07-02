@@ -172,15 +172,6 @@ export default function ClankerPage() {
             return (
             <div key={t.id} className="card market-action-card" style={{ padding: 16, ...(t.id === selectedId ? { borderColor: "var(--accent)" } : {}) }}>
               <button className="ghost-hit-area" type="button" onClick={() => setSelectedToken(t)} aria-label={`View ${t.name}`} />
-              <button
-                type="button"
-                className="card-icon-btn listing-share-btn"
-                onClick={() => setShareToken(t)}
-                aria-label={`Share ${t.name}`}
-                title="Share"
-              >
-                <Icon.share />
-              </button>
               <div className="row" style={{ gap: 10, marginBottom: 10 }}>
                 {t.imageUrl ? (
                   <img src={t.imageUrl} alt={t.name} style={{ width: 40, height: 40, borderRadius: 20, objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -216,6 +207,9 @@ export default function ClankerPage() {
                 </button>
                 <button className="btn ghost" onClick={() => messageSeller(t)} disabled={isOwnListing}>
                   Msg seller
+                </button>
+                <button type="button" className="btn ghost" onClick={() => setShareToken(t)}>
+                  <Icon.share /> Share
                 </button>
               </div>
             </div>

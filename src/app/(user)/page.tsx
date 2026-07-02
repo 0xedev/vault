@@ -10,7 +10,6 @@ import Image from "next/image";
 import VaultMark from "@/components/VaultMark";
 import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
-import StatusPill from "@/components/StatusPill";
 import {
   Carousel,
   CarouselContent,
@@ -173,7 +172,6 @@ function DashboardPreview({ loans }: { loans: Loan[] }) {
               <span className="mono" style={{ fontSize: 13 }}>
                 {fmtUSDC(l.amt)} USDC
               </span>
-              <StatusPill s={l.status} />
             </div>
           </div>
         ))}

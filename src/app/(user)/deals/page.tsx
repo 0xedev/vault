@@ -1420,7 +1420,6 @@ export default function DealsPage() {
                     title={listing.title}
                     subtitle={listing.kind}
                     stats={[
-                      { label: "Status", value: listing.status },
                       { label: "Offers", value: listing.offers.length },
                       { label: "ID", value: listing.id },
                     ]}

@@ -455,15 +455,6 @@ export default function XAccountsPage() {
                       : undefined
                   }
                 >
-                  <button
-                    type="button"
-                    className="card-icon-btn listing-share-btn"
-                    onClick={() => setShareListing(a)}
-                    aria-label={`Share ${a.handle}`}
-                    title="Share"
-                  >
-                    <Icon.share />
-                  </button>
                   <div className="x-head">
                     <div className="x-avatar">
                       {a.imageUrl ? (
@@ -561,6 +552,13 @@ export default function XAccountsPage() {
                       disabled={isOwnListing}
                     >
                       Msg seller
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() => setShareListing(a)}
+                    >
+                      <Icon.share /> Share
                     </button>
                   </div>
                 </article>

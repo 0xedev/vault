@@ -417,15 +417,6 @@ export default function MiniAppsPage() {
             const isOwnListing = ownsListing(a, walletIdentity);
             return (
             <article key={a.id} className="loan-card market-action-card" style={a.id === selectedId ? { borderColor: "var(--accent)" } : undefined}>
-              <button
-                type="button"
-                className="card-icon-btn listing-share-btn"
-                onClick={() => setShareListing(a)}
-                aria-label={`Share ${a.name}`}
-                title="Share"
-              >
-                <Icon.share />
-              </button>
               <div style={{ position: "relative", aspectRatio: "16/10", background: `linear-gradient(135deg, ${appColor(a.id, 0)}, ${appColor(a.id, 1)})`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
                 {a.imageUrl ? (
                   <img src={a.imageUrl} alt={a.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -438,7 +429,6 @@ export default function MiniAppsPage() {
               <div className="row between">
                 <div className="col" style={{ gap: 1 }}><span className="meta">DAU</span><span className="amt mono" style={{ fontSize: 14 }}>{fmtCompact(a.dau)}</span></div>
                 <div className="col" style={{ gap: 1 }}><span className="meta">MRR</span><span className="amt mono" style={{ fontSize: 14 }}>{fmtUSDC(a.mrr)} USDC</span></div>
-                <div className="col" style={{ gap: 1 }}><span className="meta">Age</span><span className="amt mono" style={{ fontSize: 14 }}>{a.age}</span></div>
               </div>
               <div className="row" style={{ gap: 6, flexWrap: "wrap", marginBottom: 8 }}>{a.stack.map(s => <span key={s} className="chip" style={{ pointerEvents: "none", padding: "2px 7px", fontSize: 10.5 }}>{s}</span>)}</div>
               <div className="row between" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
@@ -454,6 +444,9 @@ export default function MiniAppsPage() {
                 </button>
                 <button className="btn ghost" onClick={() => messageSeller(a)} disabled={isOwnListing}>
                   Msg seller
+                </button>
+                <button type="button" className="btn ghost" onClick={() => setShareListing(a)}>
+                  <Icon.share /> Share
                 </button>
               </div>
             </article>

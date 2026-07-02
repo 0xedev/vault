@@ -2,7 +2,6 @@
 
 import type React from "react";
 import Link from "next/link";
-import Icon from "@/components/icons";
 
 type ListingFeedStat = {
   label: string;
@@ -31,7 +30,6 @@ export default function ListingFeedCard({
   badge,
   imageUrl,
   imageAlt,
-  onShare,
   actions,
   children,
   className = "",
@@ -46,7 +44,6 @@ export default function ListingFeedCard({
   badge?: React.ReactNode;
   imageUrl?: string | null;
   imageAlt?: string;
-  onShare?: () => void;
   actions?: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
@@ -58,17 +55,6 @@ export default function ListingFeedCard({
     <article className={`listing-feed-card market-action-card ${className}`.trim()}>
       {href && (
         <Link href={href} className="ghost-hit-area" aria-label={`View ${title}`} />
-      )}
-      {onShare && (
-        <button
-          type="button"
-          className="card-icon-btn listing-share-btn"
-          onClick={onShare}
-          aria-label={`Share ${title}`}
-          title="Share"
-        >
-          <Icon.share />
-        </button>
       )}
       <div className="listing-feed-head">
         <span className="listing-feed-icon">

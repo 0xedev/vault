@@ -1302,11 +1302,18 @@ export default function MarketplacePage() {
                     stats={[
                       { label: "DAU", value: app.dau.toLocaleString() },
                       { label: "MRR", value: `${fmtUSDC(app.mrr)} USDC` },
-                      { label: "Age", value: app.age },
                     ]}
                     price={fmtUSDC(app.price)}
-                    onShare={() => openShareModal(shareMiniAppTarget(app))}
-                    actions={<Link href={`/miniapps?id=${encodeURIComponent(app.id)}`} className="btn primary sm">View app</Link>}
+                    actions={
+                      <>
+                        <Link href={`/miniapps?id=${encodeURIComponent(app.id)}`} className="btn primary sm">
+                          <Icon.arrow /> View app
+                        </Link>
+                        <button type="button" className="btn sm" onClick={() => openShareModal(shareMiniAppTarget(app))}>
+                          <Icon.share /> Share
+                        </button>
+                      </>
+                    }
                   />
                 ))}
               </MarketAssetCarousel>
@@ -1344,8 +1351,16 @@ export default function MarketplacePage() {
                       { label: "30d growth", value: account.growth },
                     ]}
                     price={fmtUSDC(account.price)}
-                    onShare={() => openShareModal(shareXTarget(account))}
-                    actions={<Link href={`/x?id=${encodeURIComponent(account.id)}`} className="btn primary sm">View account</Link>}
+                    actions={
+                      <>
+                        <Link href={`/x?id=${encodeURIComponent(account.id)}`} className="btn primary sm">
+                          <Icon.arrow /> View account
+                        </Link>
+                        <button type="button" className="btn sm" onClick={() => openShareModal(shareXTarget(account))}>
+                          <Icon.share /> Share
+                        </button>
+                      </>
+                    }
                   />
                 ))}
               </MarketAssetCarousel>
@@ -1384,8 +1399,16 @@ export default function MarketplacePage() {
                     ]}
                     price={fmtUSDC(account.price)}
                     badge={account.power_badge ? "Power" : undefined}
-                    onShare={() => openShareModal(shareFarcasterTarget(account))}
-                    actions={<Link href={`/farcaster?id=${encodeURIComponent(account.id)}`} className="btn primary sm">View FID</Link>}
+                    actions={
+                      <>
+                        <Link href={`/farcaster?id=${encodeURIComponent(account.id)}`} className="btn primary sm">
+                          <Icon.arrow /> View FID
+                        </Link>
+                        <button type="button" className="btn sm" onClick={() => openShareModal(shareFarcasterTarget(account))}>
+                          <Icon.share /> Share
+                        </button>
+                      </>
+                    }
                   />
                 ))}
               </MarketAssetCarousel>
@@ -1424,8 +1447,16 @@ export default function MarketplacePage() {
                     ]}
                     price={fmtUSDC(token.price)}
                     badge={token.verified ? "Verified" : undefined}
-                    onShare={() => openShareModal(shareClankerTarget(token))}
-                    actions={<Link href={`/clanker?id=${encodeURIComponent(token.id)}`} className="btn primary sm">View token</Link>}
+                    actions={
+                      <>
+                        <Link href={`/clanker?id=${encodeURIComponent(token.id)}`} className="btn primary sm">
+                          <Icon.arrow /> View token
+                        </Link>
+                        <button type="button" className="btn sm" onClick={() => openShareModal(shareClankerTarget(token))}>
+                          <Icon.share /> Share
+                        </button>
+                      </>
+                    }
                   />
                 ))}
               </MarketAssetCarousel>
@@ -1579,11 +1610,18 @@ export default function MarketplacePage() {
                   stats={[
                     { label: "DAU", value: app.dau.toLocaleString() },
                     { label: "MRR", value: `${fmtUSDC(app.mrr)} USDC` },
-                    { label: "Age", value: app.age },
                   ]}
                   price={fmtUSDC(app.price)}
-                  onShare={() => openShareModal(shareMiniAppTarget(app))}
-                  actions={<Link href={`/miniapps?id=${encodeURIComponent(app.id)}`} className="btn primary sm">View app</Link>}
+                  actions={
+                    <>
+                      <Link href={`/miniapps?id=${encodeURIComponent(app.id)}`} className="btn primary sm">
+                        <Icon.arrow /> View app
+                      </Link>
+                      <button type="button" className="btn sm" onClick={() => openShareModal(shareMiniAppTarget(app))}>
+                        <Icon.share /> Share
+                      </button>
+                    </>
+                  }
                 />
               ))}
             </MarketAssetCarousel>
@@ -1615,8 +1653,16 @@ export default function MarketplacePage() {
                     { label: "30d growth", value: account.growth },
                   ]}
                   price={fmtUSDC(account.price)}
-                  onShare={() => openShareModal(shareXTarget(account))}
-                  actions={<Link href={`/x?id=${encodeURIComponent(account.id)}`} className="btn primary sm">View account</Link>}
+                  actions={
+                    <>
+                      <Link href={`/x?id=${encodeURIComponent(account.id)}`} className="btn primary sm">
+                        <Icon.arrow /> View account
+                      </Link>
+                      <button type="button" className="btn sm" onClick={() => openShareModal(shareXTarget(account))}>
+                        <Icon.share /> Share
+                      </button>
+                    </>
+                  }
                 />
               ))}
             </MarketAssetCarousel>
@@ -1649,8 +1695,16 @@ export default function MarketplacePage() {
                   ]}
                   price={fmtUSDC(account.price)}
                   badge={account.power_badge ? "Power" : undefined}
-                  onShare={() => openShareModal(shareFarcasterTarget(account))}
-                  actions={<Link href={`/farcaster?id=${encodeURIComponent(account.id)}`} className="btn primary sm">View FID</Link>}
+                  actions={
+                    <>
+                      <Link href={`/farcaster?id=${encodeURIComponent(account.id)}`} className="btn primary sm">
+                        <Icon.arrow /> View FID
+                      </Link>
+                      <button type="button" className="btn sm" onClick={() => openShareModal(shareFarcasterTarget(account))}>
+                        <Icon.share /> Share
+                      </button>
+                    </>
+                  }
                 />
               ))}
             </MarketAssetCarousel>
@@ -1683,8 +1737,16 @@ export default function MarketplacePage() {
                   ]}
                   price={fmtUSDC(token.price)}
                   badge={token.verified ? "Verified" : undefined}
-                  onShare={() => openShareModal(shareClankerTarget(token))}
-                  actions={<Link href={`/clanker?id=${encodeURIComponent(token.id)}`} className="btn primary sm">View token</Link>}
+                  actions={
+                    <>
+                      <Link href={`/clanker?id=${encodeURIComponent(token.id)}`} className="btn primary sm">
+                        <Icon.arrow /> View token
+                      </Link>
+                      <button type="button" className="btn sm" onClick={() => openShareModal(shareClankerTarget(token))}>
+                        <Icon.share /> Share
+                      </button>
+                    </>
+                  }
                 />
               ))}
             </MarketAssetCarousel>

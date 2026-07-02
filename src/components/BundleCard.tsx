@@ -24,17 +24,6 @@ export default function BundleCard({ bundle, onShare }: { bundle: BundleListing;
   return (
     <article className="bundle-card">
       <Link href={`/market?tab=bundles&id=${encodeURIComponent(bundle.id)}`} className="ghost-hit-area" aria-label={`View ${bundle.name}`} />
-      {onShare && (
-        <button
-          type="button"
-          className="card-icon-btn listing-share-btn"
-          onClick={() => onShare(bundle)}
-          aria-label={`Share ${bundle.name}`}
-          title="Share"
-        >
-          <Icon.share />
-        </button>
-      )}
       {bundle.imageUrl && (
         <div className="bundle-card-img">
           <img src={bundle.imageUrl} alt={bundle.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -69,7 +58,19 @@ export default function BundleCard({ bundle, onShare }: { bundle: BundleListing;
       <Separator />
       <div className="bundle-card-foot">
         <span className="bundle-price">{totalPrice} {currency}</span>
-        <span className="bundle-cta">View <Icon.arrow /></span>
+        <div className="bundle-card-actions">
+          <span className="bundle-cta">View <Icon.arrow /></span>
+          {onShare && (
+            <button
+              type="button"
+              className="btn sm"
+              onClick={() => onShare(bundle)}
+              aria-label={`Share ${bundle.name}`}
+            >
+              <Icon.share /> Share
+            </button>
+          )}
+        </div>
       </div>
     </article>
   );
