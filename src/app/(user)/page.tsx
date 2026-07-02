@@ -461,53 +461,27 @@ export default function LandingPage() {
             ) : (
               <Carousel
                 opts={{ align: "start", dragFree: true }}
-                className="market-carousel-viewport"
+                className="mobile-feed-carousel"
                 aria-label="Marketplace listings carousel"
               >
-                <CarouselContent className="market-carousel-content">
-                  {allOpportunities.map((item, index) => (
+                <CarouselContent className="mobile-feed-list">
+                  {allOpportunities.map((item) => (
                     <CarouselItem
                       key={`${item.href}-${item.title}`}
-                      className="market-carousel-item"
+                      className="mobile-feed-item"
                     >
                       <Link
                         href={item.href}
-                        className="market-float-card"
-                        style={
-                          {
-                            "--market-color": item.color,
-                            "--float-offset": `${index % 2 === 0 ? 0 : 14}px`,
-                          } as CSSProperties
-                        }
+                        className="mobile-feed-row"
+                        style={{ "--feed-color": item.color } as CSSProperties}
                       >
-                        <span className="market-float-glow" />
-                        <span className="market-float-top">
-                          <span className="market-float-visual">{item.icon}</span>
-                          <span
-                            className="pill"
-                            style={{
-                              borderColor:
-                                "color-mix(in oklab, var(--market-color) 30%, transparent)",
-                              color: "var(--market-color)",
-                            }}
-                          >
-                            <span
-                              className="pdot"
-                              style={{ background: "var(--market-color)" }}
-                            />
-                            {item.market}
-                          </span>
-                        </span>
-                        <span className="market-float-copy">
+                        <span className="mobile-feed-icon">{item.icon}</span>
+                        <span className="mobile-feed-copy">
+                          <small>{item.market}</small>
                           <strong>{item.title}</strong>
-                          <span>{item.meta}</span>
+                          <em>{item.meta}</em>
                         </span>
-                        <span className="market-float-foot">
-                          <span className="mono">{item.value}</span>
-                          <span>
-                            View <Icon.arrow />
-                          </span>
-                        </span>
+                        <span className="mobile-feed-value">{item.value}</span>
                       </Link>
                     </CarouselItem>
                   ))}
