@@ -32,6 +32,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# generated deployment payloads
+/deployments/*.json
+/broadcast/
+/cache/Deploy*.s.sol/
+
 # env files (can opt-in for committing if needed)
 .env*
 

@@ -6,6 +6,7 @@ import "../mocks/MockERC20.sol";
 import "../mocks/MockERC721.sol";
 import "../../contracts/VaultCore.sol";
 import "../../contracts/VaultDeals.sol";
+import "../../contracts/VaultEscrowBaseMcp.sol";
 import "../../contracts/VaultEscrow.sol";
 import "../../contracts/VaultNFT.sol";
 
@@ -36,6 +37,17 @@ contract ProfileReadsTest is Test {
 
         assertTrue(wrapper.nft().isAdmin(admin));
         assertTrue(wrapper.deals().isAdmin(admin));
+        assertFalse(wrapper.nft().isAdmin(address(wrapper)));
+        assertFalse(wrapper.deals().isAdmin(address(wrapper)));
+    }
+
+    function test_BaseMcpWrapperUsesExplicitChildAdmin() public {
+        VaultEscrowBaseMcp wrapper = new VaultEscrowBaseMcp(address(usdc), 150, admin);
+
+        assertTrue(wrapper.nft().isAdmin(admin));
+        assertTrue(wrapper.deals().isAdmin(admin));
+        assertFalse(wrapper.nft().isAdmin(address(this)));
+        assertFalse(wrapper.deals().isAdmin(address(this)));
         assertFalse(wrapper.nft().isAdmin(address(wrapper)));
         assertFalse(wrapper.deals().isAdmin(address(wrapper)));
     }

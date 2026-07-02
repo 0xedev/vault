@@ -13,6 +13,17 @@ npm run dev      # http://localhost:3000
 npm run build    # production build
 ```
 
+## Contract deployment
+
+Generate a Base MCP `send_calls` payload for the escrow wrapper:
+
+```bash
+mkdir -p deployments
+ADMIN=0xYourBaseAccount forge script script/DeployVaultEscrow.s.sol:DeployVaultEscrowScript --sig "writeBaseMcpPayload()"
+```
+
+The script writes `deployments/base-mcp-deploy.json` with the CREATE2 call, predicted wrapper address, and child `VaultNFT` / `VaultDeals` addresses. For a normal private-key Foundry deployment, use `forge script script/DeployVaultEscrow.s.sol:DeployVaultEscrowScript --broadcast`.
+
 ## Routes
 
 | User pages | Admin pages |
