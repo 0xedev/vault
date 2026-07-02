@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
 import { useWallet } from "@/components/WalletProvider";
 import { hashMetadata, writeListBundle, waitForDealId, parseContractError } from "@/lib/contract";
 import { bundleAssetLabel, type BundleAssetKind } from "@/lib/data";
@@ -50,6 +51,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
   const [assets, setAssets] = useState<BundleFormAsset[]>([emptyAsset()]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState<ListingSuccessShare | null>(null);
 
   const totalPrice = Number(price || 0);
 
@@ -130,14 +132,23 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to create bundle");
+      const listingId = String(json.data?.id || Date.now());
       onListed();
-      onClose();
+      setSuccess({
+        title: name,
+        text: `${name} — ${fmtUSDC(totalPrice)} USDC bundled listing on Vault`,
+        url: `${window.location.origin}/market?tab=bundles&id=${encodeURIComponent(listingId)}`,
+      });
     } catch (err) {
       setError(parseContractError(err));
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (success) {
+    return <ListingSuccessModal share={success} onClose={onClose} />;
+  }
 
   return (
     <div className="modal-bg" onClick={onClose}>

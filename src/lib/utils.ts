@@ -29,6 +29,13 @@ export function fmtCompact(n: number): string {
   return n + "";
 }
 
+export function fmtFarcasterAccount(account: { handle?: string; fid?: number }) {
+  const handle = String(account.handle || "").replace(/^@/, "").trim();
+  if (handle && !/^fid\s*#/i.test(handle)) return `@${handle}`;
+  if (Number(account.fid) > 0) return `FID #${account.fid}`;
+  return handle || "Farcaster account";
+}
+
 export function appColor(seed: string, idx: number): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;

@@ -3,9 +3,9 @@
 import React, { useState } from "react";
 import Icon from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
@@ -18,20 +18,26 @@ import { parseUnits, type Address } from "viem";
 
 export default function ListFidModal({ onClose }: { onClose: () => void }) {
   const { address } = useWallet();
+  const [identifierMode, setIdentifierMode] = useState<"handle" | "fid">("handle");
   const [handle, setHandle] = useState("");
+  const [fid, setFid] = useState("");
   const [followers, setFollowers] = useState("");
   const [price, setPrice] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [fetchingProfile, setFetchingProfile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState("");
+  const [success, setSuccess] = useState<ListingSuccessShare | null>(null);
 
   const normalizedHandle = handle.replace(/^@/, "").trim();
-  const profileUrl = normalizedHandle ? `https://warpcast.com/${normalizedHandle}` : "";
+  const normalizedFid = fid.replace(/\D/g, "").trim();
+  const isFidMode = identifierMode === "fid";
+  const profileUrl = !isFidMode && normalizedHandle ? `https://warpcast.com/${normalizedHandle}` : "";
+  const listingLabel = isFidMode ? `FID #${normalizedFid}` : `@${normalizedHandle}`;
+  const canSubmit = Boolean(price && (isFidMode ? normalizedFid : normalizedHandle));
 
   const fetchProfilePreview = async () => {
-    if (!profileUrl || imageUrl) return imageUrl;
+    if (isFidMode || !profileUrl || imageUrl) return imageUrl;
     setFetchingProfile(true);
     try {
       const res = await fetch(`/api/og-preview?url=${encodeURIComponent(profileUrl)}`);
@@ -55,7 +61,8 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
     try {
       const profileImage = await fetchProfilePreview();
       const metadata = {
-        handle: normalizedHandle,
+        handle: isFidMode ? "" : normalizedHandle,
+        fid: Number(normalizedFid || 0),
         profileUrl,
         followers: Number(followers || 0),
         price: Number(price),
@@ -77,16 +84,16 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sellerAddress: address,
-          title: normalizedHandle,
-          description: `Farcaster account @${normalizedHandle}`,
+          title: listingLabel,
+          description: `Farcaster account ${listingLabel}`,
           price: Number(price),
           chainId: 8453,
           contractAddress: getEscrowAddress(),
           contractListingId,
           txHash,
           data: {
-            fid: 0,
-            handle: normalizedHandle,
+            fid: Number(normalizedFid || 0),
+            handle: isFidMode ? "" : normalizedHandle,
             imageUrl: profileImage || imageUrl,
             profileUrl,
             channel: "",
@@ -102,13 +109,22 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
       const json = await res.json();
       if (!res.ok)
         throw new Error(json.error || "Unable to submit FID listing");
-      setDone("Listed. Buyers can fund escrow and confirm transfer with the seller.");
+      const listingId = String(json.data?.id || contractListingId || Date.now());
+      setSuccess({
+        title: listingLabel,
+        text: `${listingLabel} — ${Number(price).toLocaleString("en-US")} USDC Farcaster listing on Vault`,
+        url: `${window.location.origin}/farcaster?id=${encodeURIComponent(listingId)}`,
+      });
     } catch (err) {
       setError(parseContractError(err));
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (success) {
+    return <ListingSuccessModal share={success} onClose={onClose} />;
+  }
 
   return (
     <div className="modal-bg" onClick={onClose}>
@@ -135,16 +151,49 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
             overflowY: "auto",
           }}
         >
+          <div className="seg" role="tablist" aria-label="Farcaster identifier type">
+            <button
+              type="button"
+              className={!isFidMode ? "active" : ""}
+              onClick={() => {
+                setIdentifierMode("handle");
+                setError("");
+              }}
+            >
+              Handle
+            </button>
+            <button
+              type="button"
+              className={isFidMode ? "active" : ""}
+              onClick={() => {
+                setIdentifierMode("fid");
+                setError("");
+              }}
+            >
+              FID
+            </button>
+          </div>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="col" style={{ gap: 4 }}>
-              <Label htmlFor="fid-account">Account</Label>
-              <Input
-                id="fid-account"
-                value={handle}
-                onChange={(e) => setHandle(e.target.value)}
-                onBlur={fetchProfilePreview}
-                placeholder="@founder"
-              />
+              <Label htmlFor="fid-account">{isFidMode ? "FID" : "Handle"}</Label>
+              {isFidMode ? (
+                <Input
+                  id="fid-account"
+                  className="mono"
+                  inputMode="numeric"
+                  value={fid}
+                  onChange={(e) => setFid(e.target.value.replace(/\D/g, ""))}
+                  placeholder="12345"
+                />
+              ) : (
+                <Input
+                  id="fid-account"
+                  value={handle}
+                  onChange={(e) => setHandle(e.target.value)}
+                  onBlur={fetchProfilePreview}
+                  placeholder="@founder"
+                />
+              )}
             </div>
             <div className="col" style={{ gap: 4 }}>
               <Label htmlFor="fid-followers">Followers</Label>
@@ -171,7 +220,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
             <div className="metric" style={{ padding: 12 }}>
               <span className="lab">Profile</span>
               <span className="val" style={{ fontSize: 13 }}>
-                {fetchingProfile ? "Fetching..." : profileUrl || "Add account"}
+                {fetchingProfile ? "Fetching..." : isFidMode ? listingLabel || "Add FID" : profileUrl || "Add handle"}
               </span>
             </div>
           </div>
@@ -181,36 +230,16 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
 
-          {done && (
-            <Card style={{ padding: 14, background: "rgba(127,157,197,0.12)", border: "1px solid var(--accent)" }}>
-              <div className="pill funded" style={{ width: "fit-content" }}>
-                <span className="pdot" />
-                {done}
-              </div>
-            </Card>
-          )}
           <div className="modal-f">
-            <Button
-              variant="outline"
-                onClick={() => {
-                  onClose();
-                  setDone("");
-                }}
-            >
+            <Button variant="outline" onClick={onClose}>
               Close
             </Button>
-            {!done ? (
-              <Button
-                onClick={submitListing}
-                disabled={submitting || !normalizedHandle || !price}
-              >
-                {submitting ? "Signing..." : "List account"}
-              </Button>
-            ) : (
-              <Button onClick={onClose}>
-                Done
-              </Button>
-            )}
+            <Button
+              onClick={submitListing}
+              disabled={submitting || !canSubmit}
+            >
+              {submitting ? "Signing..." : "List account"}
+            </Button>
           </div>
         </div>
       </div>

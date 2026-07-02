@@ -7,6 +7,7 @@ import Icon from "@/components/icons";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
 import ShareListingModal from "@/components/ShareListingModal";
+import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
 import { appColor, fmtCompact, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, writeListDeal, waitForDealId, hashMetadata, parseContractError, writeApproveUsdc } from "@/lib/contract";
@@ -39,7 +40,7 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
   const [fetchingOg, setFetchingOg] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState("");
+  const [success, setSuccess] = useState<ListingSuccessShare | null>(null);
 
   const toggleDeliverable = (key: string) => {
     setDeliverables((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -129,13 +130,22 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to submit listing");
-      setDone("Listed on-chain. Buyers can fund escrow and confirm terms directly with the seller.");
+      const listingId = String(json.data?.id || contractListingId || Date.now());
+      setSuccess({
+        title: name,
+        text: `${name} — ${Number(price).toLocaleString("en-US")} USDC Mini App listing on Vault`,
+        url: `${window.location.origin}/miniapps?id=${encodeURIComponent(listingId)}`,
+      });
     } catch (err) {
       setError(parseContractError(err));
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (success) {
+    return <ListingSuccessModal share={success} onClose={onClose} />;
+  }
 
   return (
     <div className="modal-bg" onClick={onClose}>
@@ -253,11 +263,6 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           {error && <div className="warn-banner" style={{ color: "var(--risk)" }}>{error}</div>}
-          {done && (
-            <div className="card" style={{ padding: 14, background: "rgba(127,157,197,0.08)", border: "1px solid var(--line)" }}>
-              <div className="pill funded" style={{ width: "fit-content", marginBottom: 10 }}><span className="pdot" />{done}</div>
-            </div>
-          )}
         </div>
         <div className="modal-f">
           <button className="btn" style={{ flex: 1 }} onClick={onClose}>Cancel</button>

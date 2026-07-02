@@ -308,7 +308,12 @@ export default function ClankerPage() {
         <ListClankerModal
           onClose={() => { setListing(false); }}
           onListed={() => {
-            window.location.reload();
+            fetch("/api/marketplace/clanker")
+              .then((r) => r.json())
+              .then((json) => {
+                if (json.data) setTokens(json.data);
+              })
+              .catch(() => {});
           }}
         />
       )}

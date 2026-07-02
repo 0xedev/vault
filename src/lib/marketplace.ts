@@ -93,10 +93,13 @@ export function mapXAccountListing(row: ListingRow) {
 
 export function mapFarcasterListing(row: ListingRow) {
   const data = jsonRecord(row.collateral_data);
+  const fid = asNumber(data.fid);
+  const rawHandle = asString(data.handle).replace(/^@/, "").trim();
+  const fallbackHandle = asString(row.title, "").replace(/^@/, "").trim();
   return {
     id: String(row.id),
-    handle: asString(data.handle, asString(row.title, "").replace(/^@/, "")),
-    fid: asNumber(data.fid),
+    handle: rawHandle || (fid > 0 ? `FID #${fid}` : fallbackHandle),
+    fid,
     followers: asNumber(data.followers),
     channel: asString(data.channel, ""),
     price: asNumber(row.price),

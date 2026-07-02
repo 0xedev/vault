@@ -24,7 +24,7 @@ import {
 } from "@/lib/contract";
 import { getActiveWalletProvider } from "@/lib/contract-helpers";
 import { isOwnListing as ownsListing } from "@/lib/identity";
-import { fmtUSDC } from "@/lib/utils";
+import { fmtFarcasterAccount, fmtUSDC } from "@/lib/utils";
 import { parseUnits, type Address } from "viem";
 import type {
   ClankerToken,
@@ -42,6 +42,7 @@ import ListFidModal from "@/components/ListFidModal";
 import ListClankerModal from "@/components/ListClankerModal";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ShareListingModal from "@/components/ShareListingModal";
+import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
 import ListingFeedCard from "@/components/ListingFeedCard";
 import {
   Carousel,
@@ -127,6 +128,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
   const [scanning, setScanning] = useState(true);
   const [collSeed] = useState(() => Math.floor(Math.random() * 100));
   const [nftPlatformFeeBps, setNftPlatformFeeBps] = useState(500);
+  const [success, setSuccess] = useState<ListingSuccessShare | null>(null);
 
   useEffect(() => {
     readPlatformFeeBps("nft").then(setNftPlatformFeeBps).catch(() => {});
@@ -276,12 +278,13 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       const contractListingId = await waitForListingId(listTxHash);
 
       // 3. POST to API
+      const listingId = `L-${Date.now()}`;
       const res = await fetch("/api/listings", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: `L-${Date.now()}`,
+          id: listingId,
           seller: address || "0x0000",
           amount: Number(amount),
           apr: Number(apr),
@@ -298,13 +301,21 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       });
 
       if (!res.ok) throw new Error("Listing failed");
-      onClose();
+      setSuccess({
+        title: `${collection} ${tokenId}`,
+        text: `${collection} ${tokenId} — borrow ${Number(amount).toLocaleString("en-US")} USDC at ${apr}% APR on Vault`,
+        url: `${window.location.origin}/detail?id=${encodeURIComponent(listingId)}`,
+      });
     } catch (err) {
       setError(parseContractError(err));
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (success) {
+    return <ListingSuccessModal share={success} onClose={onClose} />;
+  }
 
   const selectNFT = (
     c: string,
@@ -996,8 +1007,8 @@ export default function MarketplacePage() {
 
   const shareFarcasterTarget = (account: FarcasterAccount): ShareListingTarget => ({
     id: account.id,
-    title: `@${account.handle}`,
-    text: `@${account.handle} — ${fmtUSDC(account.price)} USDC Farcaster listing on Vault`,
+    title: fmtFarcasterAccount(account),
+    text: `${fmtFarcasterAccount(account)} — ${fmtUSDC(account.price)} USDC Farcaster listing on Vault`,
     url: `${window.location.origin}/farcaster?id=${encodeURIComponent(account.id)}`,
   });
 
@@ -1329,7 +1340,7 @@ export default function MarketplacePage() {
                     key={account.id}
                     href={`/farcaster?id=${encodeURIComponent(account.id)}`}
                     icon={<Icon.cast />}
-                    title={`@${account.handle}`}
+                    title={fmtFarcasterAccount(account)}
                     subtitle={`FID #${account.fid}${account.channel ? ` · /${account.channel}` : ""}`}
                     stats={[
                       { label: "Followers", value: account.followers.toLocaleString() },
@@ -1586,7 +1597,7 @@ export default function MarketplacePage() {
                   key={account.id}
                   href={`/farcaster?id=${encodeURIComponent(account.id)}`}
                   icon={<Icon.cast />}
-                  title={`@${account.handle}`}
+                  title={fmtFarcasterAccount(account)}
                   subtitle={`FID #${account.fid}${account.channel ? ` · /${account.channel}` : ""}`}
                   stats={[
                     { label: "Followers", value: account.followers.toLocaleString() },

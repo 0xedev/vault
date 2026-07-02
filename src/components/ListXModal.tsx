@@ -5,6 +5,7 @@ import Icon from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
@@ -22,6 +23,7 @@ export default function ListXModal({ onClose }: { onClose: () => void }) {
   const [price, setPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState<ListingSuccessShare | null>(null);
 
   const submitListing = async () => {
     if (!address) return;
@@ -69,16 +71,25 @@ export default function ListXModal({ onClose }: { onClose: () => void }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to submit X listing");
+      const listingId = String(json.data?.id || contractListingId || Date.now());
+      setSuccess({
+        title: normalized,
+        text: `${normalized} — ${Number(price).toLocaleString("en-US")} USDC X account listing on Vault`,
+        url: `${window.location.origin}/x?id=${encodeURIComponent(listingId)}`,
+      });
       setHandle("");
       setFollowers("");
       setPrice("");
-      onClose();
     } catch (err) {
       setError(parseContractError(err));
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (success) {
+    return <ListingSuccessModal share={success} onClose={onClose} />;
+  }
 
   return (
     <div className="modal-bg" onClick={onClose}>

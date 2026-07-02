@@ -11,6 +11,7 @@ import {
   type ListingRow,
 } from "@/lib/marketplace";
 import { getDatabase } from "@/lib/api";
+import { fmtFarcasterAccount } from "@/lib/utils";
 
 export const SITE_URL = "https://baseshirehethaway.com";
 export const DEFAULT_IMAGE_URL = `${SITE_URL}/logo.png`;
@@ -225,7 +226,7 @@ function shareDataForRow(
     return {
       id: listing.id,
       kind,
-      title: `@${listing.handle}`,
+      title: fmtFarcasterAccount(listing),
       subtitle: `FID #${listing.fid} · ${listing.followers.toLocaleString()} followers`,
       priceLabel: priceLabel(listing.price),
       imageUrl: absoluteUrl(listing.imageUrl),

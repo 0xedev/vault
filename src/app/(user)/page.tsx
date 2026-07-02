@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/carousel";
 import { useWallet } from "@/components/WalletProvider";
 import { COLLECTIONS } from "@/lib/data";
-import { fmtUSDC, fmtCompact, appColor } from "@/lib/utils";
+import { fmtUSDC, fmtCompact, appColor, fmtFarcasterAccount } from "@/lib/utils";
 import type {
   Loan,
   MiniApp,
@@ -301,7 +301,7 @@ export default function LandingPage() {
     ...farcaster.slice(0, 4).map((topFarcaster) => ({
       href: `/farcaster?id=${encodeURIComponent(topFarcaster.id)}`,
       market: "Farcaster",
-      title: `@${topFarcaster.handle}`,
+      title: fmtFarcasterAccount(topFarcaster),
       meta: `${fmtCompact(topFarcaster.followers)} followers · FID #${topFarcaster.fid}`,
       value: `${fmtUSDC(topFarcaster.price)} USDC`,
       color: "#8B5CF6",

@@ -3,10 +3,10 @@
 import React, { useState } from "react";
 import Icon from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
@@ -43,7 +43,7 @@ export default function ListMiniAppModal({ onClose }: Props) {
   const [fetchingOg, setFetchingOg] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [done, setDone] = useState("");
+  const [success, setSuccess] = useState<ListingSuccessShare | null>(null);
 
   const toggleDeliverable = (key: string) =>
     setDeliverables((p) => ({ ...p, [key]: !p[key] }));
@@ -128,15 +128,22 @@ export default function ListMiniAppModal({ onClose }: Props) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to submit listing");
-      setDone(
-        "Listed on-chain. Buyers can fund escrow and confirm terms directly with the seller.",
-      );
+      const listingId = String(json.data?.id || contractListingId || Date.now());
+      setSuccess({
+        title: name,
+        text: `${name} — ${Number(price).toLocaleString("en-US")} USDC Mini App listing on Vault`,
+        url: `${window.location.origin}/miniapps?id=${encodeURIComponent(listingId)}`,
+      });
     } catch (err) {
       setError(parseContractError(err));
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (success) {
+    return <ListingSuccessModal share={success} onClose={onClose} />;
+  }
 
   return (
     <div className="modal-bg" onClick={onClose}>
@@ -271,18 +278,6 @@ export default function ListMiniAppModal({ onClose }: Props) {
             <div className="warn-banner" style={{ color: "var(--risk)" }}>
               {error}
             </div>
-          )}
-
-          {done && (
-            <Card style={{ padding: 14, background: "rgba(127,157,197,0.08)", border: "1px solid var(--line)" }}>
-              <div
-                className="pill funded"
-                style={{ width: "fit-content", marginBottom: 10 }}
-              >
-                <span className="pdot" />
-                {done}
-              </div>
-            </Card>
           )}
 
           <div className="modal-f">

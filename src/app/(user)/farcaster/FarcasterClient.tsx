@@ -10,7 +10,7 @@ import ListingMessageModal from "@/components/ListingMessageModal";
 import ShareListingModal from "@/components/ShareListingModal";
 import BackButton from "@/components/BackButton";
 import type { FarcasterAccount } from "@/lib/data";
-import { fmtCompact, fmtUSDC } from "@/lib/utils";
+import { fmtCompact, fmtFarcasterAccount, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
@@ -260,6 +260,7 @@ export default function FarcasterPage() {
           <div className="grid grid-3">
             {displayedAccounts.map((a) => {
               const isOwnListing = ownsListing(a, walletIdentity);
+              const accountLabel = fmtFarcasterAccount(a);
               return (
                 <article
                   key={a.id}
@@ -274,7 +275,7 @@ export default function FarcasterPage() {
                     type="button"
                     className="card-icon-btn listing-share-btn"
                     onClick={() => setShareListing(a)}
-                    aria-label={`Share @${a.handle}`}
+                    aria-label={`Share ${accountLabel}`}
                     title="Share"
                   >
                     <Icon.share />
@@ -284,7 +285,7 @@ export default function FarcasterPage() {
                       {a.imageUrl ? (
                         <img
                           src={a.imageUrl}
-                          alt={`@${a.handle} avatar`}
+                          alt={`${accountLabel} avatar`}
                           style={{
                             width: "100%",
                             height: "100%",
@@ -297,7 +298,7 @@ export default function FarcasterPage() {
                           }}
                         />
                       ) : (
-                        a.handle.slice(0, 2).toUpperCase()
+                        accountLabel.slice(0, 2).toUpperCase()
                       )}
                     </div>
                     <div
@@ -312,7 +313,7 @@ export default function FarcasterPage() {
                           style={{ fontSize: 15, fontWeight: 500 }}
                           className="trunc"
                         >
-                          @{a.handle}
+                          {accountLabel}
                         </span>
                         {a.power_badge && (
                           <span className="pill gold">
@@ -405,7 +406,7 @@ export default function FarcasterPage() {
         <SubmitDealOfferModal
           listing={{
             id: offerListing.id,
-            title: `@${offerListing.handle}`,
+            title: fmtFarcasterAccount(offerListing),
             price: offerListing.price,
             sellerAddress: offerListing.sellerAddress,
             contractListingId: offerListing.contractListingId,
@@ -419,7 +420,7 @@ export default function FarcasterPage() {
         <ListingMessageModal
           listing={{
             id: messageListing.id,
-            title: `@${messageListing.handle}`,
+            title: fmtFarcasterAccount(messageListing),
             sellerAddress: messageListing.sellerAddress,
           }}
           onClose={() => setMessageListing(null)}
@@ -427,8 +428,8 @@ export default function FarcasterPage() {
       )}
       {shareListing && (
         <ShareListingModal
-          title={`@${shareListing.handle}`}
-          text={`@${shareListing.handle} — ${fmtUSDC(shareListing.price)} USDC Farcaster listing on Vault`}
+          title={fmtFarcasterAccount(shareListing)}
+          text={`${fmtFarcasterAccount(shareListing)} — ${fmtUSDC(shareListing.price)} USDC Farcaster listing on Vault`}
           url={shareUrl(shareListing)}
           onClose={() => setShareListing(null)}
         />

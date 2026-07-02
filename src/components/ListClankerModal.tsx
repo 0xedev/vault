@@ -3,6 +3,7 @@
 
 import React, { useState, useCallback, useEffect } from "react";
 import Icon from "@/components/icons";
+import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
@@ -55,6 +56,7 @@ export default function ListClankerModal({ onClose, onListed }: Props) {
   const [checkingOwnership, setCheckingOwnership] = useState(false);
   const [selectedListingToken, setSelectedListingToken] = useState<ClankerToken | null>(null);
   const [saleRights, setSaleRights] = useState<string[]>(["full_package"]);
+  const [success, setSuccess] = useState<ListingSuccessShare | null>(null);
 
   const vaultLocked = vaultUnlock ? new Date(vaultUnlock) > new Date() : false;
 
@@ -185,14 +187,23 @@ export default function ListClankerModal({ onClose, onListed }: Props) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to list token");
+      const listingId = String(json.data?.id || contractListingId || Date.now());
       onListed();
-      onClose();
+      setSuccess({
+        title: `${name} (${symbol})`,
+        text: `${name} (${symbol}) — ${Number(price).toLocaleString("en-US")} USDC Clanker token listing on Vault`,
+        url: `${window.location.origin}/clanker?id=${encodeURIComponent(listingId)}`,
+      });
     } catch (err) {
       setError(parseContractError(err));
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (success) {
+    return <ListingSuccessModal share={success} onClose={onClose} />;
+  }
 
   if (!isSignedIn) {
     return (

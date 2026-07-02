@@ -7,6 +7,7 @@ import Icon from "@/components/icons";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
 import ShareListingModal from "@/components/ShareListingModal";
+import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
@@ -72,6 +73,7 @@ export default function XAccountsPage() {
   const [followers, setFollowers] = useState("");
   const [price, setPrice] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [listingSuccess, setListingSuccess] = useState<ListingSuccessShare | null>(null);
   const [buying, setBuying] = useState("");
   const [offerListing, setOfferListing] = useState<XAccount | null>(null);
   const [messageListing, setMessageListing] = useState<XAccount | null>(null);
@@ -128,10 +130,15 @@ export default function XAccountsPage() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Unable to submit X listing");
+      const listingId = String(json.data?.id || contractListingId || Date.now());
+      setListingSuccess({
+        title: normalized,
+        text: `${normalized} — ${Number(price).toLocaleString("en-US")} USDC X account listing on Vault`,
+        url: `${window.location.origin}/x?id=${encodeURIComponent(listingId)}`,
+      });
       setHandle("");
       setFollowers("");
       setPrice("");
-      setListing(false);
     } catch (err) {
       setError(parseContractError(err));
     } finally {
@@ -258,6 +265,11 @@ export default function XAccountsPage() {
   const shareUrl = (account: XAccount) =>
     `${window.location.origin}/x?id=${encodeURIComponent(account.id)}`;
 
+  const closeListingModal = () => {
+    setListing(false);
+    setListingSuccess(null);
+  };
+
   return (
     <main
       id="main-content"
@@ -288,15 +300,24 @@ export default function XAccountsPage() {
         <div className="row" style={{ gap: 18, alignItems: "center" }}>
           <button
             className="btn primary"
-            onClick={() => (isConnected ? setListing(true) : connect())}
+            onClick={() => {
+              if (!isConnected) {
+                connect();
+                return;
+              }
+              setListingSuccess(null);
+              setListing(true);
+            }}
           >
             {isConnected ? "List account" : "Connect to list"}
           </button>
         </div>
       </div>
 
-      {listing && (
-        <div className="modal-bg" onClick={() => setListing(false)}>
+      {listing && listingSuccess ? (
+        <ListingSuccessModal share={listingSuccess} onClose={closeListingModal} />
+      ) : listing && (
+        <div className="modal-bg" onClick={closeListingModal}>
           <div
             className="modal"
             onClick={(e) => e.stopPropagation()}
@@ -308,7 +329,7 @@ export default function XAccountsPage() {
               </h3>
               <button
                 className="btn ghost sm"
-                onClick={() => setListing(false)}
+                onClick={closeListingModal}
               >
                 <Icon.x />
               </button>
@@ -355,7 +376,7 @@ export default function XAccountsPage() {
               )}
             </div>
             <div className="modal-f">
-              <button className="btn" onClick={() => setListing(false)}>
+              <button className="btn" onClick={closeListingModal}>
                 Close
               </button>
               <button
