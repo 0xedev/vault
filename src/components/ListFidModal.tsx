@@ -16,42 +16,48 @@ import {
 } from "@/lib/contract";
 import { parseUnits, type Address } from "viem";
 
+type FidProfile = {
+  fid: number;
+  username: string;
+  displayName: string;
+  imageUrl: string;
+  followers: number;
+  powerBadge: boolean;
+};
+
 export default function ListFidModal({ onClose }: { onClose: () => void }) {
   const { address } = useWallet();
-  const [identifierMode, setIdentifierMode] = useState<"handle" | "fid">("handle");
-  const [handle, setHandle] = useState("");
   const [fid, setFid] = useState("");
-  const [followers, setFollowers] = useState("");
+  const [profile, setProfile] = useState<FidProfile | null>(null);
   const [price, setPrice] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
   const [fetchingProfile, setFetchingProfile] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState<ListingSuccessShare | null>(null);
 
-  const normalizedHandle = handle.replace(/^@/, "").trim();
   const normalizedFid = fid.replace(/\D/g, "").trim();
-  const isFidMode = identifierMode === "fid";
-  const profileUrl = !isFidMode && normalizedHandle ? `https://warpcast.com/${normalizedHandle}` : "";
-  const listingLabel = isFidMode ? `FID #${normalizedFid}` : `@${normalizedHandle}`;
-  const canSubmit = Boolean(price && (isFidMode ? normalizedFid : normalizedHandle));
+  const profileHandle = profile?.username ? `@${profile.username}` : "";
+  const listingLabel = profileHandle || (normalizedFid ? `FID #${normalizedFid}` : "");
+  const canSubmit = Boolean(price && normalizedFid);
 
-  const fetchProfilePreview = async () => {
-    if (isFidMode || !profileUrl || imageUrl) return imageUrl;
+  const fetchFidProfile = async () => {
+    if (!normalizedFid) return null;
     setFetchingProfile(true);
+    setError("");
     try {
-      const res = await fetch(`/api/og-preview?url=${encodeURIComponent(profileUrl)}`);
+      const res = await fetch(`/api/hypersnap/user?fid=${encodeURIComponent(normalizedFid)}`);
       const json = await res.json().catch(() => ({}));
-      if (json.image) {
-        setImageUrl(json.image);
-        return String(json.image);
-      }
-    } catch {
-      // Listing can still proceed; profile URL is included in metadata.
+      if (!res.ok) throw new Error(json.error || "Unable to fetch FID profile");
+      const nextProfile = json.data as FidProfile;
+      setProfile(nextProfile);
+      return nextProfile;
+    } catch (err) {
+      setProfile(null);
+      setError(err instanceof Error ? err.message : "Unable to fetch FID profile");
+      return null;
     } finally {
       setFetchingProfile(false);
     }
-    return "";
   };
 
   const submitListing = async () => {
@@ -59,14 +65,15 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
     setSubmitting(true);
     setError("");
     try {
-      const profileImage = await fetchProfilePreview();
+      const fetchedProfile = profile || (await fetchFidProfile());
+      if (!fetchedProfile) throw new Error("Enter a valid FID so Vault can fetch the Farcaster profile.");
       const metadata = {
-        handle: isFidMode ? "" : normalizedHandle,
-        fid: Number(normalizedFid || 0),
-        profileUrl,
-        followers: Number(followers || 0),
+        handle: fetchedProfile.username,
+        fid: Number(normalizedFid),
+        profileUrl: fetchedProfile.username ? `https://warpcast.com/${fetchedProfile.username}` : "",
+        followers: fetchedProfile.followers,
         price: Number(price),
-        image: profileImage || imageUrl,
+        image: fetchedProfile.imageUrl,
         kind: "Farcaster account",
         createdAt: new Date().toISOString(),
       };
@@ -84,35 +91,31 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sellerAddress: address,
-          title: listingLabel,
-          description: `Farcaster account ${listingLabel}`,
+          title: profileHandle || `FID #${normalizedFid}`,
+          description: `Farcaster account ${profileHandle || `FID #${normalizedFid}`}`,
           price: Number(price),
           chainId: 8453,
           contractAddress: getEscrowAddress(),
           contractListingId,
           txHash,
           data: {
-            fid: Number(normalizedFid || 0),
-            handle: isFidMode ? "" : normalizedHandle,
-            imageUrl: profileImage || imageUrl,
-            profileUrl,
-            channel: "",
-            followers: Number(followers || 0),
-            casts_30d: 0,
-            rev_30d: 0,
-            power_badge: false,
+            fid: Number(normalizedFid),
+            handle: fetchedProfile.username,
+            imageUrl: fetchedProfile.imageUrl,
+            profileUrl: fetchedProfile.username ? `https://warpcast.com/${fetchedProfile.username}` : "",
+            followers: fetchedProfile.followers,
+            power_badge: fetchedProfile.powerBadge,
             includes: ["Account transfer"],
             metadataHash: metaHash,
           },
         }),
       });
       const json = await res.json();
-      if (!res.ok)
-        throw new Error(json.error || "Unable to submit FID listing");
+      if (!res.ok) throw new Error(json.error || "Unable to submit FID listing");
       const listingId = String(json.data?.id || contractListingId || Date.now());
       setSuccess({
-        title: listingLabel,
-        text: `${listingLabel} — ${Number(price).toLocaleString("en-US")} USDC Farcaster listing on Vault`,
+        title: profileHandle || `FID #${normalizedFid}`,
+        text: `${profileHandle || `FID #${normalizedFid}`} — ${Number(price).toLocaleString("en-US")} USDC Farcaster listing on Vault`,
         url: `${window.location.origin}/farcaster?id=${encodeURIComponent(listingId)}`,
       });
     } catch (err) {
@@ -122,124 +125,44 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
     }
   };
 
-  if (success) {
-    return <ListingSuccessModal share={success} onClose={onClose} />;
-  }
+  if (success) return <ListingSuccessModal share={success} onClose={onClose} />;
 
   return (
     <div className="modal-bg" onClick={onClose}>
-      <div
-        className="modal"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 520 }}
-      >
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <div className="modal-h">
-          <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>
-            List Farcaster account
-          </h3>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <Icon.x />
-          </Button>
+          <h3 className="serif" style={{ margin: 0, fontSize: 20 }}>List Farcaster account</h3>
+          <Button variant="ghost" size="icon" onClick={onClose}><Icon.x /></Button>
         </div>
-        <div
-          className="modal-b"
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-            maxHeight: "70vh",
-            overflowY: "auto",
-          }}
-        >
-          <div className="seg" role="tablist" aria-label="Farcaster identifier type">
-            <button
-              type="button"
-              className={!isFidMode ? "active" : ""}
-              onClick={() => {
-                setIdentifierMode("handle");
-                setError("");
-              }}
-            >
-              Handle
-            </button>
-            <button
-              type="button"
-              className={isFidMode ? "active" : ""}
-              onClick={() => {
-                setIdentifierMode("fid");
-                setError("");
-              }}
-            >
-              FID
-            </button>
-          </div>
+        <div className="modal-b" style={{ display: "flex", flexDirection: "column", gap: 14, maxHeight: "70vh", overflowY: "auto" }}>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="col" style={{ gap: 4 }}>
-              <Label htmlFor="fid-account">{isFidMode ? "FID" : "Handle"}</Label>
-              {isFidMode ? (
-                <Input
-                  id="fid-account"
-                  className="mono"
-                  inputMode="numeric"
-                  value={fid}
-                  onChange={(e) => setFid(e.target.value.replace(/\D/g, ""))}
-                  placeholder="12345"
-                />
-              ) : (
-                <Input
-                  id="fid-account"
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  onBlur={fetchProfilePreview}
-                  placeholder="@founder"
-                />
-              )}
-            </div>
-            <div className="col" style={{ gap: 4 }}>
-              <Label htmlFor="fid-followers">Followers</Label>
+              <Label htmlFor="fid-account">FID</Label>
               <Input
-                id="fid-followers"
+                id="fid-account"
                 className="mono"
-                value={followers}
-                onChange={(e) => setFollowers(e.target.value)}
-                placeholder="25000"
+                inputMode="numeric"
+                value={fid}
+                onChange={(e) => { setFid(e.target.value.replace(/\D/g, "")); setProfile(null); }}
+                onBlur={fetchFidProfile}
+                placeholder="12345"
               />
             </div>
-          </div>
-          <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="col" style={{ gap: 4 }}>
               <Label htmlFor="fid-price">Asking price (USDC)</Label>
-              <Input
-                id="fid-price"
-                className="mono"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="8.5"
-              />
-            </div>
-            <div className="metric" style={{ padding: 12 }}>
-              <span className="lab">Profile</span>
-              <span className="val" style={{ fontSize: 13 }}>
-                {fetchingProfile ? "Fetching..." : isFidMode ? listingLabel || "Add FID" : profileUrl || "Add handle"}
-              </span>
+              <Input id="fid-price" className="mono" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="8.5" />
             </div>
           </div>
-          {error && (
-            <div className="warn-banner" style={{ color: "var(--risk)" }}>
-              {error}
-            </div>
-          )}
-
+          <div className="metric" style={{ padding: 12 }}>
+            <span className="lab">Fetched from Hypersnap</span>
+            <span className="val" style={{ fontSize: 13 }}>
+              {fetchingProfile ? "Fetching..." : profile ? `${listingLabel} · ${profile.followers.toLocaleString()} followers` : "Enter an FID to fetch username and followers"}
+            </span>
+          </div>
+          {error && <div className="warn-banner" style={{ color: "var(--risk)" }}>{error}</div>}
           <div className="modal-f">
-            <Button variant="outline" onClick={onClose}>
-              Close
-            </Button>
-            <Button
-              onClick={submitListing}
-              disabled={submitting || !canSubmit}
-            >
-              {submitting ? "Signing..." : "List account"}
-            </Button>
+            <Button variant="outline" onClick={onClose}>Close</Button>
+            <Button onClick={submitListing} disabled={submitting || fetchingProfile || !canSubmit}>{submitting ? "Signing..." : "List account"}</Button>
           </div>
         </div>
       </div>

@@ -9,6 +9,17 @@ type ListingFeedStat = {
   value: React.ReactNode;
 };
 
+function hasVisibleStatValue(value: React.ReactNode) {
+  if (value === null || value === undefined || value === false) return false;
+  if (typeof value === "number") return value !== 0;
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return false;
+    return !["0", "0%", "0 usdc", "$0", "n/a", "none", "undefined", "null"].includes(normalized);
+  }
+  return true;
+}
+
 export default function ListingFeedCard({
   href,
   icon,
@@ -36,6 +47,8 @@ export default function ListingFeedCard({
   children?: React.ReactNode;
   className?: string;
 }) {
+  const visibleStats = stats.filter((stat) => hasVisibleStatValue(stat.value)).slice(0, 3);
+
   return (
     <article className={`listing-feed-card market-action-card ${className}`.trim()}>
       {href && (
@@ -60,14 +73,16 @@ export default function ListingFeedCard({
         </div>
         {badge && <span className="listing-feed-badge">{badge}</span>}
       </div>
-      <div className="listing-feed-stats">
-        {stats.slice(0, 3).map((stat) => (
-          <div key={stat.label}>
-            <span className="meta">{stat.label}</span>
-            <span className="amt mono">{stat.value}</span>
-          </div>
-        ))}
-      </div>
+      {visibleStats.length > 0 && (
+        <div className="listing-feed-stats">
+          {visibleStats.map((stat) => (
+            <div key={stat.label}>
+              <span className="meta">{stat.label}</span>
+              <span className="amt mono">{stat.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="listing-feed-price">
         <span className="meta">Asking</span>
         <span className="mono">
