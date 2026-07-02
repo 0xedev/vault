@@ -1,4 +1,7 @@
+"use client";
+
 /* eslint-disable @next/next/no-img-element */
+import { useState } from "react";
 import Link from "next/link";
 import Icon from "./icons";
 import NFTArt from "./NFTArt";
@@ -6,16 +9,20 @@ import StatusPill from "./StatusPill";
 import { Badge } from "@/components/ui/badge";
 import { COLLECTIONS } from "@/lib/data";
 import { fmtETH, fmtUSDC } from "@/lib/utils";
+import { normalizeNftImageUrl } from "@/lib/nft-images";
 import type { Loan } from "@/lib/data";
 
 function NftImage({ l }: { l: Loan }) {
-  if (l.imageUrl) {
+  const [failed, setFailed] = useState(false);
+  const imageUrl = normalizeNftImageUrl(l.imageUrl);
+
+  if (imageUrl && !failed) {
     return (
       <img
-        src={l.imageUrl}
+        src={imageUrl}
         alt={`${COLLECTIONS[l.coll]} ${l.token}`}
         style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        onError={() => setFailed(true)}
       />
     );
   }

@@ -21,7 +21,9 @@ export interface AlchemyNFT {
   contract: { address: string; name?: string };
   tokenId: string;
   name?: string;
-  image?: { cachedUrl?: string; thumbnailUrl?: string };
+  image?: { cachedUrl?: string; thumbnailUrl?: string; pngUrl?: string; originalUrl?: string };
+  raw?: { metadata?: { image?: string; image_url?: string; imageUrl?: string; animation_url?: string } };
+  media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
   floorPriceEth?: number;
   collection?: { name?: string; slug?: string };
 }

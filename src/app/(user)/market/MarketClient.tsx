@@ -8,6 +8,7 @@ import LoanCard from "@/components/LoanCard";
 import Dropdown from "@/components/Dropdown";
 import NFTArt from "@/components/NFTArt";
 import { COLLECTIONS, bundleAssetLabel } from "@/lib/data";
+import { nftImageUrl } from "@/lib/nft-images";
 import { useWallet } from "@/components/WalletProvider";
 import {
   approveNft,
@@ -103,6 +104,26 @@ function MarketAssetCarousel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function DetectedNftThumb({ imageUrl, seed, label }: { imageUrl: string; seed: number; label: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (imageUrl && !failed) {
+    return (
+      <>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt={label}
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          onError={() => setFailed(true)}
+        />
+      </>
+    );
+  }
+
+  return <NFTArt seed={seed} />;
+}
+
 function ListNFTModal({ onClose }: { onClose: () => void }) {
   const { address } = useWallet();
   const [step, setStep] = useState(0);
@@ -150,7 +171,9 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           name?: string;
           floorPriceEth?: number;
           collection?: { name?: string };
-          image?: { cachedUrl?: string; thumbnailUrl?: string };
+          image?: { cachedUrl?: string; thumbnailUrl?: string; pngUrl?: string; originalUrl?: string };
+          raw?: { metadata?: { image?: string; image_url?: string; imageUrl?: string; animation_url?: string } };
+          media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
         }[];
         const found = nfts
           .filter((n) => n.name || n.collection?.name)
@@ -161,7 +184,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
             seed: parseInt(n.tokenId) || Math.floor(Math.random() * 10000),
             value: n.floorPriceEth || 0,
             contractAddress: n.contract.address,
-            imageUrl: n.image?.thumbnailUrl || n.image?.cachedUrl || "",
+            imageUrl: nftImageUrl(n),
           }));
         setDetectedNfts(found);
         setScanning(false);
@@ -185,7 +208,9 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
         name?: string;
         floorPriceEth?: number;
         collection?: { name?: string };
-        image?: { cachedUrl?: string; thumbnailUrl?: string };
+        image?: { cachedUrl?: string; thumbnailUrl?: string; pngUrl?: string; originalUrl?: string };
+        raw?: { metadata?: { image?: string; image_url?: string; imageUrl?: string; animation_url?: string } };
+        media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
       }[];
       const found = nfts
         .filter((n) => n.name || n.collection?.name)
@@ -196,7 +221,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           seed: parseInt(n.tokenId) || Math.floor(Math.random() * 10000),
           value: n.floorPriceEth || 0,
           contractAddress: n.contract.address,
-          imageUrl: n.image?.thumbnailUrl || n.image?.cachedUrl || "",
+          imageUrl: nftImageUrl(n),
         }));
       setDetectedNfts(found);
     } catch {
@@ -428,7 +453,11 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                           flexShrink: 0,
                         }}
                       >
-                        <NFTArt seed={n.seed} />
+                        <DetectedNftThumb
+                          imageUrl={n.imageUrl}
+                          seed={n.seed}
+                          label={`${n.collection} ${n.tokenId}`}
+                        />
                       </div>
                       <div className="col" style={{ gap: 1 }}>
                         <span style={{ fontSize: 12 }}>{n.collection}</span>
