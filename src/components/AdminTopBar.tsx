@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import VaultMark from "./VaultMark";
-import Icon from "./icons";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useWallet } from "@/components/WalletProvider";
+import { shortAddr } from "@/lib/utils";
 
 export default function AdminTopBar({ onMenu }: { onMenu: () => void }) {
+  const { address, sessionAddress, role } = useWallet();
+  const actorAddress = sessionAddress || address;
+
   return (
     <header className="topbar admin-topbar">
       <div className="row" style={{ gap: 18 }}>
@@ -22,28 +25,19 @@ export default function AdminTopBar({ onMenu }: { onMenu: () => void }) {
         <span className="muted-2 hide-mobile" style={{ fontSize: 12 }}>Internal · admin</span>
       </div>
       <div className="row" style={{ gap: 10, alignItems: "center" }}>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild><Button variant="ghost" size="sm" className="hide-mobile"><Icon.search/> <span className="kbd">⌘K</span></Button></TooltipTrigger>
-            <TooltipContent>Search</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" className="hide-mobile" style={{ position: "relative" }}>
-                <Icon.bell/>
-                <span style={{ position: "absolute", top: 4, right: 6, width: 6, height: 6, borderRadius: "50%", background: "var(--risk)" }}/>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Notifications</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
         <Button asChild variant="ghost" size="sm"><Link href="/">Switch to user view ↗</Link></Button>
-        <div className="wallet admin-wallet">
-          <span className="dot" style={{ background: "var(--risk)" }}/>
-          <span>alice.admin</span>
-          <span className="muted-2">·</span>
-          <span style={{ color: "var(--risk)" }}>L4</span>
-        </div>
+        {actorAddress && (
+          <div className="wallet admin-wallet">
+            <span className="dot" />
+            <span>{shortAddr(actorAddress)}</span>
+            {role && (
+              <>
+                <span className="muted-2">·</span>
+                <span style={{ textTransform: "capitalize" }}>{role}</span>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "./icons";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 interface SidebarItem {
@@ -52,15 +51,6 @@ export default function AdminSideBar({ open, onClose }: { open: boolean; onClose
         )
       )}
       <div style={{ flex: 1 }}/>
-      <Card style={{ padding: 12, marginTop: 20, borderColor: "color-mix(in oklab, var(--risk) 30%, transparent)" }}>
-        <div className="row" style={{ gap: 8, marginBottom: 6 }}>
-          <Icon.shield style={{ color: "var(--risk)" }}/>
-          <span className="smallcaps" style={{ color: "var(--risk)" }}>Admin · L4</span>
-        </div>
-        <div className="muted" style={{ fontSize: 11.5, lineHeight: 1.4 }}>
-          All actions are logged + signed. <a className="lnk" href="#">Policies ↗</a>
-        </div>
-      </Card>
     </aside>
   );
 }
