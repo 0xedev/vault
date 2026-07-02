@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyTypedData, type Address } from "viem";
 import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase, jsonArray, jsonRecord, shortAddress } from "@/lib/api";
-import { actorAddressForRequest, forbidden, requireUser } from "@/lib/auth";
+import { actorAddressForRequest, forbidden, getSession, isEvmAddress, requireUser } from "@/lib/auth";
 import { getDealsAddress, getNftAddress, getPublicClient } from "@/lib/contract";
 import { copyListingMessagesToDeal } from "@/lib/listing-messages";
 import {
@@ -115,41 +115,54 @@ export async function GET(req: NextRequest) {
   const listingId = url.searchParams.get("listingId");
   const offererAddress = url.searchParams.get("offererAddress");
   if (!listingId && !offererAddress) return badRequest("listingId or offererAddress is required");
+  const user = await getSession(req);
+
+  if (offererAddress) {
+    if (!user) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    const actorAddress = actorAddressForRequest(user, offererAddress);
+    if (user.role !== "admin" && actorAddress.toLowerCase() !== offererAddress.toLowerCase()) {
+      return forbidden("You can only list your own outgoing offers.");
+    }
+  }
 
   await db`UPDATE offers SET status = 'expired' WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW()`;
 
   const rows = listingId
     ? await db`
-      SELECT o.*, l.marketplace, l.contract_listing_id AS listing_contract_id
+      SELECT o.*, l.marketplace, l.contract_listing_id AS listing_contract_id, l.seller_address
       FROM offers o JOIN listings l ON l.id = o.listing_id
       WHERE o.listing_id = ${listingId}
       ORDER BY o.created_at DESC
     ` as Record<string, unknown>[]
     : await db`
-      SELECT o.*, l.marketplace, l.contract_listing_id AS listing_contract_id
+      SELECT o.*, l.marketplace, l.contract_listing_id AS listing_contract_id, l.seller_address
       FROM offers o JOIN listings l ON l.id = o.listing_id
       WHERE lower(o.offerer_address) = ${String(offererAddress).toLowerCase()}
       ORDER BY o.created_at DESC
     ` as Record<string, unknown>[];
 
-  const data = rows.map((row) => ({
-    id: row.id,
-    listingId: row.listing_id,
-    who: shortAddress(row.offerer_address),
-    offererAddress: row.offerer_address,
-    amt: Number(row.amount),
-    apr: Number(row.apr || 0),
-    term: Number(row.term_days || 0),
-    when: row.created_at,
-    expiresAt: row.expires_at,
-    status: row.status,
-    offerType: row.offer_type || "signed",
-    signature: row.signature,
-    nonce: row.nonce,
-    typedData: row.typed_data,
-    marketplace: row.marketplace,
-    contractListingId: row.contract_listing_id || row.listing_contract_id,
-  }));
+  const data = rows.map((row) => {
+    const actor = user ? actorAddressForRequest(user, row.seller_address) : "";
+    const canAccept = !!user && (user.role === "admin" || actor.toLowerCase() === asString(row.seller_address).toLowerCase());
+    const canCancel = !!user && actorAddressForRequest(user, row.offerer_address).toLowerCase() === asString(row.offerer_address).toLowerCase();
+    return {
+      id: row.id,
+      listingId: row.listing_id,
+      who: shortAddress(row.offerer_address),
+      offererAddress: row.offerer_address,
+      amt: Number(row.amount),
+      apr: Number(row.apr || 0),
+      term: Number(row.term_days || 0),
+      when: row.created_at,
+      expiresAt: row.expires_at,
+      status: row.status,
+      offerType: row.offer_type || "signed",
+      marketplace: row.marketplace,
+      contractListingId: row.contract_listing_id || row.listing_contract_id,
+      canAccept,
+      canCancel,
+    };
+  });
 
   return NextResponse.json({ data, total: data.length });
 }
@@ -166,7 +179,10 @@ export async function POST(req: NextRequest) {
   const listingRows = await db`SELECT * FROM listings WHERE id = ${parsed.data.listingId} AND status = 'active' LIMIT 1` as Record<string, unknown>[];
   if (listingRows.length === 0) return NextResponse.json({ error: "Listing not found or not active" }, { status: 404 });
 
-  const offererAddress = actorAddressForRequest(auth.user, parsed.data.offererAddress) as Address;
+  const offererAddress = actorAddressForRequest(auth.user, parsed.data.offererAddress);
+  if (!isEvmAddress(offererAddress)) {
+    return forbidden("Link an EVM wallet before submitting an on-chain offer.");
+  }
   const sellerAddress = asString(listingRows[0].seller_address).toLowerCase();
   if (offererAddress.toLowerCase() === sellerAddress) {
     return NextResponse.json({ error: "You cannot offer on your own listing." }, { status: 400 });
@@ -182,7 +198,7 @@ export async function POST(req: NextRequest) {
   try {
     typedData = await buildTypedDataForListing({
       listing: listingRows[0],
-      offererAddress,
+      offererAddress: offererAddress as Address,
       amount: parsed.data.amount,
       apr: parsed.data.apr,
       termDays: parsed.data.termDays,
@@ -195,7 +211,7 @@ export async function POST(req: NextRequest) {
   }
 
   const valid = await verifyTypedData({
-    address: offererAddress,
+    address: offererAddress as Address,
     domain: typedData.domain,
     types: typedData.types,
     primaryType: typedData.primaryType,
@@ -247,6 +263,9 @@ export async function PATCH(req: NextRequest) {
   const parsed = offerStatusSchema.safeParse(await req.json());
   if (!parsed.success) return badRequest("Invalid offer status", parsed.error.flatten());
   const actorAddress = actorAddressForRequest(auth.user, parsed.data.actorAddress);
+  if (auth.user.role !== "admin" && !isEvmAddress(actorAddress)) {
+    return forbidden("Link an EVM wallet before changing an on-chain offer.");
+  }
 
   const db = auth.db;
   await ensureSignedOffersSchema(db);

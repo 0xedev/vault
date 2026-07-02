@@ -30,6 +30,30 @@ vi.mock("next/link", () => ({
     React.createElement("a", props, children),
 }));
 
+vi.mock("@/lib/farcaster-sdk", () => ({
+  addToFarcaster: vi.fn(async () => undefined),
+  hideSplash: vi.fn(async () => undefined),
+  isMiniApp: vi.fn(async () => false),
+  signInWithFarcaster: vi.fn(async () => null),
+  shareAsCast: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/farcaster-wagmi", () => ({
+  connectFarcasterMiniAppWallet: vi.fn(async () => null),
+  disconnectFarcasterMiniAppWallet: vi.fn(),
+  reconnectFarcasterMiniAppWallet: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/reown-appkit", () => ({
+  connectReownAppKitWallet: vi.fn(async () => null),
+  reconnectReownAppKitWallet: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/contract-helpers", () => ({
+  getActiveWalletProvider: vi.fn(() => null),
+  setActiveWalletProvider: vi.fn(),
+}));
+
 // Ensure window.ethereum is undefined for tests
 beforeEach(() => {
   if (typeof window !== "undefined") {

@@ -37,6 +37,11 @@ describe("ssrf", () => {
       await expect(assertSafeUrl("http://10.0.0.1")).rejects.toThrow("Private IP");
       await expect(assertSafeUrl("http://192.168.1.1")).rejects.toThrow("Private IP");
       await expect(assertSafeUrl("http://172.16.0.1")).rejects.toThrow("Private IP");
+      await expect(assertSafeUrl("http://100.64.0.1")).rejects.toThrow("Private IP");
+      await expect(assertSafeUrl("http://[::1]/")).rejects.toThrow("Private IP");
+      await expect(assertSafeUrl("http://[::ffff:127.0.0.1]/")).rejects.toThrow("Private IP");
+      await expect(assertSafeUrl("http://[fd00::1]/")).rejects.toThrow("Private IP");
+      await expect(assertSafeUrl("http://[fe80::1]/")).rejects.toThrow("Private IP");
     });
   });
 });

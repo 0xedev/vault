@@ -94,7 +94,7 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
       const priceWei = parseUnits(price || "0", 6);
 
       // 2. Store on-chain
-      const txHash = await writeListDeal(address as Address, priceWei, metaHash);
+      const txHash = await writeListDeal(address as Address, priceWei, metaHash, "mini_app");
       const contractListingId = await waitForDealId(txHash);
 
       // 3. POST to API

@@ -1,8 +1,29 @@
-import { describe, it, expect, beforeEach, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { WalletProvider, useWallet } from "@/components/WalletProvider";
 import { setupServer } from "msw/node";
 import React from "react";
+
+vi.mock("@/lib/farcaster-sdk", () => ({
+  isMiniApp: vi.fn(async () => false),
+  signInWithFarcaster: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/farcaster-wagmi", () => ({
+  connectFarcasterMiniAppWallet: vi.fn(async () => null),
+  disconnectFarcasterMiniAppWallet: vi.fn(),
+  reconnectFarcasterMiniAppWallet: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/reown-appkit", () => ({
+  connectReownAppKitWallet: vi.fn(async () => null),
+  reconnectReownAppKitWallet: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/contract-helpers", () => ({
+  getActiveWalletProvider: vi.fn(() => null),
+  setActiveWalletProvider: vi.fn(),
+}));
 
 const server = setupServer();
 

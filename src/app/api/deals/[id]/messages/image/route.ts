@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { badRequest } from "@/lib/api";
 import { actorAddressForRequest, requireUser } from "@/lib/auth";
+import { blobObjectKey } from "@/lib/upload-keys";
 
 export async function POST(
   req: NextRequest,
@@ -29,9 +30,9 @@ export async function POST(
   if (file.size > 10 * 1024 * 1024) return badRequest("Max file size is 10MB");
 
   const blob = await put(
-    `deals/${escrowId}/${Date.now()}-${file.name}`,
+    blobObjectKey(`deals/${escrowId}`, file.type),
     file,
-    { access: "public" }
+    { access: "public", contentType: file.type }
   );
 
   return NextResponse.json({ url: blob.url }, { status: 201 });

@@ -45,6 +45,12 @@ type OfferRecord = {
   txHash?: Hash;
 };
 
+type OfferAcceptPayload = OfferRecord & {
+  signature: `0x${string}`;
+  nonce: string;
+  typedData: NonNullable<OfferRecord["typedData"]>;
+};
+
 async function waitForTx(hash: Hash) {
   await getPublicClient().waitForTransactionReceipt({ hash });
   return hash;
@@ -62,6 +68,18 @@ function signedLoanOfferFromRecord(offer: OfferRecord): SignedLoanOfferMessage |
     expiry: BigInt(message.expiry),
     nonce: BigInt(message.nonce),
   };
+}
+
+async function loadOfferAcceptPayload(id: string, actorAddress?: string | null): Promise<OfferAcceptPayload> {
+  const res = await fetch(`/api/offers/${encodeURIComponent(id)}/accept-payload`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actorAddress }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || "Unable to load offer accept payload");
+  return json.data as OfferAcceptPayload;
 }
 
 function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: { onClose: () => void; l: LoanRecord; prefillAmt?: number; prefillApr?: number; prefillTerm?: number }) {
@@ -336,12 +354,13 @@ function LoanDetailContent() {
       // 1. If accepting, call contract to release USDC to borrower
       if (status === "accepted" && address && offer.offererAddress) {
         if (!l.contractListingId) throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
-        const signedOffer = signedLoanOfferFromRecord(offer);
-        if (signedOffer && offer.signature) {
+        const payload = await loadOfferAcceptPayload(id, actorAddress);
+        const signedOffer = signedLoanOfferFromRecord({ ...offer, ...payload });
+        if (signedOffer && payload.signature) {
           txHash = await waitForTx(await writeAcceptSignedLoanOffer(
             address as Address,
             signedOffer,
-            offer.signature,
+            payload.signature,
           ));
         } else {
           const aprBps = Math.round(offer.apr * 100);

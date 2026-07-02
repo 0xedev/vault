@@ -46,6 +46,9 @@ export async function PATCH(req: NextRequest) {
   if (!parsed.success) return badRequest("Invalid user status update", parsed.error.flatten());
 
   await db`UPDATE users SET status = ${parsed.data.status} WHERE address = ${parsed.data.address}`;
+  if (parsed.data.status === "banned") {
+    await db`DELETE FROM sessions WHERE address = ${parsed.data.address}`;
+  }
   await writeAudit(`USER_${parsed.data.status.toUpperCase()}`, parsed.data.address, `User status changed to ${parsed.data.status}`, "admin", auth.user.address);
 
   return NextResponse.json({ data: parsed.data });

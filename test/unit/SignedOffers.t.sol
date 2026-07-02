@@ -31,9 +31,9 @@ contract SignedOffersTest is Test {
         usdc = new MockERC20();
         nft = new MockERC721();
         vm.prank(admin);
-        vaultNft = new VaultNFT(address(usdc), 150);
+        vaultNft = new VaultNFT(address(usdc), 150, admin);
         vm.prank(admin);
-        vaultDeals = new VaultDeals(address(usdc), 150);
+        vaultDeals = new VaultDeals(address(usdc), 150, admin);
         usdc.mint(lender, 1_000_000 ether);
         usdc.mint(buyer, 1_000_000 ether);
     }

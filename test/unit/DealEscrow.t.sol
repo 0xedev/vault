@@ -17,7 +17,7 @@ contract DealEscrowTest is Test {
     function setUp() public {
         usdc = new MockERC20();
         vm.prank(admin);
-        escrow = new VaultDeals(address(usdc), 150);
+        escrow = new VaultDeals(address(usdc), 150, admin);
         usdc.mint(buyer, 1_000_000_000 ether);
         usdc.mint(seller, 1_000_000_000 ether);
     }

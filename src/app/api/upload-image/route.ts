@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { requireUser } from "@/lib/auth";
+import { blobObjectKey } from "@/lib/upload-keys";
 
 function blobToken() {
   return process.env.BLOB_READ_WRITE_TOKEN
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Image must be under 5 MB" }, { status: 400 });
     }
 
-    const blob = await put(`uploads/${Date.now()}-${file.name}`, file, {
+    const blob = await put(blobObjectKey("uploads", file.type), file, {
       access: "public",
       contentType: file.type,
       token: blobToken(),

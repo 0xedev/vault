@@ -68,6 +68,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
         address as Address,
         parseUnits(price || "0", 6),
         metaHash,
+        "farcaster",
       );
       const contractListingId = await waitForDealId(txHash);
       const res = await fetch("/api/marketplace/farcaster", {

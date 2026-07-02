@@ -3,7 +3,7 @@ import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
 import { mapBundleListing } from "@/lib/marketplace";
 import type { BundleAsset } from "@/lib/data";
-import { actorAddressForRequest, requireUser } from "@/lib/auth";
+import { actorAddressForRequest, forbidden, isEvmAddress, requireUser } from "@/lib/auth";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
 
 const bundleAssetSchema = z.object({
@@ -85,6 +85,9 @@ export async function POST(req: NextRequest) {
   const db = auth.db;
   const data = parsed.data;
   const sellerAddress = actorAddressForRequest(auth.user, data.sellerAddress);
+  if (!isEvmAddress(sellerAddress)) {
+    return forbidden("Link an EVM wallet before creating an on-chain bundle.");
+  }
   const activeContract = await activeListingContractAddress("bundle");
   const id = data.id || `B-${Date.now()}`;
 
@@ -141,6 +144,9 @@ export async function DELETE(req: NextRequest) {
   if (!bundleId) return badRequest("Missing bundle id parameter");
 
   const actorAddress = actorAddressForRequest(auth.user, body.actorAddress || url.searchParams.get("walletAddress"));
+  if (!isEvmAddress(actorAddress)) {
+    return forbidden("Link an EVM wallet before cancelling an on-chain bundle.");
+  }
   const listing = await auth.db`SELECT * FROM listings WHERE id = ${bundleId} AND lower(seller_address) = ${actorAddress.toLowerCase()} AND marketplace = 'bundle' LIMIT 1` as Record<string, unknown>[];
   if (listing.length === 0) return NextResponse.json({ error: "Bundle not found or not yours" }, { status: 404 });
 

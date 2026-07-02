@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, createHash, timingSafeEqual, randomBytes } from "crypto";
+import { createCipheriv, createDecipheriv, createHmac, createHash, timingSafeEqual, randomBytes, scryptSync } from "crypto";
 import { getDatabase, type DbClient } from "@/lib/api";
 import type { AuthUser } from "@/lib/auth";
+
+const SECRET_ALGORITHM = "aes-256-gcm";
+const SECRET_IV_LENGTH = 12;
+const SECRET_TAG_LENGTH = 16;
 
 export function generateApiKey(): { apiKey: string; secret: string } {
   const key = `vault_sk_${randomBytes(24).toString("hex")}`;
@@ -13,8 +17,38 @@ export function hashSecret(secret: string): string {
   return createHash("sha256").update(secret).digest("hex");
 }
 
+function apiSecretRootKey() {
+  const secret = process.env.API_KEY_ENCRYPTION_KEY || process.env.MESSAGE_ENCRYPTION_KEY;
+  if (!secret) {
+    throw new Error("API_KEY_ENCRYPTION_KEY or MESSAGE_ENCRYPTION_KEY is required for API key secrets.");
+  }
+  return secret;
+}
+
+function deriveApiSecretKey(apiKey: string): Buffer {
+  return scryptSync(apiSecretRootKey(), `vault-api-key:${apiKey}`, 32);
+}
+
+export function encryptApiSecret(apiKey: string, secret: string): string {
+  const iv = randomBytes(SECRET_IV_LENGTH);
+  const cipher = createCipheriv(SECRET_ALGORITHM, deriveApiSecretKey(apiKey), iv);
+  const encrypted = Buffer.concat([cipher.update(secret, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return Buffer.concat([iv, tag, encrypted]).toString("base64");
+}
+
+export function decryptApiSecret(apiKey: string, ciphertext: string): string {
+  const combined = Buffer.from(ciphertext, "base64");
+  const iv = combined.subarray(0, SECRET_IV_LENGTH);
+  const tag = combined.subarray(SECRET_IV_LENGTH, SECRET_IV_LENGTH + SECRET_TAG_LENGTH);
+  const encrypted = combined.subarray(SECRET_IV_LENGTH + SECRET_TAG_LENGTH);
+  const decipher = createDecipheriv(SECRET_ALGORITHM, deriveApiSecretKey(apiKey), iv);
+  decipher.setAuthTag(tag);
+  return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+}
+
 export function verifyHmacSignature(
-  secretHash: string,
+  secret: string,
   method: string,
   path: string,
   body: string,
@@ -22,7 +56,7 @@ export function verifyHmacSignature(
   signature: string,
 ): boolean {
   const payload = `${timestamp}${method}${path}${body}`;
-  const expected = createHmac("sha256", secretHash).update(payload).digest("hex");
+  const expected = createHmac("sha256", secret).update(payload).digest("hex");
   try {
     if (expected.length !== signature.length) return false;
     return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
@@ -50,15 +84,45 @@ export async function requireApiKey(req: NextRequest): Promise<{ user: AuthUser;
   const db = getDatabase();
   if (!db) return { response: NextResponse.json({ error: "Database unavailable" }, { status: 503 }) };
 
-  const rows = await db`SELECT * FROM api_keys WHERE api_key = ${apiKey} LIMIT 1` as Record<string, unknown>[];
+  const rows = await db`
+    SELECT ak.*, u.status AS user_status
+    FROM api_keys ak
+    JOIN users u ON u.address = ak.user_address
+    WHERE ak.api_key = ${apiKey}
+    LIMIT 1
+  ` as Record<string, unknown>[];
   if (rows.length === 0) {
     return { response: NextResponse.json({ error: "Invalid API key" }, { status: 401 }) };
+  }
+
+  const userStatus = String(rows[0].user_status || "active");
+  if (userStatus === "banned") {
+    return { response: NextResponse.json({ error: "Account is banned" }, { status: 403 }) };
+  }
+  if (userStatus === "frozen" && !["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    return { response: NextResponse.json({ error: "Account is frozen" }, { status: 403 }) };
   }
 
   const body = await req.clone().text().catch(() => "");
   const path = req.nextUrl.pathname + req.nextUrl.search;
 
-  if (!verifyHmacSignature(String(rows[0].secret_hash), req.method, path, body, ts, sig)) {
+  const secretCiphertext = rows[0].secret_ciphertext;
+  if (typeof secretCiphertext !== "string" || secretCiphertext.length === 0) {
+    return { response: NextResponse.json({ error: "API key must be regenerated before HMAC use" }, { status: 401 }) };
+  }
+
+  let secret: string;
+  try {
+    secret = decryptApiSecret(apiKey, secretCiphertext);
+  } catch {
+    return { response: NextResponse.json({ error: "API key secret is unreadable" }, { status: 401 }) };
+  }
+
+  if (hashSecret(secret) !== String(rows[0].secret_hash)) {
+    return { response: NextResponse.json({ error: "API key secret integrity check failed" }, { status: 401 }) };
+  }
+
+  if (!verifyHmacSignature(secret, req.method, path, body, ts, sig)) {
     return { response: NextResponse.json({ error: "Invalid signature" }, { status: 401 }) };
   }
 
@@ -70,7 +134,7 @@ export async function requireApiKey(req: NextRequest): Promise<{ user: AuthUser;
   await db`UPDATE api_keys SET last_used_at = NOW() WHERE id = ${String(rows[0].id)}`;
 
   return {
-    user: { address: String(rows[0].user_address), role: "user" as const },
+    user: { address: String(rows[0].user_address), role: "user" as const, status: userStatus as AuthUser["status"] },
     db,
   };
 }

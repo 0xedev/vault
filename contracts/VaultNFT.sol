@@ -55,6 +55,18 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         uint256 nonce;
     }
 
+    /// @notice Compact summary for indexer-independent detail reads.
+    struct ListingSummary {
+        uint256 id;
+        Listing listing;
+        uint256 escrowBalance;
+        uint256 offerCount;
+        uint256 totalDue;
+        uint256 paid;
+        uint256 remaining;
+        uint256 deadline;
+    }
+
     bytes32 public constant SIGNED_LOAN_OFFER_TYPEHASH = keccak256(
         "SignedLoanOffer(uint256 listingId,address lender,uint256 amount,uint256 apr,uint256 term,uint256 expiry,uint256 nonce)"
     );
@@ -121,7 +133,7 @@ contract VaultNFT is VaultCore, IERC721Receiver {
 
     /// @param _usdc            USDC token address.
     /// @param _platformFeeBps  Initial platform fee in bp (max 500).
-    constructor(address _usdc, uint256 _platformFeeBps) VaultCore(_usdc, _platformFeeBps) {}
+    constructor(address _usdc, uint256 _platformFeeBps, address _admin) VaultCore(_usdc, _platformFeeBps, _admin) {}
 
     /// @notice Restricts execution to the borrower of the given listing.
     modifier onlyBorrower(uint256 listingId) {
@@ -164,7 +176,19 @@ contract VaultNFT is VaultCore, IERC721Receiver {
             fundedAt: 0, repaidSoFar: 0, stage: Stage.LISTED
         });
         nft.safeTransferFrom(msg.sender, address(this), tokenId);
+        _userNftListingIds[msg.sender].push(listingCount);
         emit Listed(listingCount, msg.sender, nftContract, tokenId, amount, apr, term);
+        _recordActivity(
+            msg.sender,
+            ActivityAction.LISTED,
+            ActivityMarket.NFT_LOAN,
+            listingCount,
+            msg.sender,
+            address(0),
+            amount,
+            uint8(Stage.LISTED),
+            bytes32(0)
+        );
         return listingCount;
     }
 
@@ -179,6 +203,17 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         l.stage = Stage.CANCELLED;
         IERC721(l.nftContract).safeTransferFrom(address(this), msg.sender, l.nftTokenId);
         emit Cancelled(listingId);
+        _recordActivity(
+            l.borrower,
+            ActivityAction.CANCELLED,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            address(0),
+            l.principal,
+            uint8(Stage.CANCELLED),
+            bytes32(0)
+        );
     }
 
     /**
@@ -197,6 +232,17 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         Listing storage l = listings[listingId];
         l.principal = newAmount; l.apr = newApr; l.term = newTerm;
         emit ListingUpdated(listingId, newAmount, newApr, newTerm);
+        _recordActivity(
+            l.borrower,
+            ActivityAction.UPDATED,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            address(0),
+            newAmount,
+            uint8(Stage.LISTED),
+            bytes32(0)
+        );
     }
 
     // ────────────────────────────────────────────────────────────
@@ -222,7 +268,21 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         _offerLenders[listingId].push(msg.sender);
         _hasOffer[listingId][msg.sender] = true;
         offers[listingId][msg.sender] = Offer({apr: apr, term: term});
+        _userLoanOfferListingIds[msg.sender].push(listingId);
+        _increaseLocked(msg.sender, amount);
         emit OfferSubmitted(listingId, msg.sender, amount, apr, term);
+        _recordActivityForPair(
+            msg.sender,
+            listings[listingId].borrower,
+            ActivityAction.OFFER_SUBMITTED,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            listings[listingId].borrower,
+            amount,
+            uint8(Stage.LISTED),
+            bytes32(0)
+        );
     }
 
     /**
@@ -244,17 +304,43 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         if (newAmount > current) {
             if (!usdc.transferFrom(msg.sender, address(this), newAmount - current)) revert TransferFailed();
             listingEscrowBalance[listingId] += newAmount - current;
+            _increaseLocked(msg.sender, newAmount - current);
         } else if (newAmount < current) {
             listingEscrowBalance[listingId] -= current - newAmount;
             lenderDeposits[listingId][msg.sender] = newAmount;
             offers[listingId][msg.sender] = Offer({apr: newApr, term: newTerm});
+            _decreaseLocked(msg.sender, current - newAmount);
             if (!usdc.transfer(msg.sender, current - newAmount)) revert TransferFailed();
             emit OfferSubmitted(listingId, msg.sender, newAmount, newApr, newTerm);
+            _recordActivityForPair(
+                msg.sender,
+                listings[listingId].borrower,
+                ActivityAction.OFFER_UPDATED,
+                ActivityMarket.NFT_LOAN,
+                listingId,
+                msg.sender,
+                listings[listingId].borrower,
+                newAmount,
+                uint8(Stage.LISTED),
+                bytes32(0)
+            );
             return;
         }
         lenderDeposits[listingId][msg.sender] = newAmount;
         offers[listingId][msg.sender] = Offer({apr: newApr, term: newTerm});
         emit OfferSubmitted(listingId, msg.sender, newAmount, newApr, newTerm);
+        _recordActivityForPair(
+            msg.sender,
+            listings[listingId].borrower,
+            ActivityAction.OFFER_UPDATED,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            listings[listingId].borrower,
+            newAmount,
+            uint8(Stage.LISTED),
+            bytes32(0)
+        );
     }
 
     /**
@@ -271,8 +357,21 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         listingEscrowBalance[listingId] -= deposited;
         _hasOffer[listingId][msg.sender] = false;
         delete offers[listingId][msg.sender];
+        _decreaseLocked(msg.sender, deposited);
         if (!usdc.transfer(msg.sender, deposited)) revert TransferFailed();
         emit OfferWithdrawn(listingId, msg.sender, deposited);
+        _recordActivityForPair(
+            msg.sender,
+            l.borrower,
+            ActivityAction.OFFER_WITHDRAWN,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            l.borrower,
+            deposited,
+            uint8(l.stage),
+            bytes32(0)
+        );
     }
 
     // ────────────────────────────────────────────────────────────
@@ -306,6 +405,7 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         }
         lenderDeposits[listingId][lender] = 0;
         _hasOffer[listingId][lender] = false;
+        _decreaseLocked(lender, deposited);
         l.acceptedLender = lender; l.acceptedAmount = acceptedAmount;
         l.acceptedApr = acceptedApr; l.acceptedTerm = acceptedTerm;
         l.fundedAt = block.timestamp; l.stage = Stage.ACTIVE;
@@ -315,6 +415,20 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         if (fee > 0 && !usdc.transfer(treasury, fee)) revert TransferFailed();
         _refundNftOffers(listingId, lender);
         emit OfferAccepted(listingId, lender, acceptedAmount);
+        _increaseActiveLoan(l.borrower, lender);
+        _increaseLifetimeVolume(l.borrower, lender, acceptedAmount);
+        _recordActivityForPair(
+            l.borrower,
+            lender,
+            ActivityAction.OFFER_ACCEPTED,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            lender,
+            acceptedAmount,
+            uint8(Stage.ACTIVE),
+            bytes32(0)
+        );
     }
 
     /**
@@ -357,6 +471,20 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         _refundNftOffers(offer.listingId, offer.lender);
         emit OfferAccepted(offer.listingId, offer.lender, offer.amount);
         emit SignedOfferAccepted(offer.listingId, offer.lender, offer.amount, offer.nonce);
+        _increaseActiveLoan(l.borrower, offer.lender);
+        _increaseLifetimeVolume(l.borrower, offer.lender, offer.amount);
+        _recordActivityForPair(
+            l.borrower,
+            offer.lender,
+            ActivityAction.OFFER_ACCEPTED,
+            ActivityMarket.NFT_LOAN,
+            offer.listingId,
+            msg.sender,
+            offer.lender,
+            offer.amount,
+            uint8(Stage.ACTIVE),
+            bytes32(0)
+        );
     }
 
     // ────────────────────────────────────────────────────────────
@@ -384,6 +512,20 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         if (amount > remaining && !usdc.transfer(msg.sender, amount - remaining)) revert TransferFailed();
         IERC721(l.nftContract).safeTransferFrom(address(this), msg.sender, l.nftTokenId);
         emit Repaid(listingId, totalDue);
+        _decreaseActiveLoan(l.borrower, l.acceptedLender);
+        _increaseLifetimeVolume(l.borrower, l.acceptedLender, remaining);
+        _recordActivityForPair(
+            l.borrower,
+            l.acceptedLender,
+            ActivityAction.REPAID,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            l.acceptedLender,
+            remaining,
+            uint8(Stage.REPAID),
+            bytes32(0)
+        );
     }
 
     /**
@@ -409,8 +551,22 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         if (l.repaidSoFar >= totalDue) {
             l.stage = Stage.REPAID;
             IERC721(l.nftContract).safeTransferFrom(address(this), msg.sender, l.nftTokenId);
+            _decreaseActiveLoan(l.borrower, l.acceptedLender);
         }
         emit Repaid(listingId, partialAmount);
+        _increaseLifetimeVolume(l.borrower, l.acceptedLender, partialAmount);
+        _recordActivityForPair(
+            l.borrower,
+            l.acceptedLender,
+            ActivityAction.REPAID,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            l.acceptedLender,
+            partialAmount,
+            uint8(l.stage),
+            bytes32(0)
+        );
     }
 
     // ────────────────────────────────────────────────────────────
@@ -430,6 +586,19 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         l.stage = Stage.DEFAULTED;
         IERC721(l.nftContract).safeTransferFrom(address(this), msg.sender, l.nftTokenId);
         emit DefaultClaimed(listingId, msg.sender, l.nftContract, l.nftTokenId);
+        _decreaseActiveLoan(l.borrower, l.acceptedLender);
+        _recordActivityForPair(
+            l.borrower,
+            l.acceptedLender,
+            ActivityAction.DEFAULT_CLAIMED,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            l.borrower,
+            l.acceptedAmount,
+            uint8(Stage.DEFAULTED),
+            bytes32(0)
+        );
     }
 
     /**
@@ -442,6 +611,18 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         if (msg.sender != l.borrower && msg.sender != l.acceptedLender) revert NotParty();
         l.stage = Stage.DISPUTED;
         emit Disputed(listingId);
+        _recordActivityForPair(
+            l.borrower,
+            l.acceptedLender,
+            ActivityAction.DISPUTED,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            msg.sender == l.borrower ? l.acceptedLender : l.borrower,
+            l.acceptedAmount,
+            uint8(Stage.DISPUTED),
+            bytes32(0)
+        );
     }
 
     /**
@@ -456,6 +637,30 @@ contract VaultNFT is VaultCore, IERC721Receiver {
         l.stage = Stage.REPAID;
         IERC721(l.nftContract).safeTransferFrom(address(this), nftToLender ? l.acceptedLender : l.borrower, l.nftTokenId);
         emit Resolved(listingId, Stage.REPAID, nftToLender);
+        _decreaseActiveLoan(l.borrower, l.acceptedLender);
+        _recordActivityForPair(
+            l.borrower,
+            l.acceptedLender,
+            ActivityAction.RESOLVED,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            nftToLender ? l.acceptedLender : l.borrower,
+            l.acceptedAmount,
+            uint8(Stage.REPAID),
+            bytes32(0)
+        );
+        _recordActivity(
+            msg.sender,
+            ActivityAction.RESOLVED,
+            ActivityMarket.NFT_LOAN,
+            listingId,
+            msg.sender,
+            nftToLender ? l.acceptedLender : l.borrower,
+            l.acceptedAmount,
+            uint8(Stage.REPAID),
+            bytes32(0)
+        );
     }
 
     // ────────────────────────────────────────────────────────────
@@ -479,8 +684,21 @@ contract VaultNFT is VaultCore, IERC721Receiver {
                 lenderDeposits[listingId][lender] = 0;
                 _hasOffer[listingId][lender] = false;
                 delete offers[listingId][lender];
+                _decreaseLocked(lender, d);
                 if (!usdc.transfer(lender, d)) revert TransferFailed();
                 emit OfferWithdrawn(listingId, lender, d);
+                _recordActivityForPair(
+                    lender,
+                    listings[listingId].borrower,
+                    ActivityAction.OFFER_WITHDRAWN,
+                    ActivityMarket.NFT_LOAN,
+                    listingId,
+                    address(this),
+                    listings[listingId].borrower,
+                    d,
+                    uint8(listings[listingId].stage),
+                    bytes32(0)
+                );
             }
         }
         delete _offerLenders[listingId];
@@ -492,14 +710,52 @@ contract VaultNFT is VaultCore, IERC721Receiver {
     function getOfferLenders(uint256 listingId) external view returns (address[] memory) { return _offerLenders[listingId]; }
     /// @notice Returns repayment details: totalDue, paid, remaining.
     function getRepaymentDue(uint256 listingId) external view returns (uint256 totalDue, uint256 paid, uint256 remaining) {
-        Listing storage l = listings[listingId];
-        uint256 interest = (l.acceptedAmount * l.acceptedApr * l.acceptedTerm) / 3650000;
-        totalDue = l.acceptedAmount + interest; paid = l.repaidSoFar; remaining = totalDue - paid;
+        (totalDue, paid, remaining) = _repaymentDue(listingId);
     }
     /// @notice Returns the Unix timestamp when the loan term expires.
     function getDeadline(uint256 listingId) external view returns (uint256) {
         Listing storage l = listings[listingId];
         return l.fundedAt + (l.acceptedTerm * 1 days);
+    }
+
+    /// @notice Returns a single listing summary for detail views.
+    function getListingSummary(uint256 listingId) public view returns (ListingSummary memory) {
+        (uint256 totalDue, uint256 paid, uint256 remaining) = _repaymentDue(listingId);
+        return ListingSummary({
+            id: listingId,
+            listing: listings[listingId],
+            escrowBalance: listingEscrowBalance[listingId],
+            offerCount: _offerLenders[listingId].length,
+            totalDue: totalDue,
+            paid: paid,
+            remaining: remaining,
+            deadline: listings[listingId].fundedAt + (listings[listingId].acceptedTerm * 1 days)
+        });
+    }
+
+    /// @notice Returns listing summaries from startId, inclusive, ascending.
+    function getListings(uint256 startId, uint256 limit) external view returns (ListingSummary[] memory) {
+        if (startId == 0 || startId > listingCount || limit == 0) return new ListingSummary[](0);
+        uint256 count = listingCount - startId + 1;
+        if (count > limit) count = limit;
+        ListingSummary[] memory page = new ListingSummary[](count);
+        for (uint256 i = 0; i < count; i++) {
+            page[i] = getListingSummary(startId + i);
+        }
+        return page;
+    }
+
+    /// @notice Returns stored offer terms and deposit for a lender.
+    function getLoanOffer(uint256 listingId, address lender) external view returns (Offer memory offer, uint256 deposit, bool active) {
+        return (offers[listingId][lender], lenderDeposits[listingId][lender], _hasOffer[listingId][lender]);
+    }
+
+    function _repaymentDue(uint256 listingId) private view returns (uint256 totalDue, uint256 paid, uint256 remaining) {
+        Listing storage l = listings[listingId];
+        uint256 interest = (l.acceptedAmount * l.acceptedApr * l.acceptedTerm) / 3650000;
+        totalDue = l.acceptedAmount + interest;
+        paid = l.repaidSoFar;
+        remaining = totalDue > paid ? totalDue - paid : 0;
     }
 
     /// @notice ERC-721 receiver callback. Always accepts NFTs.

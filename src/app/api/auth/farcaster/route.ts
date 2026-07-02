@@ -1,5 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createFarcasterQuickAuthSession } from "@/lib/auth";
+import { createFarcasterQuickAuthSession, createFarcasterSignInNonce } from "@/lib/auth";
+
+export async function GET() {
+  try {
+    const result = await createFarcasterSignInNonce();
+    return NextResponse.json({ nonce: result.nonce });
+  } catch (err) {
+    console.error("[api/auth/farcaster] nonce failed", err);
+    return NextResponse.json({ error: "Could not create Farcaster nonce" }, { status: 502 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {

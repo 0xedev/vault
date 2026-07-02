@@ -22,9 +22,9 @@ contract AccessControlTest is Test {
         usdc = new MockERC20();
         nft = new MockERC721();
         vm.prank(admin);
-        escrowNft = new VaultNFT(address(usdc), 150);
+        escrowNft = new VaultNFT(address(usdc), 150, admin);
         vm.prank(admin);
-        escrow = new VaultDeals(address(usdc), 150);
+        escrow = new VaultDeals(address(usdc), 150, admin);
         usdc.mint(user, 1_000_000_000 ether);
         usdc.mint(other, 1_000_000_000 ether);
         usdc.mint(admin, 1_000_000_000 ether);

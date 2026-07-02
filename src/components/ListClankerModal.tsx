@@ -154,7 +154,7 @@ export default function ListClankerModal({ onClose, onListed }: Props) {
         kind: "Clanker Token", createdAt: new Date().toISOString(),
       };
       const metaHash = hashMetadata(metadata);
-      const txHash = await writeListDeal(address as Address, parseUnits(price || "0", 6), metaHash);
+      const txHash = await writeListDeal(address as Address, parseUnits(price || "0", 6), metaHash, "clanker");
       const contractListingId = await waitForDealId(txHash);
 
       const res = await fetch("/api/marketplace/clanker", {

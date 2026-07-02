@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
 import { mapClankerListing, mapFarcasterListing, mapLoanListing, mapMiniAppListing, mapXAccountListing, mapBundleListing } from "@/lib/marketplace";
-import { actorAddressForRequest, requireUser } from "@/lib/auth";
+import { actorAddressForRequest, forbidden, isEvmAddress, requireUser } from "@/lib/auth";
 import { verifyClankerTokenOwnership } from "@/lib/clanker";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
 import { getDealsAddress, mapDealStage, readDeal } from "@/lib/contract";
@@ -196,6 +196,9 @@ export async function POST(
     return badRequest("Listing must be created against the active Vault escrow contract.");
   }
   const sellerAddress = actorAddressForRequest(auth.user, parsed.data.sellerAddress);
+  if (!isEvmAddress(sellerAddress)) {
+    return forbidden("Link an EVM wallet before creating an on-chain listing.");
+  }
   if (kind === "clanker") {
     const tokenAddress = String(parsed.data.data.tokenAddress || "");
     if (!tokenAddress.startsWith("0x") || tokenAddress.length !== 42) {

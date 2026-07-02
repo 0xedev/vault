@@ -179,6 +179,12 @@ interface ProfileOffer {
   contractListingId?: string;
 }
 
+type ProfileOfferAcceptPayload = ProfileOffer & {
+  signature: `0x${string}`;
+  nonce: string;
+  typedData: unknown;
+};
+
 type ProfileLoan = Loan & {
   collection?: string;
   sellerAddress?: string;
@@ -893,6 +899,18 @@ function profileOfferMessage(offer: ProfileOffer): SignedLoanOfferMessage | Sign
   };
 }
 
+async function loadOfferAcceptPayload(offerId: string, actorAddress?: string | null): Promise<ProfileOfferAcceptPayload> {
+  const res = await fetch(`/api/offers/${encodeURIComponent(offerId)}/accept-payload`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actorAddress }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || "Unable to load offer accept payload");
+  return json.data as ProfileOfferAcceptPayload;
+}
+
 async function loadOffersForListing(listingId: string): Promise<ProfileOffer[]> {
   const res = await fetch(`/api/offers?listingId=${encodeURIComponent(listingId)}`, { credentials: "include" });
   const json = await res.json().catch(() => ({}));
@@ -1230,12 +1248,12 @@ export default function DealsPage() {
     setOfferAction(offer.id);
     setListingNotice("");
     try {
-      if (!offer.signature) throw new Error("Offer signature is missing.");
-      const message = profileOfferMessage(offer);
+      const payload = await loadOfferAcceptPayload(offer.id, actorAddress);
+      const message = profileOfferMessage({ ...offer, ...payload });
       if (!message) throw new Error("Offer typed data is missing.");
-      const txHash = offer.marketplace === "nft_loan"
-        ? await writeAcceptSignedLoanOffer(address as Address, message as SignedLoanOfferMessage, offer.signature)
-        : await writeAcceptSignedDealOffer(address as Address, message as SignedDealOfferMessage, offer.signature);
+      const txHash = payload.marketplace === "nft_loan"
+        ? await writeAcceptSignedLoanOffer(address as Address, message as SignedLoanOfferMessage, payload.signature)
+        : await writeAcceptSignedDealOffer(address as Address, message as SignedDealOfferMessage, payload.signature);
       await getPublicClient().waitForTransactionReceipt({ hash: txHash });
       await patchOfferStatus(offer, "accepted", txHash);
       setListingNotice(offer.marketplace === "nft_loan"

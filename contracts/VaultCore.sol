@@ -14,6 +14,63 @@ interface IERC20 {
 }
 
 contract VaultCore {
+    /// @notice Compact activity action codes used by both child contracts.
+    enum ActivityAction {
+        LISTED,
+        UPDATED,
+        CANCELLED,
+        OFFER_SUBMITTED,
+        OFFER_UPDATED,
+        OFFER_WITHDRAWN,
+        OFFER_ACCEPTED,
+        FUNDED,
+        DELIVERED,
+        CONFIRMED,
+        REPAID,
+        DEFAULT_CLAIMED,
+        DISPUTED,
+        RESOLVED,
+        REFUNDED,
+        DEADLINE_EXTENDED
+    }
+
+    /// @notice Compact market codes. UI labels stay off-chain.
+    enum ActivityMarket { NFT_LOAN, MINI_APP, X_ACCOUNT, FARCASTER, CLANKER, BUNDLE, OTC }
+
+    /// @notice Per-user compact activity entry. No strings are stored on-chain.
+    struct Activity {
+        uint8 action;
+        uint8 market;
+        uint256 subjectId;
+        address actor;
+        address counterparty;
+        uint256 amount;
+        uint256 timestamp;
+        uint8 status;
+        bytes32 metadataHash;
+    }
+
+    /// @notice Aggregated profile counters for direct contract reads.
+    struct ProfileCounters {
+        uint256 nftListingCount;
+        uint256 dealListingCount;
+        uint256 boughtDealCount;
+        uint256 loanOfferCount;
+        uint256 dealOfferCount;
+        uint256 lockedUSDC;
+        uint256 activeLoanCount;
+        uint256 activeDealCount;
+        uint256 lifetimeVolume;
+        uint256 activityCount;
+    }
+
+    struct ProfileStats {
+        uint256 lockedUSDC;
+        uint256 activeLoanCount;
+        uint256 activeDealCount;
+        uint256 lifetimeVolume;
+    }
+
     /// @notice The USDC (or USDC-like 6-decimal) token used for all value transfers.
     IERC20 public immutable usdc;
 
@@ -31,6 +88,14 @@ contract VaultCore {
 
     /// @notice Per-signer offer nonces that have been consumed or cancelled.
     mapping(address => mapping(uint256 => bool)) public usedOrCancelledOfferNonces;
+
+    mapping(address => Activity[]) private _userActivities;
+    mapping(address => ProfileStats) internal _profileStats;
+    mapping(address => uint256[]) internal _userNftListingIds;
+    mapping(address => uint256[]) internal _userDealIds;
+    mapping(address => uint256[]) internal _userBoughtDealIds;
+    mapping(address => uint256[]) internal _userLoanOfferListingIds;
+    mapping(address => uint256[]) internal _userDealOfferIds;
 
     /// @notice Number of active admins (must stay >= 1).
     uint256 public adminCount;
@@ -60,6 +125,21 @@ contract VaultCore {
 
     /// @notice Emitted when a signer invalidates an offer nonce.
     event OfferNonceCancelled(address indexed signer, uint256 indexed nonce);
+
+    /// @notice Emitted whenever compact activity is appended for a profile.
+    event UserActivityRecorded(
+        address indexed user,
+        uint256 indexed activityId,
+        uint8 action,
+        uint8 market,
+        uint256 indexed subjectId,
+        address actor,
+        address counterparty,
+        uint256 amount,
+        uint256 timestamp,
+        uint8 status,
+        bytes32 metadataHash
+    );
 
     // ── Errors ──────────────────────────────────────────────────
 
@@ -109,12 +189,13 @@ contract VaultCore {
     /**
      * @param _usdc            Address of the USDC token.
      * @param _platformFeeBps  Initial platform fee in bp (max 500).
-     * @dev Deployer becomes the first admin and treasury.
+     * @param _admin           First admin and treasury recipient.
      */
-    constructor(address _usdc, uint256 _platformFeeBps) {
-        admins[msg.sender] = true;
+    constructor(address _usdc, uint256 _platformFeeBps, address _admin) {
+        require(_admin != address(0), "Invalid admin");
+        admins[_admin] = true;
         adminCount = 1;
-        treasury = msg.sender;
+        treasury = _admin;
         usdc = IERC20(_usdc);
         platformFeeBps = _platformFeeBps;
     }
@@ -237,5 +318,177 @@ contract VaultCore {
         if (block.timestamp > expiry) revert OfferExpired();
         if (usedOrCancelledOfferNonces[signer][nonce]) revert OfferNonceUnavailable();
         usedOrCancelledOfferNonces[signer][nonce] = true;
+    }
+
+    // ── Profile reads ───────────────────────────────────────────
+
+    function getUserProfile(address user) external view returns (ProfileCounters memory profile) {
+        ProfileStats storage stats = _profileStats[user];
+        profile = ProfileCounters({
+            nftListingCount: _userNftListingIds[user].length,
+            dealListingCount: _userDealIds[user].length,
+            boughtDealCount: _userBoughtDealIds[user].length,
+            loanOfferCount: _userLoanOfferListingIds[user].length,
+            dealOfferCount: _userDealOfferIds[user].length,
+            lockedUSDC: stats.lockedUSDC,
+            activeLoanCount: stats.activeLoanCount,
+            activeDealCount: stats.activeDealCount,
+            lifetimeVolume: stats.lifetimeVolume,
+            activityCount: _userActivities[user].length
+        });
+    }
+
+    function getUserActivities(address user, uint256 offset, uint256 limit) external view returns (Activity[] memory) {
+        uint256 total = _userActivities[user].length;
+        if (offset >= total || limit == 0) return new Activity[](0);
+        uint256 count = total - offset;
+        if (count > limit) count = limit;
+        Activity[] memory page = new Activity[](count);
+        for (uint256 i = 0; i < count; i++) {
+            page[i] = _userActivities[user][total - 1 - offset - i];
+        }
+        return page;
+    }
+
+    function getUserNftListingIds(address user, uint256 offset, uint256 limit) external view returns (uint256[] memory) {
+        return _sliceNewest(_userNftListingIds[user], offset, limit);
+    }
+
+    function getUserDealIds(address user, uint256 offset, uint256 limit) external view returns (uint256[] memory) {
+        return _sliceNewest(_userDealIds[user], offset, limit);
+    }
+
+    function getUserBoughtDealIds(address user, uint256 offset, uint256 limit) external view returns (uint256[] memory) {
+        return _sliceNewest(_userBoughtDealIds[user], offset, limit);
+    }
+
+    function getUserLoanOfferListingIds(address user, uint256 offset, uint256 limit) external view returns (uint256[] memory) {
+        return _sliceNewest(_userLoanOfferListingIds[user], offset, limit);
+    }
+
+    function getUserDealOfferIds(address user, uint256 offset, uint256 limit) external view returns (uint256[] memory) {
+        return _sliceNewest(_userDealOfferIds[user], offset, limit);
+    }
+
+    function isAdmin(address user) external view returns (bool) {
+        return admins[user];
+    }
+
+    function isOfferNonceUnavailable(address signer, uint256 nonce) external view returns (bool) {
+        return usedOrCancelledOfferNonces[signer][nonce];
+    }
+
+    function _sliceNewest(uint256[] storage source, uint256 offset, uint256 limit) internal view returns (uint256[] memory) {
+        uint256 total = source.length;
+        if (offset >= total || limit == 0) return new uint256[](0);
+        uint256 count = total - offset;
+        if (count > limit) count = limit;
+        uint256[] memory page = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            page[i] = source[total - 1 - offset - i];
+        }
+        return page;
+    }
+
+    function _recordActivity(
+        address user,
+        ActivityAction action,
+        ActivityMarket market,
+        uint256 subjectId,
+        address actor,
+        address counterparty,
+        uint256 amount,
+        uint8 status,
+        bytes32 metadataHash
+    ) internal {
+        if (user == address(0)) return;
+        Activity memory activity = Activity({
+            action: uint8(action),
+            market: uint8(market),
+            subjectId: subjectId,
+            actor: actor,
+            counterparty: counterparty,
+            amount: amount,
+            timestamp: block.timestamp,
+            status: status,
+            metadataHash: metadataHash
+        });
+        _userActivities[user].push(activity);
+        uint256 activityId = _userActivities[user].length;
+        emit UserActivityRecorded(
+            user,
+            activityId,
+            activity.action,
+            activity.market,
+            subjectId,
+            actor,
+            counterparty,
+            amount,
+            activity.timestamp,
+            status,
+            metadataHash
+        );
+    }
+
+    function _recordActivityForPair(
+        address first,
+        address second,
+        ActivityAction action,
+        ActivityMarket market,
+        uint256 subjectId,
+        address actor,
+        address counterparty,
+        uint256 amount,
+        uint8 status,
+        bytes32 metadataHash
+    ) internal {
+        _recordActivity(first, action, market, subjectId, actor, counterparty, amount, status, metadataHash);
+        if (second != first) {
+            _recordActivity(second, action, market, subjectId, actor, counterparty, amount, status, metadataHash);
+        }
+    }
+
+    function _increaseLocked(address user, uint256 amount) internal {
+        if (user != address(0) && amount > 0) _profileStats[user].lockedUSDC += amount;
+    }
+
+    function _decreaseLocked(address user, uint256 amount) internal {
+        if (user == address(0) || amount == 0) return;
+        uint256 current = _profileStats[user].lockedUSDC;
+        _profileStats[user].lockedUSDC = amount >= current ? 0 : current - amount;
+    }
+
+    function _increaseActiveLoan(address first, address second) internal {
+        if (first != address(0)) _profileStats[first].activeLoanCount++;
+        if (second != address(0) && second != first) _profileStats[second].activeLoanCount++;
+    }
+
+    function _decreaseActiveLoan(address first, address second) internal {
+        _decrementLoan(first);
+        if (second != first) _decrementLoan(second);
+    }
+
+    function _decrementLoan(address user) private {
+        if (user != address(0) && _profileStats[user].activeLoanCount > 0) _profileStats[user].activeLoanCount--;
+    }
+
+    function _increaseActiveDeal(address first, address second) internal {
+        if (first != address(0)) _profileStats[first].activeDealCount++;
+        if (second != address(0) && second != first) _profileStats[second].activeDealCount++;
+    }
+
+    function _decreaseActiveDeal(address first, address second) internal {
+        _decrementDeal(first);
+        if (second != first) _decrementDeal(second);
+    }
+
+    function _decrementDeal(address user) private {
+        if (user != address(0) && _profileStats[user].activeDealCount > 0) _profileStats[user].activeDealCount--;
+    }
+
+    function _increaseLifetimeVolume(address first, address second, uint256 amount) internal {
+        if (amount == 0) return;
+        if (first != address(0)) _profileStats[first].lifetimeVolume += amount;
+        if (second != address(0) && second != first) _profileStats[second].lifetimeVolume += amount;
     }
 }

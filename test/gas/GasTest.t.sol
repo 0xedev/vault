@@ -22,9 +22,9 @@ contract GasTest is Test {
     function setUp() public {
         usdc = new MockERC20();
         vm.prank(admin);
-        escrowNft = new VaultNFT(address(usdc), 150);
+        escrowNft = new VaultNFT(address(usdc), 150, admin);
         vm.prank(admin);
-        escrow = new VaultDeals(address(usdc), 150);
+        escrow = new VaultDeals(address(usdc), 150, admin);
         nft = new MockERC721();
         usdc.mint(buyer, 1_000_000_000 ether);
         usdc.mint(lender, 1_000_000_000 ether);

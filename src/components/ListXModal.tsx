@@ -41,6 +41,7 @@ export default function ListXModal({ onClose }: { onClose: () => void }) {
         address as Address,
         parseUnits(price || "0", 6),
         metaHash,
+        "x_account",
       );
       const contractListingId = await waitForDealId(txHash);
       const res = await fetch("/api/marketplace/x-accounts", {

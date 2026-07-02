@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, getDatabase, jsonRecord } from "@/lib/api";
 import { mapLoanListing } from "@/lib/marketplace";
-import { actorAddressForRequest, requireUser } from "@/lib/auth";
+import { actorAddressForRequest, forbidden, isEvmAddress, requireUser } from "@/lib/auth";
 import { getNftAddress, readAllListings, readListing, mapListingStage } from "@/lib/contract";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
 import { fetchIndexedNftListings, mergeIndexedListingRows, nftListingRowFromSubgraph } from "@/lib/subgraph";
@@ -220,6 +220,9 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data;
   const sellerAddress = actorAddressForRequest(auth.user, data.seller);
+  if (!isEvmAddress(sellerAddress)) {
+    return forbidden("Link an EVM wallet before creating an on-chain listing.");
+  }
   const activeContract = await activeListingContractAddress("nft_loan");
   if (!data.contractAddress || data.contractAddress.toLowerCase() !== activeContract) {
     return badRequest("Listing must be created against the active VaultNFT contract.");

@@ -1,2599 +1,4115 @@
 export const ESCROW_ABI = [
   {
-    inputs: [
+    "type": "constructor",
+    "inputs": [
       {
-        internalType: "address",
-        name: "_usdc",
-        type: "address",
+        "name": "_usdc",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        internalType: "uint256",
-        name: "_platformFeeBps",
-        type: "uint256",
-      },
+        "name": "_platformFeeBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "constructor",
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "deals",
-    outputs: [
+    "type": "function",
+    "name": "deals",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "contract VaultDeals",
-        name: "",
-        type: "address",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "contract VaultDeals"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "nft",
-    outputs: [
+    "type": "function",
+    "name": "nft",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "contract VaultNFT",
-        name: "",
-        type: "address",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "contract VaultNFT"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
-  },
+    "stateMutability": "view"
+  }
 ] as const;
 
 export const ERC721_ABI = [
   {
-    type: "function",
-    name: "approve",
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "tokenId", type: "uint256" },
+    "type": "function",
+    "name": "approve",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256"
+      }
     ],
-    outputs: [],
-    stateMutability: "nonpayable",
-  },
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  }
 ] as const;
 
 export const VaultNFT_ABI = [
   {
-    inputs: [
+    "type": "constructor",
+    "inputs": [
       {
-        internalType: "address",
-        name: "_usdc",
-        type: "address",
+        "name": "_usdc",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        internalType: "uint256",
-        name: "_platformFeeBps",
-        type: "uint256",
+        "name": "_platformFeeBps",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "_admin",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "constructor",
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "AlreadyOffered",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "ContractPaused",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "GracePeriodNotPassed",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "InvalidSignature",
-    type: "error",
-  },
-  {
-    inputs: [
+    "type": "function",
+    "name": "GRACE_PERIOD",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "enum VaultNFT.Stage",
-        name: "current",
-        type: "uint8",
-      },
-      {
-        internalType: "enum VaultNFT.Stage",
-        name: "expected",
-        type: "uint8",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "InvalidStage",
-    type: "error",
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "NotAdmin",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "NotBorrower",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "NotLender",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "NotNFTOwner",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "NotParty",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "OfferExpired",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "OfferMismatch",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "OfferNonceUnavailable",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "TransferFailed",
-    type: "error",
-  },
-  {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "SIGNED_LOAN_OFFER_TYPEHASH",
+    "inputs": [],
+    "outputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "admin",
-        type: "address",
-      },
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
     ],
-    name: "AdminAdded",
-    type: "event",
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "acceptOffer",
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "admin",
-        type: "address",
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "lender",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "acceptedAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "acceptedApr",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "acceptedTerm",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "AdminRemoved",
-    type: "event",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "acceptSignedOffer",
+    "inputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-    ],
-    name: "Cancelled",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "lender",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "nftContract",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-    ],
-    name: "DefaultClaimed",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-    ],
-    name: "Disputed",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "borrower",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "nftContract",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "apr",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "term",
-        type: "uint256",
-      },
-    ],
-    name: "Listed",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "apr",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "term",
-        type: "uint256",
-      },
-    ],
-    name: "ListingUpdated",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "lender",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "OfferAccepted",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "signer",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "nonce",
-        type: "uint256",
-      },
-    ],
-    name: "OfferNonceCancelled",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "lender",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "apr",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "term",
-        type: "uint256",
-      },
-    ],
-    name: "OfferSubmitted",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "lender",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "OfferWithdrawn",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [],
-    name: "Paused",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "newFee",
-        type: "uint256",
-      },
-    ],
-    name: "PlatformFeeUpdated",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "Repaid",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "enum VaultNFT.Stage",
-        name: "outcome",
-        type: "uint8",
-      },
-      {
-        indexed: false,
-        internalType: "bool",
-        name: "nftToLender",
-        type: "bool",
-      },
-    ],
-    name: "Resolved",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "lender",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "nonce",
-        type: "uint256",
-      },
-    ],
-    name: "SignedOfferAccepted",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "oldTreasury",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "newTreasury",
-        type: "address",
-      },
-    ],
-    name: "TreasurySet",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [],
-    name: "Unpaused",
-    type: "event",
-  },
-  {
-    inputs: [],
-    name: "GRACE_PERIOD",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "SIGNED_LOAN_OFFER_TYPEHASH",
-    outputs: [
-      {
-        internalType: "bytes32",
-        name: "",
-        type: "bytes32",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        internalType: "address",
-        name: "lender",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "acceptedAmount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "acceptedApr",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "acceptedTerm",
-        type: "uint256",
-      },
-    ],
-    name: "acceptOffer",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        components: [
+        "name": "offer",
+        "type": "tuple",
+        "internalType": "struct VaultNFT.SignedLoanOffer",
+        "components": [
           {
-            internalType: "uint256",
-            name: "listingId",
-            type: "uint256",
+            "name": "listingId",
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
-            internalType: "address",
-            name: "lender",
-            type: "address",
+            "name": "lender",
+            "type": "address",
+            "internalType": "address"
           },
           {
-            internalType: "uint256",
-            name: "amount",
-            type: "uint256",
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "apr",
-            type: "uint256",
+            "name": "apr",
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "term",
-            type: "uint256",
+            "name": "term",
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "expiry",
-            type: "uint256",
+            "name": "expiry",
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "nonce",
-            type: "uint256",
+            "name": "nonce",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "addAdmin",
+    "inputs": [
+      {
+        "name": "newAdmin",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "adminCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "admins",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "cancelListing",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cancelOfferNonce",
+    "inputs": [
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cancelOfferNonces",
+    "inputs": [
+      {
+        "name": "nonces",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimCollateral",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "dispute",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getDeadline",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getListingSummary",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct VaultNFT.ListingSummary",
+        "components": [
+          {
+            "name": "id",
+            "type": "uint256",
+            "internalType": "uint256"
           },
-        ],
-        internalType: "struct VaultNFT.SignedLoanOffer",
-        name: "offer",
-        type: "tuple",
-      },
-      {
-        internalType: "bytes",
-        name: "signature",
-        type: "bytes",
-      },
+          {
+            "name": "listing",
+            "type": "tuple",
+            "internalType": "struct VaultNFT.Listing",
+            "components": [
+              {
+                "name": "borrower",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "nftContract",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "nftTokenId",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "principal",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "apr",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "term",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "acceptedLender",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "acceptedAmount",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "acceptedApr",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "acceptedTerm",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "fundedAt",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "repaidSoFar",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "stage",
+                "type": "uint8",
+                "internalType": "enum VaultNFT.Stage"
+              }
+            ]
+          },
+          {
+            "name": "escrowBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "offerCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalDue",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "paid",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "remaining",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "deadline",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
     ],
-    name: "acceptSignedOffer",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getListings",
+    "inputs": [
       {
-        internalType: "address",
-        name: "newAdmin",
-        type: "address",
+        "name": "startId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "addAdmin",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct VaultNFT.ListingSummary[]",
+        "components": [
+          {
+            "name": "id",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "listing",
+            "type": "tuple",
+            "internalType": "struct VaultNFT.Listing",
+            "components": [
+              {
+                "name": "borrower",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "nftContract",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "nftTokenId",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "principal",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "apr",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "term",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "acceptedLender",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "acceptedAmount",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "acceptedApr",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "acceptedTerm",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "fundedAt",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "repaidSoFar",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "stage",
+                "type": "uint8",
+                "internalType": "enum VaultNFT.Stage"
+              }
+            ]
+          },
+          {
+            "name": "escrowBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "offerCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "totalDue",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "paid",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "remaining",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "deadline",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "adminCount",
-    outputs: [
+    "type": "function",
+    "name": "getLoanOffer",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "lender",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "offer",
+        "type": "tuple",
+        "internalType": "struct VaultNFT.Offer",
+        "components": [
+          {
+            "name": "apr",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "term",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "name": "deposit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getOfferCount",
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "admins",
-    outputs: [
+    "outputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getOfferLenders",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "cancelListing",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getRepaymentDue",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "nonce",
-        type: "uint256",
-      },
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "cancelOfferNonce",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "totalDue",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "paid",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "remaining",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserActivities",
+    "inputs": [
       {
-        internalType: "uint256[]",
-        name: "nonces",
-        type: "uint256[]",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "cancelOfferNonces",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct VaultCore.Activity[]",
+        "components": [
+          {
+            "name": "action",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "market",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "subjectId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "actor",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "counterparty",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "timestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "status",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "metadataHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserBoughtDealIds",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "claimCollateral",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserDealIds",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "dispute",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserDealOfferIds",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
-    ],
-    name: "getDeadline",
-    outputs: [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserLoanOfferListingIds",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
-    ],
-    name: "getOfferCount",
-    outputs: [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserNftListingIds",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
-    ],
-    name: "getOfferLenders",
-    outputs: [
       {
-        internalType: "address[]",
-        name: "",
-        type: "address[]",
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserProfile",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "getRepaymentDue",
-    outputs: [
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "totalDue",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "paid",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "remaining",
-        type: "uint256",
-      },
+        "name": "profile",
+        "type": "tuple",
+        "internalType": "struct VaultCore.ProfileCounters",
+        "components": [
+          {
+            "name": "nftListingCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "dealListingCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "boughtDealCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "loanOfferCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "dealOfferCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lockedUSDC",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "activeLoanCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "activeDealCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lifetimeVolume",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "activityCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "isAdmin",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "lenderDeposits",
-    outputs: [
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "isOfferNonceUnavailable",
+    "inputs": [
       {
-        internalType: "address",
-        name: "nftContract",
-        type: "address",
+        "name": "signer",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        internalType: "uint256",
-        name: "tokenId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "apr",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "term",
-        type: "uint256",
-      },
+        "name": "nonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "listNFT",
-    outputs: [
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "listingCount",
-    outputs: [
+    "type": "function",
+    "name": "lenderDeposits",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "listNFT",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "nftContract",
+        "type": "address",
+        "internalType": "address"
       },
-    ],
-    name: "listingEscrowBalance",
-    outputs: [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "apr",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "term",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "listingCount",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "listings",
-    outputs: [
-      {
-        internalType: "address",
-        name: "borrower",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "nftContract",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "nftTokenId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "principal",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "apr",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "term",
-        type: "uint256",
-      },
-      {
-        internalType: "address",
-        name: "acceptedLender",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "acceptedAmount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "acceptedApr",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "acceptedTerm",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "fundedAt",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "repaidSoFar",
-        type: "uint256",
-      },
-      {
-        internalType: "enum VaultNFT.Stage",
-        name: "stage",
-        type: "uint8",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "listingEscrowBalance",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "offers",
-    outputs: [
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "apr",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "term",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "listings",
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes",
-        name: "",
-        type: "bytes",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "onERC721Received",
-    outputs: [
+    "outputs": [
       {
-        internalType: "bytes4",
-        name: "",
-        type: "bytes4",
+        "name": "borrower",
+        "type": "address",
+        "internalType": "address"
       },
+      {
+        "name": "nftContract",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "nftTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "principal",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "apr",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "term",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "acceptedLender",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "acceptedAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "acceptedApr",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "acceptedTerm",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "fundedAt",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "repaidSoFar",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "stage",
+        "type": "uint8",
+        "internalType": "enum VaultNFT.Stage"
+      }
     ],
-    stateMutability: "pure",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "pause",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "type": "function",
+    "name": "offers",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "apr",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "term",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "paused",
-    outputs: [
+    "type": "function",
+    "name": "onERC721Received",
+    "inputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes4",
+        "internalType": "bytes4"
+      }
+    ],
+    "stateMutability": "pure"
   },
   {
-    inputs: [],
-    name: "platformFeeBps",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "type": "function",
+    "name": "pause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "paused",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "address",
-        name: "target",
-        type: "address",
-      },
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
     ],
-    name: "removeAdmin",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "platformFeeBps",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "repay",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "removeAdmin",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "partialAmount",
-        type: "uint256",
-      },
+        "name": "target",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "repayPartial",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "repay",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        internalType: "bool",
-        name: "nftToLender",
-        type: "bool",
-      },
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "resolve",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "repayPartial",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "newFeeBps",
-        type: "uint256",
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "partialAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "setPlatformFee",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "resolve",
+    "inputs": [
       {
-        internalType: "address",
-        name: "newTreasury",
-        type: "address",
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "nftToLender",
+        "type": "bool",
+        "internalType": "bool"
+      }
     ],
-    name: "setTreasury",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "setPlatformFee",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "apr",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "term",
-        type: "uint256",
-      },
+        "name": "newFeeBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "submitOffer",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "treasury",
-    outputs: [
+    "type": "function",
+    "name": "setTreasury",
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "name": "newTreasury",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "unpause",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "type": "function",
+    "name": "submitOffer",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "apr",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "term",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "treasury",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "newAmount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "newApr",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "newTerm",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "updateListing",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "newAmount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "newApr",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "newTerm",
-        type: "uint256",
-      },
-    ],
-    name: "updateOffer",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "type": "function",
+    "name": "unpause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "usdc",
-    outputs: [
+    "type": "function",
+    "name": "updateListing",
+    "inputs": [
       {
-        internalType: "contract IERC20",
-        name: "",
-        type: "address",
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "newAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "newApr",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "newTerm",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "updateOffer",
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "newAmount",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "newApr",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "newTerm",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "usedOrCancelledOfferNonces",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "usdc",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "contract IERC20"
+      }
     ],
-    name: "withdrawOffer",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
+  {
+    "type": "function",
+    "name": "usedOrCancelledOfferNonces",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "withdrawOffer",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "AdminAdded",
+    "inputs": [
+      {
+        "name": "admin",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "AdminRemoved",
+    "inputs": [
+      {
+        "name": "admin",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Cancelled",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DefaultClaimed",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "lender",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "nftContract",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Disputed",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Listed",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "borrower",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "nftContract",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "apr",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "term",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "ListingUpdated",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "apr",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "term",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OfferAccepted",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "lender",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OfferNonceCancelled",
+    "inputs": [
+      {
+        "name": "signer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OfferSubmitted",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "lender",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "apr",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "term",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OfferWithdrawn",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "lender",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Paused",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PlatformFeeUpdated",
+    "inputs": [
+      {
+        "name": "newFee",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Repaid",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Resolved",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "outcome",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum VaultNFT.Stage"
+      },
+      {
+        "name": "nftToLender",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SignedOfferAccepted",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "lender",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TreasurySet",
+    "inputs": [
+      {
+        "name": "oldTreasury",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newTreasury",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Unpaused",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "UserActivityRecorded",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "activityId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "action",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "market",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "subjectId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "actor",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "counterparty",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "status",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "metadataHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AlreadyOffered",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ContractPaused",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "GracePeriodNotPassed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidSignature",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidStage",
+    "inputs": [
+      {
+        "name": "current",
+        "type": "uint8",
+        "internalType": "enum VaultNFT.Stage"
+      },
+      {
+        "name": "expected",
+        "type": "uint8",
+        "internalType": "enum VaultNFT.Stage"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "NotAdmin",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotBorrower",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotLender",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotNFTOwner",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotParty",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OfferExpired",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OfferMismatch",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OfferNonceUnavailable",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TransferFailed",
+    "inputs": []
+  }
 ] as const;
 
 export const VaultDeals_ABI = [
   {
-    inputs: [
+    "type": "constructor",
+    "inputs": [
       {
-        internalType: "address",
-        name: "_usdc",
-        type: "address",
+        "name": "_usdc",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        internalType: "uint256",
-        name: "_platformFeeBps",
-        type: "uint256",
+        "name": "_platformFeeBps",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "_admin",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "constructor",
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "AlreadyOffered",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "ContractPaused",
-    type: "error",
-  },
-  {
-    inputs: [
+    "type": "function",
+    "name": "SIGNED_DEAL_OFFER_TYPEHASH",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "enum VaultDeals.DealStage",
-        name: "current",
-        type: "uint8",
-      },
-      {
-        internalType: "enum VaultDeals.DealStage",
-        name: "expected",
-        type: "uint8",
-      },
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
     ],
-    name: "InvalidDealStage",
-    type: "error",
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "InvalidSignature",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "NotAdmin",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "NotDealParty",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "OfferExpired",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "OfferNonceUnavailable",
-    type: "error",
-  },
-  {
-    inputs: [],
-    name: "TransferFailed",
-    type: "error",
-  },
-  {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "acceptDealOffer",
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "admin",
-        type: "address",
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "buyer",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "AdminAdded",
-    type: "event",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "acceptSignedDealOffer",
+    "inputs": [
       {
-        indexed: true,
-        internalType: "address",
-        name: "admin",
-        type: "address",
-      },
-    ],
-    name: "AdminRemoved",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-    ],
-    name: "DealCancelled",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "sellerAmount",
-        type: "uint256",
-      },
-    ],
-    name: "DealConfirmed",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "newDeadline",
-        type: "uint256",
-      },
-    ],
-    name: "DealDeadlineExtended",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-    ],
-    name: "DealDelivered",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-    ],
-    name: "DealDisputed",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "DealFunded",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "seller",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "price",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "bytes32",
-        name: "metadataHash",
-        type: "bytes32",
-      },
-    ],
-    name: "DealListed",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "DealOfferAccepted",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "DealOfferSubmitted",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "DealOfferWithdrawn",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-    ],
-    name: "DealRefunded",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "buyerAmount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "sellerAmount",
-        type: "uint256",
-      },
-    ],
-    name: "DealResolved",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-    ],
-    name: "MiniAppCancelled",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "seller",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "price",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "bytes32",
-        name: "metadataHash",
-        type: "bytes32",
-      },
-    ],
-    name: "MiniAppListed",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "listingId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-    ],
-    name: "MiniAppSold",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "signer",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "nonce",
-        type: "uint256",
-      },
-    ],
-    name: "OfferNonceCancelled",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [],
-    name: "Paused",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "newFee",
-        type: "uint256",
-      },
-    ],
-    name: "PlatformFeeUpdated",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "nonce",
-        type: "uint256",
-      },
-    ],
-    name: "SignedDealOfferAccepted",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "oldTreasury",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "newTreasury",
-        type: "address",
-      },
-    ],
-    name: "TreasurySet",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [],
-    name: "Unpaused",
-    type: "event",
-  },
-  {
-    inputs: [],
-    name: "SIGNED_DEAL_OFFER_TYPEHASH",
-    outputs: [
-      {
-        internalType: "bytes32",
-        name: "",
-        type: "bytes32",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-    ],
-    name: "acceptDealOffer",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        components: [
+        "name": "offer",
+        "type": "tuple",
+        "internalType": "struct VaultDeals.SignedDealOffer",
+        "components": [
           {
-            internalType: "uint256",
-            name: "dealId",
-            type: "uint256",
+            "name": "dealId",
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
-            internalType: "address",
-            name: "buyer",
-            type: "address",
+            "name": "buyer",
+            "type": "address",
+            "internalType": "address"
           },
           {
-            internalType: "uint256",
-            name: "amount",
-            type: "uint256",
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "expiry",
-            type: "uint256",
+            "name": "expiry",
+            "type": "uint256",
+            "internalType": "uint256"
           },
           {
-            internalType: "uint256",
-            name: "nonce",
-            type: "uint256",
+            "name": "nonce",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      },
+      {
+        "name": "signature",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "addAdmin",
+    "inputs": [
+      {
+        "name": "newAdmin",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "adminCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "admins",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "buyMiniApp",
+    "inputs": [
+      {
+        "name": "miniAppId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cancelDeal",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cancelMiniApp",
+    "inputs": [
+      {
+        "name": "miniAppId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cancelOfferNonce",
+    "inputs": [
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cancelOfferNonces",
+    "inputs": [
+      {
+        "name": "nonces",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "confirmDelivery",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "dealCount",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "dealEscrowBalance",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "dealKinds",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "enum VaultDeals.DealKind"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "dealOfferDeposits",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "deals",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "seller",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "price",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "metadataHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "deadline",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "createdAt",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "stage",
+        "type": "uint8",
+        "internalType": "enum VaultDeals.DealStage"
+      },
+      {
+        "name": "buyerAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "sellerAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "disputeDeal",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "extendDeadline",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "fundDeal",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getDealOffer",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "deposit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "active",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDealOfferBuyers",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDealOfferCount",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getDealSummary",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct VaultDeals.DealSummary",
+        "components": [
+          {
+            "name": "id",
+            "type": "uint256",
+            "internalType": "uint256"
           },
-        ],
-        internalType: "struct VaultDeals.SignedDealOffer",
-        name: "offer",
-        type: "tuple",
-      },
-      {
-        internalType: "bytes",
-        name: "signature",
-        type: "bytes",
-      },
+          {
+            "name": "deal",
+            "type": "tuple",
+            "internalType": "struct VaultDeals.Deal",
+            "components": [
+              {
+                "name": "seller",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "buyer",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "price",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "metadataHash",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "deadline",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "createdAt",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "stage",
+                "type": "uint8",
+                "internalType": "enum VaultDeals.DealStage"
+              },
+              {
+                "name": "buyerAmount",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "sellerAmount",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "kind",
+            "type": "uint8",
+            "internalType": "enum VaultDeals.DealKind"
+          },
+          {
+            "name": "miniAppId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "escrowBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "offerCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
     ],
-    name: "acceptSignedDealOffer",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getDeals",
+    "inputs": [
       {
-        internalType: "address",
-        name: "newAdmin",
-        type: "address",
+        "name": "startId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "addAdmin",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct VaultDeals.DealSummary[]",
+        "components": [
+          {
+            "name": "id",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "deal",
+            "type": "tuple",
+            "internalType": "struct VaultDeals.Deal",
+            "components": [
+              {
+                "name": "seller",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "buyer",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "price",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "metadataHash",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "deadline",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "createdAt",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "stage",
+                "type": "uint8",
+                "internalType": "enum VaultDeals.DealStage"
+              },
+              {
+                "name": "buyerAmount",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "sellerAmount",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "kind",
+            "type": "uint8",
+            "internalType": "enum VaultDeals.DealKind"
+          },
+          {
+            "name": "miniAppId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "escrowBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "offerCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "adminCount",
-    outputs: [
+    "type": "function",
+    "name": "getMiniAppDeal",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "miniAppId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct VaultDeals.DealSummary",
+        "components": [
+          {
+            "name": "id",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "deal",
+            "type": "tuple",
+            "internalType": "struct VaultDeals.Deal",
+            "components": [
+              {
+                "name": "seller",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "buyer",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "price",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "metadataHash",
+                "type": "bytes32",
+                "internalType": "bytes32"
+              },
+              {
+                "name": "deadline",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "createdAt",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "stage",
+                "type": "uint8",
+                "internalType": "enum VaultDeals.DealStage"
+              },
+              {
+                "name": "buyerAmount",
+                "type": "uint256",
+                "internalType": "uint256"
+              },
+              {
+                "name": "sellerAmount",
+                "type": "uint256",
+                "internalType": "uint256"
+              }
+            ]
+          },
+          {
+            "name": "kind",
+            "type": "uint8",
+            "internalType": "enum VaultDeals.DealKind"
+          },
+          {
+            "name": "miniAppId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "escrowBalance",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "offerCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserActivities",
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
-    ],
-    name: "admins",
-    outputs: [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct VaultCore.Activity[]",
+        "components": [
+          {
+            "name": "action",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "market",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "subjectId",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "actor",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "counterparty",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "amount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "timestamp",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "status",
+            "type": "uint8",
+            "internalType": "uint8"
+          },
+          {
+            "name": "metadataHash",
+            "type": "bytes32",
+            "internalType": "bytes32"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserBoughtDealIds",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "miniAppId",
-        type: "uint256",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "buyMiniApp",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserDealIds",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "cancelDeal",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserDealOfferIds",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "miniAppId",
-        type: "uint256",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "cancelMiniApp",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserLoanOfferListingIds",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "nonce",
-        type: "uint256",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "cancelOfferNonce",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserNftListingIds",
+    "inputs": [
       {
-        internalType: "uint256[]",
-        name: "nonces",
-        type: "uint256[]",
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
       },
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "cancelOfferNonces",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUserProfile",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "confirmDelivery",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "profile",
+        "type": "tuple",
+        "internalType": "struct VaultCore.ProfileCounters",
+        "components": [
+          {
+            "name": "nftListingCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "dealListingCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "boughtDealCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "loanOfferCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "dealOfferCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lockedUSDC",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "activeLoanCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "activeDealCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "lifetimeVolume",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "activityCount",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "dealCount",
-    outputs: [
+    "type": "function",
+    "name": "isAdmin",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "isOfferNonceUnavailable",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "signer",
+        "type": "address",
+        "internalType": "address"
       },
-    ],
-    name: "dealEscrowBalance",
-    outputs: [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "nonce",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "listDeal",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "price",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "name": "metadataHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
     ],
-    name: "dealOfferDeposits",
-    outputs: [
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "listDealWithKind",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "price",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "metadataHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "kind",
+        "type": "uint8",
+        "internalType": "enum VaultDeals.DealKind"
+      }
     ],
-    name: "deals",
-    outputs: [
+    "outputs": [
       {
-        internalType: "address",
-        name: "seller",
-        type: "address",
-      },
-      {
-        internalType: "address",
-        name: "buyer",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "price",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes32",
-        name: "metadataHash",
-        type: "bytes32",
-      },
-      {
-        internalType: "uint256",
-        name: "deadline",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "createdAt",
-        type: "uint256",
-      },
-      {
-        internalType: "enum VaultDeals.DealStage",
-        name: "stage",
-        type: "uint8",
-      },
-      {
-        internalType: "uint256",
-        name: "buyerAmount",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "sellerAmount",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "listMiniApp",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
+        "name": "price",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "metadataHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
     ],
-    name: "disputeDeal",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "markDelivered",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "extendDeadline",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "miniAppCount",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "fundDeal",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-    ],
-    name: "getDealOfferBuyers",
-    outputs: [
-      {
-        internalType: "address[]",
-        name: "",
-        type: "address[]",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "type": "function",
+    "name": "pause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "paused",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
     ],
-    name: "getDealOfferCount",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "platformFeeBps",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "price",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes32",
-        name: "metadataHash",
-        type: "bytes32",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "listDeal",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "refundDeal",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "price",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes32",
-        name: "metadataHash",
-        type: "bytes32",
-      },
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "listMiniApp",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
-    ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "removeAdmin",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
+        "name": "target",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "markDelivered",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "miniAppCount",
-    outputs: [
+    "type": "function",
+    "name": "resolveDeal",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "buyerAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "sellerAmount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "pause",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "type": "function",
+    "name": "setPlatformFee",
+    "inputs": [
+      {
+        "name": "newFeeBps",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "paused",
-    outputs: [
+    "type": "function",
+    "name": "setTreasury",
+    "inputs": [
       {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
+        "name": "newTreasury",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "platformFeeBps",
-    outputs: [
+    "type": "function",
+    "name": "submitDealOffer",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "treasury",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "refundDeal",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
-      {
-        internalType: "address",
-        name: "target",
-        type: "address",
-      },
-    ],
-    name: "removeAdmin",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "type": "function",
+    "name": "unpause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "updateDeal",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        internalType: "uint256",
-        name: "buyerAmount",
-        type: "uint256",
+        "name": "newPrice",
+        "type": "uint256",
+        "internalType": "uint256"
       },
       {
-        internalType: "uint256",
-        name: "sellerAmount",
-        type: "uint256",
-      },
+        "name": "newMetadataHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
     ],
-    name: "resolveDeal",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "updateMiniApp",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "newFeeBps",
-        type: "uint256",
+        "name": "miniAppId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "newPrice",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "newMetadataHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
     ],
-    name: "setPlatformFee",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "usdc",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "address",
-        name: "newTreasury",
-        type: "address",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "contract IERC20"
+      }
     ],
-    name: "setTreasury",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "usedOrCancelledOfferNonces",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        internalType: "uint256",
-        name: "amount",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "submitDealOffer",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "treasury",
-    outputs: [
+    "type": "function",
+    "name": "withdrawDealOffer",
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
-      },
+        "name": "dealId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "unpause",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "type": "event",
+    "name": "AdminAdded",
+    "inputs": [
+      {
+        "name": "admin",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
   },
   {
-    inputs: [
+    "type": "event",
+    "name": "AdminRemoved",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "newPrice",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes32",
-        name: "newMetadataHash",
-        type: "bytes32",
-      },
+        "name": "admin",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
     ],
-    name: "updateDeal",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "anonymous": false
   },
   {
-    inputs: [
+    "type": "event",
+    "name": "DealCancelled",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "miniAppId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "newPrice",
-        type: "uint256",
-      },
-      {
-        internalType: "bytes32",
-        name: "newMetadataHash",
-        type: "bytes32",
-      },
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
     ],
-    name: "updateMiniApp",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "anonymous": false
   },
   {
-    inputs: [],
-    name: "usdc",
-    outputs: [
+    "type": "event",
+    "name": "DealConfirmed",
+    "inputs": [
       {
-        internalType: "contract IERC20",
-        name: "",
-        type: "address",
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
       },
+      {
+        "name": "sellerAmount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "anonymous": false
   },
   {
-    inputs: [
+    "type": "event",
+    "name": "DealDeadlineExtended",
+    "inputs": [
       {
-        internalType: "address",
-        name: "",
-        type: "address",
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
       },
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "newDeadline",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
     ],
-    name: "usedOrCancelledOfferNonces",
-    outputs: [
-      {
-        internalType: "bool",
-        name: "",
-        type: "bool",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "anonymous": false
   },
   {
-    inputs: [
+    "type": "event",
+    "name": "DealDelivered",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "dealId",
-        type: "uint256",
-      },
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
     ],
-    name: "withdrawDealOffer",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "anonymous": false
   },
+  {
+    "type": "event",
+    "name": "DealDisputed",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DealFunded",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DealListed",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "seller",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "price",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "metadataHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DealOfferAccepted",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DealOfferSubmitted",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DealOfferWithdrawn",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DealRefunded",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DealResolved",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyerAmount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "sellerAmount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MiniAppCancelled",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MiniAppListed",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "seller",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "price",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "metadataHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "MiniAppSold",
+    "inputs": [
+      {
+        "name": "listingId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OfferNonceCancelled",
+    "inputs": [
+      {
+        "name": "signer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Paused",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PlatformFeeUpdated",
+    "inputs": [
+      {
+        "name": "newFee",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SignedDealOfferAccepted",
+    "inputs": [
+      {
+        "name": "dealId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "buyer",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "nonce",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TreasurySet",
+    "inputs": [
+      {
+        "name": "oldTreasury",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newTreasury",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Unpaused",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "UserActivityRecorded",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "activityId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "action",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "market",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "subjectId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "actor",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "counterparty",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "status",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "metadataHash",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "AlreadyOffered",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "ContractPaused",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidDealStage",
+    "inputs": [
+      {
+        "name": "current",
+        "type": "uint8",
+        "internalType": "enum VaultDeals.DealStage"
+      },
+      {
+        "name": "expected",
+        "type": "uint8",
+        "internalType": "enum VaultDeals.DealStage"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InvalidSignature",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotAdmin",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "NotDealParty",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OfferExpired",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OfferNonceUnavailable",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "TransferFailed",
+    "inputs": []
+  }
 ] as const;
+

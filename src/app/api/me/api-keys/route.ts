@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest } from "@/lib/api";
 import { requireUser } from "@/lib/auth";
-import { generateApiKey, hashSecret } from "@/lib/api-auth";
+import { encryptApiSecret, generateApiKey, hashSecret } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   const auth = await requireUser(req);
@@ -39,12 +39,13 @@ export async function POST(req: NextRequest) {
 
   const { apiKey, secret } = generateApiKey();
   const secretHash = hashSecret(secret);
+  const secretCiphertext = encryptApiSecret(apiKey, secret);
   const passHash = hashSecret(parsed.data.passphrase);
   const id = `AK-${Date.now()}`;
 
   await auth.db`
-    INSERT INTO api_keys (id, user_address, label, api_key, secret_hash, passphrase_hash)
-    VALUES (${id}, ${auth.user.address}, ${parsed.data.label}, ${apiKey}, ${secretHash}, ${passHash})
+    INSERT INTO api_keys (id, user_address, label, api_key, secret_hash, secret_ciphertext, passphrase_hash)
+    VALUES (${id}, ${auth.user.address}, ${parsed.data.label}, ${apiKey}, ${secretHash}, ${secretCiphertext}, ${passHash})
   `;
 
   return NextResponse.json({

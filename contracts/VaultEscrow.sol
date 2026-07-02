@@ -14,7 +14,7 @@ contract VaultEscrow {
     VaultDeals public immutable deals;
 
     constructor(address _usdc, uint256 _platformFeeBps) {
-        nft = new VaultNFT(_usdc, _platformFeeBps);
-        deals = new VaultDeals(_usdc, _platformFeeBps);
+        nft = new VaultNFT(_usdc, _platformFeeBps, msg.sender);
+        deals = new VaultDeals(_usdc, _platformFeeBps, msg.sender);
     }
 }

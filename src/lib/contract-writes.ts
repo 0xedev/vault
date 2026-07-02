@@ -257,18 +257,31 @@ export async function writeResolve(
 
 // ── Deal writes (VaultDeals) ──────────────────────────────────
 
+export type DealKind = "otc" | "mini_app" | "x_account" | "farcaster" | "clanker" | "bundle";
+
+const DEAL_KIND_CODE: Record<DealKind, number> = {
+  otc: 0,
+  mini_app: 1,
+  x_account: 2,
+  farcaster: 3,
+  clanker: 4,
+  bundle: 5,
+};
+
 export async function writeListDeal(
   account: Address,
   priceWei: bigint,
   metadataHash: `0x${string}`,
+  kind: DealKind = "otc",
 ): Promise<Hash> {
   const wallet = getWalletClient();
   const address = await getDealsAddress();
+  const functionName = kind === "otc" ? "listDeal" : "listDealWithKind";
   return wallet.writeContract({
     address,
     abi: VaultDeals_ABI,
-    functionName: "listDeal",
-    args: [priceWei, metadataHash],
+    functionName,
+    args: kind === "otc" ? [priceWei, metadataHash] : [priceWei, metadataHash, DEAL_KIND_CODE[kind]],
     account,
     chain: base,
   });
@@ -583,7 +596,7 @@ export async function writeListBundle(
   priceWei: bigint,
   metadataHash: `0x${string}`,
 ): Promise<Hash> {
-  return writeListDeal(account, priceWei, metadataHash);
+  return writeListDeal(account, priceWei, metadataHash, "bundle");
 }
 
 // ── Admin writes (called on VaultNFT contract) ────────────────

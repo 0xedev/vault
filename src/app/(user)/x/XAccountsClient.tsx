@@ -98,6 +98,7 @@ export default function XAccountsPage() {
         address as Address,
         parseUnits(price || "0", 6),
         metaHash,
+        "x_account",
       );
       const contractListingId = await waitForDealId(txHash);
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { badRequest, relativeDeadline, shortAddress, stageLabel } from "@/lib/api";
-import { actorAddressForRequest, requireUser } from "@/lib/auth";
+import { actorAddressForRequest, forbidden, isEvmAddress, requireUser } from "@/lib/auth";
 import { copyListingMessagesToDeal } from "@/lib/listing-messages";
 
 const escrowSchema = z.object({
@@ -51,6 +51,9 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data;
   const buyerAddress = actorAddressForRequest(auth.user, data.buyerAddress);
+  if (!isEvmAddress(buyerAddress)) {
+    return forbidden("Link an EVM wallet before creating an escrow.");
+  }
   if (buyerAddress.toLowerCase() === data.sellerAddress.toLowerCase()) {
     return NextResponse.json({ error: "Buyer and seller must be different addresses" }, { status: 400 });
   }

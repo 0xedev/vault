@@ -53,7 +53,15 @@ type SubgraphActivity = {
   action: string;
   listingType: string;
   listingId: string;
+  activityId?: string | null;
+  actionCode?: number | null;
+  marketCode?: number | null;
+  subjectId?: string | null;
+  actor?: GraphAccount | null;
+  counterparty?: GraphAccount | null;
   amount?: string | null;
+  statusCode?: number | null;
+  metadataHash?: string | null;
   timestamp: string;
   blockNumber: string;
 };
@@ -293,7 +301,21 @@ export async function fetchIndexedUserProfile(address: string) {
         nftListings(first: 100) { id status amount }
         dealListings(first: 100) { id status price buyerAmount sellerAmount }
         activities(first: 100, orderBy: timestamp, orderDirection: desc) {
-          id action listingType listingId amount timestamp blockNumber
+          id
+          action
+          listingType
+          listingId
+          activityId
+          actionCode
+          marketCode
+          subjectId
+          actor { id address }
+          counterparty { id address }
+          amount
+          statusCode
+          metadataHash
+          timestamp
+          blockNumber
         }
       }
       boughtDeals: dealListings(first: 100, where: { buyer: $id }) {

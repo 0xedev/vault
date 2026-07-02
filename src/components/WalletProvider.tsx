@@ -171,10 +171,10 @@ async function farcasterSignIn(
 ): Promise<{ address: string; role: string } | null> {
   try {
     const result = await signInWithFarcaster(options);
-    if (!result?.token) {
+    if (!result?.message || !result?.signature) {
       logClientError(
-        "wallet:farcasterSignIn:no-token",
-        "signInWithFarcaster returned no token",
+        "wallet:farcasterSignIn:no-signature",
+        "signInWithFarcaster returned no message/signature",
         { force: !!options.force },
       );
       return null;
@@ -185,9 +185,8 @@ async function farcasterSignIn(
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        token: result.token,
-        walletAddress: options.walletAddress,
-        chainId: options.chainId,
+        message: result.message,
+        signature: result.signature,
       }),
     });
     if (!sessionRes.ok) {
@@ -209,6 +208,50 @@ async function farcasterSignIn(
     logClientError("wallet:farcasterSignIn:exception", err);
     console.warn("Vault Farcaster sign-in failed:", err);
     return null;
+  }
+}
+
+async function linkFarcasterWallet(
+  address: string,
+  chainId: number,
+  provider: WalletLike,
+): Promise<boolean> {
+  try {
+    const nonceRes = await fetch("/api/auth/nonce");
+    const { nonce } = await nonceRes.json();
+    if (!nonce) return false;
+
+    const siweAddr = getAddress(address);
+    const message = new SiweMessage({
+      domain: window.location.host,
+      address: siweAddr,
+      statement: "Link this wallet to your Vault Farcaster session.",
+      uri: window.location.origin,
+      version: "1",
+      chainId,
+      nonce,
+    });
+
+    const signature = await provider.request({
+      method: "personal_sign",
+      params: [message.prepareMessage(), address],
+    });
+
+    const res = await fetch("/api/me/linked-wallets", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: message.prepareMessage(), signature }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      logClientError("wallet:linkFarcasterWallet:failed", json.error || `status ${res.status}`, { status: res.status });
+      return false;
+    }
+    return true;
+  } catch (err) {
+    logClientError("wallet:linkFarcasterWallet:exception", err);
+    return false;
   }
 }
 
@@ -312,6 +355,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
               chainId: wallet.chainId,
             });
             if (session) {
+              await linkFarcasterWallet(wallet.address, wallet.chainId, wallet.provider);
               setSessionAddress(session.address);
               setRole(session.role === "admin" ? "admin" : "user");
             }
@@ -365,6 +409,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         });
         if (!session) throw new Error("Farcaster sign-in did not complete");
 
+        await linkFarcasterWallet(wallet.address, wallet.chainId, wallet.provider);
         setSessionAddress(session.address);
         setRole(session.role === "admin" ? "admin" : "user");
         return;

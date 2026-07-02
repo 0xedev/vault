@@ -1,15 +1,18 @@
-import { pgTable, text, integer, numeric, real, timestamp, pgEnum, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, numeric, real, timestamp, pgEnum, jsonb, boolean } from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("user_role", ["user", "admin"]);
 export const listingStatus = pgEnum("listing_status", ["active", "funded", "completed", "disputed", "cancelled"]);
 export const escrowStage = pgEnum("escrow_stage", [
   "awaiting_deposit",
+  "pending_payment",
+  "paid",
   "funds_locked",
   "asset_transferred",
   "awaiting_confirmation",
   "released",
   "disputed",
   "refunded",
+  "cancelled",
 ]);
 export const disputeStatus = pgEnum("dispute_status", ["open", "evidence", "review", "resolved"]);
 export const marketplaceKind = pgEnum("marketplace_kind", [
@@ -254,7 +257,7 @@ export const notificationTokens = pgTable("notification_tokens", {
   userAddress: text("user_address").references(() => users.address).notNull(),
   platform: text("platform").notNull(),
   token: text("token").notNull(),
-  verified: text("verified").default("false").notNull(),
+  verified: boolean("verified").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -264,7 +267,31 @@ export const apiKeys = pgTable("api_keys", {
   label: text("label").default(""),
   apiKey: text("api_key").unique().notNull(),
   secretHash: text("secret_hash").notNull(),
+  secretCiphertext: text("secret_ciphertext"),
   passphraseHash: text("passphrase_hash").notNull(),
   lastUsedAt: timestamp("last_used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const linkedWallets = pgTable("linked_wallets", {
+  id: text("id").primaryKey(),
+  farcasterAddress: text("farcaster_address").references(() => users.address).notNull(),
+  walletAddress: text("wallet_address").references(() => users.address).notNull(),
+  chainId: integer("chain_id"),
+  verifiedAt: timestamp("verified_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const contractRegistry = pgTable("contracts", {
+  id: text("id").primaryKey(),
+  chainId: integer("chain_id").notNull(),
+  kind: text("kind").notNull(),
+  version: text("version").notNull(),
+  address: text("address").notNull(),
+  role: text("role").default("active").notNull(),
+  active: boolean("active").default(false).notNull(),
+  deployedAt: timestamp("deployed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -21,7 +21,7 @@ contract NFTLoanTest is Test {
     function setUp() public {
         usdc = new MockERC20();
         vm.prank(admin);
-        escrowNft = new VaultNFT(address(usdc), FEE);
+        escrowNft = new VaultNFT(address(usdc), FEE, admin);
         nft = new MockERC721();
         usdc.mint(lender, 1_000_000_000 ether);
         usdc.mint(lender2, 1_000_000_000 ether);
