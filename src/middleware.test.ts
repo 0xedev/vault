@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import { describe, expect, it } from "vitest";
-import { middleware } from "./middleware";
+import { proxy } from "./proxy";
 
-describe("middleware CSP", () => {
+describe("proxy CSP", () => {
   it("allows AppKit, WalletConnect, and Coinbase domains for wallet flows", async () => {
     const req = new NextRequest("https://vault.example/market");
-    const res = await middleware(req);
+    const res = await proxy(req);
     const csp = res.headers.get("Content-Security-Policy") || "";
 
     expect(csp).toContain("https://api.web3modal.org");

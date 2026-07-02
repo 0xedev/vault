@@ -6,6 +6,12 @@
       "sourceType": "github",
       "skillPath": "skills/appkit/SKILL.md",
       "computedHash": "da138387a82d54bb1c354ec4c347033ea86b91b2c71d9f839218b21941a29c08"
+    },
+    "base-mcp": {
+      "source": "base/skills",
+      "sourceType": "github",
+      "skillPath": "skills/base-mcp/SKILL.md",
+      "computedHash": "52ed8be2e6bf5f91fdbc06753e7b5f3bd01fa82fee4b331b292214dd52c9c69f"
     }
   }
 }

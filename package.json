@@ -1,5 +1,5 @@
 {
-  "name": "vault",
+  "name": "Bsh",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -42,7 +42,7 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "embla-carousel-react": "^8.6.0",
-    "next": "^16.2.6",
+    "next": "^16.2.10",
     "pusher": "^5.3.4",
     "pusher-js": "^8.5.0",
     "radix-ui": "^1.6.0",
@@ -51,7 +51,7 @@
     "resend": "^6.16.0",
     "siwe": "^3.0.0",
     "tailwind-merge": "^3.4.0",
-    "viem": "^2.49.3",
+    "viem": "^2.54.1",
     "wagmi": "^2.19.5",
     "zod": "^4.4.3"
   },
@@ -66,7 +66,7 @@
     "agent-browser": "^0.27.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "16.2.10",
     "husky": "^9.1.7",
     "jsdom": "^27.0.1",
     "lint-staged": "^17.0.8",
@@ -79,5 +79,10 @@
     "*.{ts,tsx}": [
       "eslint --fix --max-warnings 0"
     ]
+  },
+  "overrides": {
+    "postcss": "8.5.10",
+    "uuid": "11.1.1",
+    "ws": "8.21.0"
   }
 }
