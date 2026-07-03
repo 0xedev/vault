@@ -242,9 +242,10 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
             };
           };
           media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
+          transferable?: boolean;
         }[];
         const found = nfts
-          .filter((n) => n.name || n.collection?.name)
+          .filter((n) => (n.name || n.collection?.name) && n.transferable !== false)
           .slice(0, 20)
           .map((n) => ({
             collection: n.collection?.name || n.contract.name || "Unknown",
@@ -302,9 +303,10 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           };
         };
         media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
+        transferable?: boolean;
       }[];
       const found = nfts
-        .filter((n) => n.name || n.collection?.name)
+        .filter((n) => (n.name || n.collection?.name) && n.transferable !== false)
         .slice(0, 20)
         .map((n) => ({
           collection: n.collection?.name || n.contract.name || "Unknown",
@@ -369,6 +371,13 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       if (!selectedContract)
         throw new Error("Select a detected NFT before listing on-chain.");
       const escrowAddr = await getNftAddress();
+      await getPublicClient().simulateContract({
+        address: selectedContract as `0x${string}`,
+        abi: ERC721_ABI,
+        functionName: "safeTransferFrom",
+        args: [address as `0x${string}`, escrowAddr, nftTokenId],
+        account: address as `0x${string}`,
+      });
 
       const callsResult = await sendContractCalls(
         address as `0x${string}`,
@@ -986,7 +995,7 @@ export default function MarketplacePage() {
 
   useEffect(() => {
     Promise.allSettled([
-      fetch("/api/listings").then(async (r) => {
+      fetch("/api/listings?chain=true&limit=50").then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error || "Unable to load listings");
         return (json.data || []) as Loan[];
@@ -1055,7 +1064,7 @@ export default function MarketplacePage() {
 
   const fetchDbListings = () => {
     setShowOnChain(false);
-    fetch("/api/listings")
+    fetch("/api/listings?chain=true&limit=50")
       .then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error);

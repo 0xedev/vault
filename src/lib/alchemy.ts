@@ -31,6 +31,7 @@ export interface AlchemyNFT {
   media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
   floorPriceEth?: number;
   collection?: { name?: string; slug?: string };
+  transferable?: boolean;
 }
 
 export async function getNFTsForOwner(address: string, chain: "base" | "eth" = "base") {
