@@ -933,6 +933,7 @@ select:focus-visible {
 .listing-success-modal {
   position: relative;
   overflow: hidden;
+  max-width: 430px;
 }
 .listing-success-confetti {
   position: absolute;
@@ -968,34 +969,57 @@ select:focus-visible {
 }
 .listing-success-head {
   position: relative;
-  justify-content: space-between;
+  justify-content: flex-end;
   border-bottom: 0;
-  padding-bottom: 8px;
+  padding: 14px 16px 0;
+}
+.listing-success-hero {
+  display: flex;
+  justify-content: center;
+  margin: 2px 0 18px;
 }
 .listing-success-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid color-mix(in oklab, var(--accent) 26%, var(--line));
+  width: 118px;
+  height: 118px;
+  border: 1px solid color-mix(in oklab, var(--accent) 20%, transparent);
   border-radius: 999px;
-  color: var(--accent);
-  background: color-mix(in oklab, var(--accent) 10%, #fff);
-  box-shadow: 0 12px 28px rgba(0, 34, 117, 0.1);
+  color: var(--accent-ink);
+  background: var(--accent);
+  box-shadow:
+    0 18px 44px rgba(0, 34, 117, 0.18),
+    0 0 0 10px color-mix(in oklab, var(--accent) 9%, transparent);
+}
+.listing-success-mark svg {
+  width: 58px;
+  height: 66px;
+  fill: var(--surface-container-lowest);
+  stroke: color-mix(in oklab, var(--accent) 18%, #dce5ff);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+.listing-success-mark .listing-success-check {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 6;
 }
 .listing-success-body {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 6px;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 24px 24px;
+  text-align: center;
 }
 .listing-success-body h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 28px;
-  line-height: 32px;
+  font-size: 30px;
+  line-height: 34px;
   letter-spacing: -0.01em;
 }
 .listing-success-body p {
@@ -1005,9 +1029,22 @@ select:focus-visible {
   line-height: 22px;
 }
 .listing-success-preview {
+  width: 100%;
+  margin-top: 6px;
   background: var(--surface-container-low);
+  text-align: left;
+}
+.listing-success-primary {
+  width: 100%;
+  min-height: 52px;
+  height: auto;
+  margin-top: 4px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
 }
 .listing-success-share-actions {
+  width: 100%;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
@@ -3409,7 +3446,7 @@ select:focus-visible {
     position: fixed;
     left: 10px;
     right: 10px;
-    bottom: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
     z-index: 70;
     display: flex;
     justify-content: center;
@@ -3469,7 +3506,7 @@ select:focus-visible {
   .mobile-bottom-nav {
     left: 8px;
     right: 8px;
-    bottom: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
   }
 }
 
@@ -4700,5 +4737,153 @@ select:focus-visible {
     margin: 0 -16px;
     padding-left: 16px;
     padding-right: 16px;
+  }
+}
+
+/* Discover-inspired marketplace design system */
+.market-discovery {
+  --market-active: var(--accent);
+  --discover-rail: color-mix(in oklab, var(--market-active) 12%, transparent);
+  --discover-card: rgba(255, 255, 255, 0.82);
+}
+.market-discovery-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin: 0 0 24px;
+}
+.market-discovery-action {
+  min-height: 48px;
+  padding-inline: 18px;
+  border-radius: 999px;
+  white-space: nowrap;
+  box-shadow: 0 16px 38px color-mix(in oklab, var(--market-active) 18%, transparent);
+}
+.market-discovery-tabs {
+  position: sticky;
+  top: 74px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 8px;
+  border-color: color-mix(in oklab, var(--accent) 12%, var(--line));
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: var(--shadow-1);
+}
+.market-discovery-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+}
+.market-discovery-tabs button small {
+  display: inline-grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--market-tab) 10%, var(--surface-container-high));
+  color: color-mix(in oklab, var(--market-tab) 78%, var(--ink));
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.market-discovery-tabs button.active,
+.market-discovery-tabs button:hover {
+  border-color: color-mix(in oklab, var(--market-tab) 28%, transparent);
+  background: color-mix(in oklab, var(--market-tab) 12%, #fff);
+  color: color-mix(in oklab, var(--market-tab) 84%, var(--ink));
+}
+.market-discovery-tabs button.active small,
+.market-discovery-tabs button:hover small {
+  background: var(--market-tab);
+  color: #fff;
+}
+.market-discovery .market-section-head {
+  position: relative;
+  min-height: 46px;
+  margin: 28px 0 14px;
+  padding: 0 4px 0 14px;
+}
+.market-discovery .market-section-head::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  border-radius: 999px;
+  background: var(--market-active);
+}
+.market-discovery .market-section-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--discover-rail);
+  color: var(--market-active);
+}
+.market-discovery .market-section-head > strong {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+.market-discovery .market-section-count {
+  background: var(--discover-rail);
+  color: color-mix(in oklab, var(--market-active) 74%, var(--ink));
+  font-family: var(--mono);
+}
+.market-discovery .market-assets-carousel {
+  margin: 0 -4px 4px;
+  padding: 0 38px;
+}
+.market-discovery .market-assets-carousel-content {
+  padding-top: 8px;
+  padding-bottom: 28px;
+}
+.market-discovery .market-asset-carousel-item {
+  flex-basis: min(318px, 84vw);
+}
+.market-discovery .market-assets-carousel .loan-card,
+.market-discovery .market-assets-carousel .bundle-card,
+.market-discovery .market-assets-carousel .listing-feed-card {
+  border-radius: 22px;
+  background: var(--discover-card);
+  box-shadow: 0 18px 48px rgba(0, 34, 117, 0.1);
+}
+.market-discovery .market-assets-carousel .loan-card-media,
+.market-discovery .market-assets-carousel .bundle-card-img,
+.market-discovery .market-assets-carousel .listing-feed-icon {
+  height: 132px;
+  border-radius: 18px;
+}
+@media (max-width: 980px) {
+  .market-discovery-toolbar {
+    top: 64px;
+    grid-template-columns: 1fr;
+  }
+  .market-discovery-tabs {
+    display: flex;
+    overflow-x: auto;
+  }
+  .market-discovery-tabs button {
+    min-width: max-content;
+  }
+}
+@media (max-width: 640px) {
+  .market-discovery-toolbar {
+    gap: 10px;
+  }
+  .market-discovery-action {
+    width: 100%;
+  }
+  .market-discovery .market-assets-carousel {
+    padding: 0 18px;
   }
 }

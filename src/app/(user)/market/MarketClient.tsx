@@ -70,15 +70,25 @@ type MarketTab =
   | "clanker"
   | "bundles";
 
-const marketTabs: { key: MarketTab; label: string }[] = [
-  { key: "all", label: "All Markets" },
-  { key: "nft", label: "NFT Loans" },
-  { key: "miniapps", label: "Mini Apps" },
-  { key: "x", label: "X Accounts" },
-  { key: "farcaster", label: "Farcaster" },
-  { key: "clanker", label: "Clanker" },
-  { key: "bundles", label: "Bundles" },
+const marketTabs: { key: MarketTab; label: string; description: string }[] = [
+  { key: "all", label: "Feed", description: "Live drops across every vault market" },
+  { key: "nft", label: "NFTs", description: "Collateralized NFT loans" },
+  { key: "miniapps", label: "Apps", description: "Mini app acquisitions" },
+  { key: "x", label: "X", description: "Audience accounts" },
+  { key: "farcaster", label: "Farcaster", description: "FID transfers" },
+  { key: "clanker", label: "Clanker", description: "Token inventories" },
+  { key: "bundles", label: "Bundles", description: "Multi-asset deals" },
 ];
+
+const marketTabTone: Record<MarketTab, string> = {
+  all: "#0052ff",
+  nft: "#7c3aed",
+  miniapps: "#0ea5e9",
+  x: "#111827",
+  farcaster: "#855dcd",
+  clanker: "#f59e0b",
+  bundles: "#10b981",
+};
 
 function MarketAssetCarousel({ children }: { children: React.ReactNode }) {
   const slides = React.Children.toArray(children);
@@ -1102,32 +1112,45 @@ export default function MarketplacePage() {
     }
   };
 
+  const tabCounts: Record<MarketTab, number> = {
+    all: loans.length + miniApps.length + xAccounts.length + farcaster.length + clankerTokens.length + bundles.length,
+    nft: loans.length,
+    miniapps: miniApps.length,
+    x: xAccounts.length,
+    farcaster: farcaster.length,
+    clanker: clankerTokens.length,
+    bundles: bundles.length,
+  };
   return (
     <main
       id="main-content"
       role="main"
       aria-label="Main content"
-      className="main"
+      className="main market-discovery"
     >
       <div
-        className="market-page-head row between"
-        style={{ alignItems: "flex-end", marginBottom: 22 }}
+        className="market-discovery-toolbar"
+        style={{ "--market-active": marketTabTone[activeMarket] } as React.CSSProperties}
       >
-        <div>
-          <div className="eyebrow">Marketplace</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>
-            {activeMarket === "all" && "Browse every escrow market."}
-            {activeMarket === "nft" && "NFT Loans"}
-            {activeMarket === "miniapps" && "Mini Apps"}
-            {activeMarket === "x" && "X Accounts"}
-            {activeMarket === "farcaster" && "Farcaster"}
-            {activeMarket === "clanker" && "Clanker Tokens"}
-            {activeMarket === "bundles" && "Bundled Listings"}
-          </h1>
+        <div className="market-tabs market-discovery-tabs" role="tablist" aria-label="Marketplace tabs">
+          {marketTabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={activeMarket === tab.key}
+              className={activeMarket === tab.key ? "active" : ""}
+              style={{ "--market-tab": marketTabTone[tab.key] } as React.CSSProperties}
+              onClick={() => setActiveMarket(tab.key)}
+            >
+              <span>{tab.label}</span>
+              <small>{tabCounts[tab.key]}</small>
+            </button>
+          ))}
         </div>
         {activeMarket === "all" && (
           <button
-            className="btn primary"
+            className="btn primary market-discovery-action"
             onClick={handleListClick}
             disabled={isConnecting}
           >
@@ -1140,7 +1163,7 @@ export default function MarketplacePage() {
         )}
         {activeMarket === "nft" && (
           <button
-            className="btn primary"
+            className="btn primary market-discovery-action"
             onClick={handleListClick}
             disabled={isConnecting}
           >
@@ -1153,7 +1176,7 @@ export default function MarketplacePage() {
         )}
         {activeMarket === "miniapps" && (
           <button
-            className="btn primary"
+            className="btn primary market-discovery-action"
             onClick={handleListClick}
             disabled={isConnecting}
           >
@@ -1166,7 +1189,7 @@ export default function MarketplacePage() {
         )}
         {activeMarket === "x" && (
           <button
-            className="btn primary"
+            className="btn primary market-discovery-action"
             onClick={handleListClick}
             disabled={isConnecting}
           >
@@ -1179,7 +1202,7 @@ export default function MarketplacePage() {
         )}
         {activeMarket === "farcaster" && (
           <button
-            className="btn primary"
+            className="btn primary market-discovery-action"
             onClick={handleListClick}
             disabled={isConnecting}
           >
@@ -1192,7 +1215,7 @@ export default function MarketplacePage() {
         )}
         {activeMarket === "clanker" && (
           <button
-            className="btn primary"
+            className="btn primary market-discovery-action"
             onClick={() => {
               if (!isConnected) { connect(); return; }
               setShowClankerModal(true);
@@ -1208,7 +1231,7 @@ export default function MarketplacePage() {
         )}
         {activeMarket === "bundles" && (
           <button
-            className="btn primary"
+            className="btn primary market-discovery-action"
             onClick={() => {
               if (!isConnected) {
                 connect();
@@ -1225,21 +1248,6 @@ export default function MarketplacePage() {
                 : "Connect & create"}
           </button>
         )}
-      </div>
-
-      <div className="market-tabs" role="tablist" aria-label="Marketplace tabs">
-        {marketTabs.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            aria-selected={activeMarket === tab.key}
-            className={activeMarket === tab.key ? "active" : ""}
-            onClick={() => setActiveMarket(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
       </div>
 
       {/* ALL MARKETS — only show sections with listings */}

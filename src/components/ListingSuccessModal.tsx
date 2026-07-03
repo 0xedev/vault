@@ -59,7 +59,6 @@ export function ListingSuccessModal({ share, onClose }: Props) {
         aria-modal="true"
         aria-labelledby="listing-success-title"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 460 }}
       >
         <div className="listing-success-confetti" aria-hidden="true">
           {confetti.map(([x, color, rotate, delay], index) => (
@@ -77,21 +76,26 @@ export function ListingSuccessModal({ share, onClose }: Props) {
         </div>
 
         <div className="modal-h listing-success-head">
-          <div className="listing-success-mark">
-            <Icon.check />
-          </div>
           <button type="button" className="btn ghost sm" onClick={onClose} aria-label="Close success modal">
             <Icon.x />
           </button>
         </div>
 
         <div className="modal-b listing-success-body">
-          <div className="eyebrow">Listing complete</div>
+          <div className="listing-success-hero" aria-hidden="true">
+            <div className="listing-success-mark">
+              <svg viewBox="0 0 64 72" role="img">
+                <path d="M8 2h48a6 6 0 0 1 6 6v56a6 6 0 0 1-6 6H8a6 6 0 0 1-6-6V8a6 6 0 0 1 6-6Z" />
+                <path d="M15 18h34M15 30h34M15 42h20" />
+                <path className="listing-success-check" d="M25 55l8 8 17-20" />
+              </svg>
+            </div>
+          </div>
           <h3 id="listing-success-title" className="serif">
             Listed successfully
           </h3>
           <p>
-            Your listing is live. Share it with buyers or open the public listing view.
+            Your listing is live and ready for buyers.
           </p>
 
           <div className="share-preview listing-success-preview">
@@ -99,8 +103,12 @@ export function ListingSuccessModal({ share, onClose }: Props) {
             <span>{share.url}</span>
           </div>
 
+          <button type="button" className="btn primary listing-success-primary" onClick={viewListing}>
+            View listing <Icon.arrow />
+          </button>
+
           <div className="listing-success-share-actions">
-            <button type="button" className="btn primary" onClick={composeCast}>
+            <button type="button" className="btn" onClick={composeCast}>
               <Icon.cast /> Share to Farcaster
             </button>
             <button type="button" className="btn" onClick={copyLink}>
@@ -108,15 +116,6 @@ export function ListingSuccessModal({ share, onClose }: Props) {
             </button>
           </div>
           {notice && <div className="muted-2 listing-success-notice">{notice}</div>}
-        </div>
-
-        <div className="modal-f listing-success-footer">
-          <button type="button" className="btn" onClick={onClose}>
-            Close
-          </button>
-          <button type="button" className="btn primary" onClick={viewListing}>
-            View listing <Icon.arrow />
-          </button>
         </div>
       </div>
     </div>

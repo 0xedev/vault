@@ -1,0 +1,2526 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Baseshire Hethaway - standalone frontend</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --bg-2: #faf8ff;
+        --surface: #f1f5f9;
+        --surface-2: #eaedff;
+        --surface-container: #eaedff;
+        --line: rgba(0, 82, 255, 0.08);
+        --line-strong: rgba(0, 82, 255, 0.16);
+        --ink: #131b2e;
+        --ink-2: #1e293b;
+        --ink-3: #475569;
+        --ink-4: #64748b;
+        --accent: #002275;
+        --accent-ink: #ffffff;
+        --risk: #ef4444;
+        --warn: #f59e0b;
+        --info: #3b82f6;
+        --gold: #daa600;
+        --admin-coral: #ff6b6b;
+        --radius: 14px;
+        --radius-sm: 8px;
+        --shadow-1:
+          0 1px 0 rgba(255, 255, 255, 0.72) inset,
+          0 10px 30px rgba(0, 34, 117, 0.07);
+        --shadow-2:
+          0 1px 0 rgba(255, 255, 255, 0.72) inset,
+          0 28px 70px rgba(0, 34, 117, 0.12);
+        --sans:
+          "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        --display: "Instrument Serif", Georgia, serif;
+        --mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 14px;
+        line-height: 1.55;
+        letter-spacing: -0.005em;
+        -webkit-font-smoothing: antialiased;
+        background-image:
+          radial-gradient(
+            1100px 560px at 78% -12%,
+            rgba(0, 82, 255, 0.045),
+            transparent 62%
+          ),
+          radial-gradient(
+            820px 430px at -12% 32%,
+            rgba(0, 82, 255, 0.025),
+            transparent 62%
+          );
+      }
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      button {
+        font: inherit;
+        cursor: default;
+      }
+      svg {
+        display: block;
+      }
+      .mono {
+        font-family: var(--mono);
+        letter-spacing: -0.01em;
+      }
+      .serif {
+        font-family: var(--display);
+        font-weight: 400;
+        letter-spacing: -0.02em;
+      }
+      .muted {
+        color: var(--ink-3);
+      }
+      .muted-2 {
+        color: var(--ink-4);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+      }
+      .between {
+        justify-content: space-between;
+      }
+      .col {
+        display: flex;
+        flex-direction: column;
+      }
+      .right {
+        text-align: right;
+      }
+      .trunc {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .eyebrow,
+      .smallcaps {
+        font-family: var(--mono);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 11px;
+        color: var(--ink-4);
+      }
+      .h1 {
+        font-family: var(--display);
+        font-size: clamp(38px, 5.2vw, 76px);
+        line-height: 0.92;
+        font-weight: 400;
+        letter-spacing: -0.035em;
+        margin: 0;
+      }
+      .h2 {
+        font-family: var(--display);
+        font-size: clamp(26px, 3vw, 42px);
+        line-height: 1;
+        font-weight: 400;
+        letter-spacing: -0.025em;
+        margin: 0;
+      }
+      .lede {
+        color: var(--ink-3);
+        font-size: 15px;
+        max-width: 58ch;
+      }
+
+      .btn {
+        min-height: 34px;
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--ink);
+        padding: 7px 12px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .btn.primary {
+        background: var(--accent);
+        color: var(--accent-ink);
+        border-color: var(--accent);
+      }
+      .btn.ghost {
+        background: transparent;
+        border-color: transparent;
+        color: var(--ink-3);
+      }
+      .btn.danger {
+        color: var(--risk);
+        border-color: color-mix(in oklab, var(--risk) 30%, transparent);
+      }
+      .btn.sm {
+        min-height: 28px;
+        padding: 5px 9px;
+        font-size: 12px;
+      }
+      .pill {
+        border: 1px solid var(--line-strong);
+        background: var(--surface-2);
+        color: var(--ink-2);
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 650;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      .pill.funded {
+        color: #116b3b;
+        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(34, 197, 94, 0.24);
+      }
+      .pill.warn {
+        color: #9a6700;
+        background: rgba(245, 158, 11, 0.14);
+        border-color: rgba(245, 158, 11, 0.28);
+      }
+      .pill.risk {
+        color: var(--risk);
+        background: rgba(239, 68, 68, 0.12);
+        border-color: rgba(239, 68, 68, 0.25);
+      }
+      .pdot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-1);
+      }
+      .metric {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        padding: 13px;
+        min-width: 0;
+      }
+      .metric .lab {
+        display: block;
+        color: var(--ink-4);
+        font-size: 11px;
+        text-transform: uppercase;
+        font-family: var(--mono);
+        letter-spacing: 0.06em;
+      }
+      .metric .val {
+        display: block;
+        margin-top: 4px;
+        font-family: var(--mono);
+        font-size: 20px;
+        color: var(--ink);
+        line-height: 1.1;
+      }
+      .metric .delta {
+        display: block;
+        margin-top: 4px;
+        color: var(--ink-4);
+        font-size: 11px;
+      }
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+      .grid-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .grid-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .grid-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .export-shell {
+        padding: 18px;
+        max-width: 1500px;
+        margin: 0 auto;
+      }
+      .export-header {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        background: color-mix(in oklab, #f7f9ff 88%, transparent);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--line);
+        padding: 12px 0;
+        margin-bottom: 18px;
+      }
+      .export-header-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .export-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .mark {
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        background: linear-gradient(135deg, #002275, #2c95fe);
+        box-shadow: 0 10px 24px rgba(0, 34, 117, 0.18);
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-family: var(--display);
+        font-size: 20px;
+      }
+      .export-title h1 {
+        margin: 0;
+        font-size: 17px;
+        line-height: 1.15;
+        font-weight: 650;
+      }
+      .export-title p {
+        margin: 2px 0 0;
+        font-size: 12px;
+        color: var(--ink-4);
+      }
+      .jump-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        justify-content: flex-end;
+      }
+      .jump-nav a {
+        font-size: 12px;
+        padding: 6px 9px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink-3);
+      }
+
+      .section {
+        margin: 0 0 28px;
+      }
+      .section-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .section-head h2 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.15;
+      }
+      .route {
+        font-family: var(--mono);
+        color: var(--ink-4);
+        font-size: 11px;
+        margin-bottom: 2px;
+      }
+      .frame {
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        overflow: hidden;
+        background: var(--bg);
+        box-shadow: var(--shadow-1);
+      }
+      .app {
+        display: grid;
+        grid-template-columns: 232px 1fr;
+        grid-template-rows: 56px 1fr;
+        min-height: 900px;
+      }
+      .app.landing {
+        grid-template-columns: 1fr;
+      }
+      .topbar {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        min-width: 0;
+        padding: 0 22px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.76);
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 700;
+      }
+      .brand .name em {
+        display: inline-block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--accent);
+        margin-left: 5px;
+        transform: translateY(-6px);
+      }
+      .topnav {
+        display: flex;
+        gap: 3px;
+        min-width: 0;
+      }
+      .topnav a {
+        padding: 7px 10px;
+        border-radius: 8px;
+        font-size: 12px;
+        color: var(--ink-3);
+        white-space: nowrap;
+      }
+      .topnav a.active {
+        color: var(--accent);
+        background: var(--surface-2);
+      }
+      .kbd {
+        font-family: var(--mono);
+        color: var(--ink-4);
+        font-size: 11px;
+      }
+      .sidebar {
+        border-right: 1px solid var(--line);
+        padding: 18px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        background: rgba(250, 248, 255, 0.66);
+      }
+      .side-h {
+        color: var(--ink-4);
+        text-transform: uppercase;
+        font-family: var(--mono);
+        letter-spacing: 0.08em;
+        font-size: 10px;
+        margin: 12px 8px 6px;
+      }
+      .side-link {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 8px 9px;
+        border-radius: 9px;
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+      .side-link.active {
+        color: var(--accent);
+        background: var(--surface-2);
+        font-weight: 650;
+      }
+      .icn {
+        width: 20px;
+        height: 20px;
+        display: grid;
+        place-items: center;
+        color: currentColor;
+        flex: 0 0 auto;
+      }
+      .main {
+        padding: 24px;
+        overflow: hidden;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.04fr) minmax(360px, 0.96fr);
+        gap: 34px;
+        align-items: center;
+        min-height: 560px;
+        padding: 20px 0 26px;
+      }
+      .spark {
+        height: 76px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background:
+          linear-gradient(180deg, rgba(0, 82, 255, 0.12), transparent),
+          repeating-linear-gradient(
+            90deg,
+            transparent 0 39px,
+            rgba(0, 82, 255, 0.05) 40px
+          );
+        position: relative;
+        overflow: hidden;
+      }
+      .spark:after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 22px;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          #0052ff 15%,
+          #0052ff 35%,
+          transparent 36%,
+          transparent 48%,
+          #0052ff 55%,
+          #0052ff 100%
+        );
+        transform: skewY(-8deg);
+      }
+      .market-tabs,
+      .chips,
+      .seg {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .market-tabs {
+        padding: 8px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        border-radius: 12px;
+        margin-bottom: 18px;
+      }
+      .market-tabs button,
+      .chip,
+      .seg button {
+        border: 1px solid transparent;
+        background: transparent;
+        color: var(--ink-3);
+        border-radius: 8px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 650;
+      }
+      .market-tabs button.active,
+      .chip.active,
+      .seg button.active {
+        background: #fff;
+        color: var(--accent);
+        border-color: var(--line);
+        box-shadow: var(--shadow-1);
+      }
+      .market-section-head {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin: 20px 0 10px;
+      }
+      .market-section-head strong {
+        font-size: 14px;
+      }
+      .market-section-count {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-4);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 1px 7px;
+      }
+      .market-card {
+        position: relative;
+        min-height: 260px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow: hidden;
+      }
+      .market-card:hover {
+        border-color: var(--line-strong);
+      }
+      .asset-art {
+        width: 100%;
+        aspect-ratio: 1.35 / 1;
+        border-radius: 10px;
+        overflow: hidden;
+        background: linear-gradient(135deg, #013a90, #8fb2ff);
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        position: relative;
+      }
+      .asset-art.nft-a {
+        background:
+          radial-gradient(circle at 65% 35%, #b7c4ff, transparent 24%),
+          linear-gradient(135deg, #001551, #2c95fe);
+      }
+      .asset-art.nft-b {
+        background:
+          radial-gradient(circle at 36% 35%, #ffdf9a, transparent 22%),
+          linear-gradient(135deg, #392900, #2c95fe);
+      }
+      .asset-art.app-a {
+        background: linear-gradient(
+          135deg,
+          #002275 0 48%,
+          #f7be1d 48% 52%,
+          #2c95fe 52%
+        );
+      }
+      .asset-art.app-b {
+        background:
+          radial-gradient(circle at 50% 50%, #ffdf9a 0 8%, transparent 9%),
+          repeating-radial-gradient(
+            circle at 50% 50%,
+            #005fac 0 12px,
+            #0035a8 13px 24px
+          );
+      }
+      .asset-art.social {
+        background: linear-gradient(135deg, #111827, #005fac);
+      }
+      .asset-art.bundle {
+        background: linear-gradient(135deg, #002275, #dae2fd);
+      }
+      .asset-art:after {
+        content: "";
+        position: absolute;
+        inset: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 10px;
+      }
+      .market-card-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .market-card strong {
+        font-size: 14px;
+        line-height: 1.25;
+      }
+      .stats-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      .stat {
+        background: rgba(255, 255, 255, 0.58);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px;
+        min-width: 0;
+      }
+      .stat span {
+        display: block;
+        font-size: 10px;
+        color: var(--ink-4);
+        text-transform: uppercase;
+        font-family: var(--mono);
+        letter-spacing: 0.04em;
+      }
+      .stat b {
+        display: block;
+        font-family: var(--mono);
+        font-size: 12px;
+        margin-top: 2px;
+        color: var(--ink-2);
+      }
+      .bar {
+        height: 6px;
+        background: var(--line);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: var(--accent);
+        border-radius: inherit;
+      }
+      .tbl {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12.5px;
+      }
+      .tbl th {
+        color: var(--ink-4);
+        font-family: var(--mono);
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        text-align: left;
+        padding: 11px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tbl td {
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      .tbl tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .detail-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) 360px;
+        gap: 16px;
+        align-items: start;
+      }
+      .timeline {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 7px;
+        margin: 12px 0;
+      }
+      .step {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px;
+        min-height: 58px;
+        background: #fff;
+        font-size: 11.5px;
+        color: var(--ink-3);
+      }
+      .step.done {
+        border-color: rgba(34, 197, 94, 0.25);
+        background: rgba(34, 197, 94, 0.08);
+        color: #116b3b;
+      }
+      .step.now {
+        border-color: rgba(245, 158, 11, 0.32);
+        background: rgba(245, 158, 11, 0.1);
+        color: #7c5200;
+      }
+      .profile-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.03fr) 380px;
+        gap: 16px;
+        align-items: start;
+      }
+      .profile-listings {
+        display: grid;
+        gap: 10px;
+      }
+      .profile-item {
+        display: grid;
+        grid-template-columns: 64px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      .mini-art {
+        width: 64px;
+        height: 52px;
+        border-radius: 8px;
+        overflow: hidden;
+        flex: 0 0 auto;
+      }
+      .offer-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px 0;
+        border-top: 1px solid var(--line);
+      }
+      .deal-room {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(360px, 1.05fr);
+        gap: 16px;
+      }
+      .chat {
+        height: 420px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .chat-scroll {
+        flex: 1;
+        overflow: hidden;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .msg {
+        max-width: 78%;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 10px 12px;
+        background: #fff;
+      }
+      .msg.me {
+        align-self: flex-end;
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .msg small {
+        display: block;
+        margin-top: 5px;
+        opacity: 0.72;
+        font-family: var(--mono);
+        font-size: 10px;
+      }
+      .composer {
+        display: flex;
+        gap: 8px;
+        padding: 12px;
+        border-top: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.6);
+      }
+      .input {
+        border: 1px solid var(--line-strong);
+        border-radius: 8px;
+        background: #fff;
+        min-height: 34px;
+        padding: 7px 10px;
+        color: var(--ink);
+        width: 100%;
+      }
+
+      .admin-app {
+        --accent: var(--admin-coral);
+        --primary: var(--admin-coral);
+      }
+      .admin-badge {
+        background: var(--admin-coral);
+        color: white;
+        border-color: var(--admin-coral);
+      }
+      .warn-banner {
+        border: 1px solid rgba(245, 158, 11, 0.28);
+        background: rgba(245, 158, 11, 0.1);
+        color: #7c5200;
+        border-radius: 10px;
+        padding: 12px;
+      }
+
+      .mobile-showcase {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(250px, 1fr));
+        gap: 16px;
+        align-items: start;
+      }
+      .phone {
+        width: 100%;
+        max-width: 340px;
+        min-height: 680px;
+        margin: 0 auto;
+        border: 1px solid var(--line-strong);
+        border-radius: 30px;
+        background: #fff;
+        padding: 10px;
+        box-shadow: var(--shadow-2);
+      }
+      .phone-screen {
+        min-height: 660px;
+        border-radius: 22px;
+        overflow: hidden;
+        background: var(--bg);
+        border: 1px solid var(--line);
+        display: flex;
+        flex-direction: column;
+      }
+      .mobile-top {
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.8);
+      }
+      .mobile-body {
+        padding: 14px;
+        flex: 1;
+        overflow: hidden;
+      }
+      .mobile-h1 {
+        font-family: var(--display);
+        font-size: 32px;
+        line-height: 0.98;
+        letter-spacing: -0.03em;
+        margin: 12px 0;
+      }
+      .mobile-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 12px;
+        margin-bottom: 10px;
+      }
+      .mobile-row {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 9px;
+        margin-bottom: 8px;
+        background: #fff;
+      }
+      .mobile-nav {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        border-top: 1px solid var(--line);
+        background: #fff;
+      }
+      .mobile-nav a {
+        padding: 8px 0;
+        text-align: center;
+        font-size: 11px;
+        color: var(--ink-4);
+      }
+      .mobile-nav a.active {
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      @media (max-width: 980px) {
+        .export-shell {
+          padding: 10px;
+        }
+        .frame {
+          overflow-x: auto;
+        }
+        .app {
+          min-width: 1120px;
+        }
+        .mobile-showcase {
+          grid-template-columns: 1fr;
+        }
+        .jump-nav {
+          justify-content: flex-start;
+        }
+        .export-header {
+          position: relative;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="export-shell">
+      <header class="export-header">
+        <div class="export-header-inner">
+          <div class="export-title">
+            <div class="mark">B</div>
+            <div>
+              <h1>Baseshire Hethaway standalone frontend</h1>
+              <p>HTML-only, populated, end-to-end desktop and mobile design.</p>
+            </div>
+          </div>
+          <nav class="jump-nav" aria-label="Page index">
+            <a href="#landing">Landing</a>
+            <a href="#market">Market</a>
+            <a href="#detail">Detail</a>
+            <a href="#profile">Profile</a>
+            <a href="#deal-room">Deal Room</a>
+            <a href="#verticals">Verticals</a>
+            <a href="#admin">Admin</a>
+            <a href="#mobile">Mobile</a>
+          </nav>
+        </div>
+      </header>
+
+      <section class="section" id="landing">
+        <div class="section-head">
+          <div>
+            <div class="route">/</div>
+            <h2>Landing with populated marketplace feed</h2>
+          </div>
+          <span class="pill funded"><span class="pdot"></span>Static HTML</span>
+        </div>
+        <div class="frame">
+          <div class="app landing">
+            <header class="topbar">
+              <div class="row" style="gap: 28px">
+                <a class="brand" href="#landing"
+                  ><span
+                    class="mark"
+                    style="width: 26px; height: 26px; font-size: 17px"
+                    >B</span
+                  ><span class="name">Baseshire Hethaway<em></em></span
+                ></a>
+                <nav class="topnav">
+                  <a class="active" href="#market">NFT Loans</a
+                  ><a href="#verticals">Mini Apps</a
+                  ><a href="#verticals">X Accounts</a
+                  ><a href="#verticals">Farcaster</a
+                  ><a href="#verticals">Clanker</a><a href="#market">Bundles</a
+                  ><a href="#profile">Profile</a>
+                </nav>
+              </div>
+              <div class="row" style="gap: 10px">
+                <button class="btn ghost sm">
+                  Search <span class="kbd">Cmd K</span></button
+                ><button class="btn sm">Notifications</button
+                ><button class="btn primary">0x8b2c...91af</button>
+              </div>
+            </header>
+            <main class="main">
+              <section class="hero">
+                <div>
+                  <div class="eyebrow">Lending - Escrow - BSH</div>
+                  <h1 class="h1" style="margin-top: 22px">
+                    The Baseshire Hethaway of <em>on-chain</em> assets.
+                  </h1>
+                  <p class="lede" style="margin: 26px 0 30px">
+                    Securely buy, sell, and collateralize NFTs, Mini-Apps,
+                    social accounts, Farcaster FIDs, Clanker rights, and bundles
+                    through escrow.
+                  </p>
+                  <div class="row" style="gap: 10px; flex-wrap: wrap">
+                    <a class="btn primary" href="#market">Explore Markets</a
+                    ><a class="btn" href="#profile">Open profile</a>
+                  </div>
+                  <div
+                    class="row"
+                    style="margin-top: 48px; gap: 38px; flex-wrap: wrap"
+                  >
+                    <div class="col">
+                      <span class="smallcaps">Listed principal</span
+                      ><span class="mono" style="font-size: 18px"
+                        >42,250 USDC</span
+                      >
+                    </div>
+                    <div class="col">
+                      <span class="smallcaps">Active listings</span
+                      ><span class="mono" style="font-size: 18px">9</span>
+                    </div>
+                    <div class="col">
+                      <span class="smallcaps">Escrow locked</span
+                      ><span class="mono" style="font-size: 18px"
+                        >8,950 USDC</span
+                      >
+                    </div>
+                  </div>
+                </div>
+                <div class="col" style="gap: 16px">
+                  <div class="card" style="padding: 18px">
+                    <div class="row between" style="margin-bottom: 14px">
+                      <span class="pill funded"
+                        ><span class="pdot"></span>LIVE</span
+                      >
+                      <div class="seg">
+                        <button class="active">7d</button><button>30d</button
+                        ><button>All</button>
+                      </div>
+                    </div>
+                    <div class="grid grid-2" style="margin-bottom: 14px">
+                      <div class="metric">
+                        <span class="lab">Open listings</span
+                        ><span class="val">9</span>
+                      </div>
+                      <div class="metric">
+                        <span class="lab">Active principal</span
+                        ><span class="val">42,250</span>
+                      </div>
+                    </div>
+                    <div class="spark"></div>
+                    <div class="profile-listings" style="margin-top: 10px">
+                      <div class="row between" style="padding-top: 8px">
+                        <span>Meridian Genesis #8842</span
+                        ><span class="mono">8,400 USDC</span>
+                      </div>
+                      <div
+                        class="row between"
+                        style="
+                          padding-top: 8px;
+                          border-top: 1px dashed var(--line);
+                        "
+                      >
+                        <span>Who Wants to Be a Millionaire</span
+                        ><span class="mono">1,000 USDC</span>
+                      </div>
+                      <div
+                        class="row between"
+                        style="
+                          padding-top: 8px;
+                          border-top: 1px dashed var(--line);
+                        "
+                      >
+                        <span>@based-launch FID #587128</span
+                        ><span class="mono">2,000 USDC</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="warn-banner">
+                    <strong>Risky moves are visually loud.</strong>
+                    <div class="muted" style="margin-top: 4px">
+                      Default in 5h 42m on Hollow Forms #3301. Confirm-by-typing
+                      required before liquidation.
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="market">
+        <div class="section-head">
+          <div>
+            <div class="route">/market</div>
+            <h2>All-markets marketplace with populated listings</h2>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="app">
+            <header class="topbar">
+              <a class="brand" href="#landing"
+                ><span
+                  class="mark"
+                  style="width: 26px; height: 26px; font-size: 17px"
+                  >B</span
+                ><span class="name">Baseshire Hethaway<em></em></span
+              ></a>
+              <nav class="topnav">
+                <a class="active">NFT Loans</a><a>Mini Apps</a><a>X Accounts</a
+                ><a>Farcaster</a><a>Clanker</a><a>Bundles</a
+                ><a href="#profile">Profile</a>
+              </nav>
+              <button class="btn primary">List asset</button>
+            </header>
+            <aside class="sidebar">
+              <a class="side-link" href="#landing"
+                ><span class="icn">H</span><span>Home</span></a
+              >
+              <div class="side-h">Marketplaces</div>
+              <a class="side-link active" href="#market"
+                ><span class="icn">M</span><span>NFT Loans</span></a
+              >
+              <a class="side-link" href="#verticals"
+                ><span class="icn">A</span><span>Mini Apps</span></a
+              >
+              <a class="side-link" href="#verticals"
+                ><span class="icn">X</span><span>X Accounts</span></a
+              >
+              <a class="side-link" href="#verticals"
+                ><span class="icn">F</span><span>Farcaster</span></a
+              >
+              <a class="side-link" href="#verticals"
+                ><span class="icn">C</span><span>Clanker Tokens</span></a
+              >
+              <a class="side-link" href="#market"
+                ><span class="icn">B</span><span>Bundles</span></a
+              >
+              <div class="side-h">Account</div>
+              <a class="side-link" href="#profile"
+                ><span class="icn">P</span><span>Profile</span></a
+              >
+              <div style="flex: 1"></div>
+              <div class="card" style="padding: 12px">
+                <span class="smallcaps">Protected</span>
+                <p class="muted" style="margin: 6px 0 0; font-size: 11.5px">
+                  Funds and collateral held in audited escrow.
+                </p>
+              </div>
+            </aside>
+            <main class="main">
+              <div
+                class="row between"
+                style="align-items: flex-end; margin-bottom: 18px; gap: 12px"
+              >
+                <div>
+                  <div class="eyebrow">Marketplace</div>
+                  <h1 class="h2" style="margin-top: 8px">
+                    Browse every escrow market.
+                  </h1>
+                </div>
+                <button class="btn primary">Connect and list</button>
+              </div>
+              <div class="market-tabs">
+                <button class="active">All Markets</button
+                ><button>NFT Loans</button><button>Mini Apps</button
+                ><button>X Accounts</button><button>Farcaster</button
+                ><button>Clanker</button><button>Bundles</button>
+              </div>
+
+              <div class="market-section-head">
+                <strong>NFT Loans</strong
+                ><span class="market-section-count">3</span>
+              </div>
+              <div class="grid grid-3">
+                <article class="card market-card">
+                  <div class="asset-art nft-a"></div>
+                  <div class="market-card-head">
+                    <div>
+                      <strong>Meridian Genesis #8842</strong>
+                      <div class="muted-2 mono">L-8842 - Base</div>
+                    </div>
+                    <span class="pill funded">open</span>
+                  </div>
+                  <div class="stats-row">
+                    <div class="stat"><span>Borrow</span><b>8,400</b></div>
+                    <div class="stat"><span>APR</span><b>14.2%</b></div>
+                    <div class="stat"><span>Term</span><b>30d</b></div>
+                  </div>
+                  <div>
+                    <div class="row between muted-2" style="font-size: 11px">
+                      <span>LTV 52%</span><span>3 offers</span>
+                    </div>
+                    <div class="bar"><i style="width: 52%"></i></div>
+                  </div>
+                  <div class="row" style="gap: 8px; margin-top: auto">
+                    <a class="btn primary sm" href="#detail">View</a
+                    ><button class="btn sm">Share</button>
+                  </div>
+                </article>
+                <article class="card market-card">
+                  <div class="asset-art nft-b"></div>
+                  <div class="market-card-head">
+                    <div>
+                      <strong>Hollow Forms #3301</strong>
+                      <div class="muted-2 mono">L-3301 - Base</div>
+                    </div>
+                    <span class="pill warn">funded</span>
+                  </div>
+                  <div class="stats-row">
+                    <div class="stat"><span>Borrow</span><b>4,250</b></div>
+                    <div class="stat"><span>APR</span><b>18.5%</b></div>
+                    <div class="stat"><span>Term</span><b>21d</b></div>
+                  </div>
+                  <div>
+                    <div class="row between muted-2" style="font-size: 11px">
+                      <span>LTV 67%</span><span>1 offer</span>
+                    </div>
+                    <div class="bar">
+                      <i style="width: 67%; background: var(--warn)"></i>
+                    </div>
+                  </div>
+                  <div class="row" style="gap: 8px; margin-top: auto">
+                    <a class="btn primary sm" href="#deal-room">Open escrow</a
+                    ><button class="btn sm">Refinance</button>
+                  </div>
+                </article>
+                <article class="card market-card">
+                  <div
+                    class="asset-art nft-a"
+                    style="filter: hue-rotate(42deg)"
+                  ></div>
+                  <div class="market-card-head">
+                    <div>
+                      <strong>Aperture #719</strong>
+                      <div class="muted-2 mono">L-0719 - Ethereum</div>
+                    </div>
+                    <span class="pill">open</span>
+                  </div>
+                  <div class="stats-row">
+                    <div class="stat"><span>Borrow</span><b>12,600</b></div>
+                    <div class="stat"><span>APR</span><b>11.8%</b></div>
+                    <div class="stat"><span>Term</span><b>45d</b></div>
+                  </div>
+                  <div>
+                    <div class="row between muted-2" style="font-size: 11px">
+                      <span>LTV 44%</span><span>5 offers</span>
+                    </div>
+                    <div class="bar"><i style="width: 44%"></i></div>
+                  </div>
+                  <div class="row" style="gap: 8px; margin-top: auto">
+                    <button class="btn primary sm">View</button
+                    ><button class="btn sm">Share</button>
+                  </div>
+                </article>
+              </div>
+
+              <div class="market-section-head">
+                <strong>Mini Apps, Social, Clanker, Bundles</strong
+                ><span class="market-section-count">6</span>
+              </div>
+              <div class="grid grid-3">
+                <article class="card market-card">
+                  <div class="asset-art app-a"></div>
+                  <div class="market-card-head">
+                    <div>
+                      <strong>Who Wants to Be a Millionaire</strong>
+                      <div class="muted-2">Mini App - React - Base MiniKit</div>
+                    </div>
+                    <span class="pill">app</span>
+                  </div>
+                  <div class="stats-row">
+                    <div class="stat"><span>DAU</span><b>2.1k</b></div>
+                    <div class="stat"><span>MRR</span><b>410</b></div>
+                    <div class="stat"><span>Price</span><b>1,000</b></div>
+                  </div>
+                  <div class="row" style="gap: 8px; margin-top: auto">
+                    <button class="btn primary sm">Buy now</button
+                    ><button class="btn sm">Offer</button>
+                  </div>
+                </article>
+                <article class="card market-card">
+                  <div class="asset-art app-b"></div>
+                  <div class="market-card-head">
+                    <div>
+                      <strong>Connect 4</strong>
+                      <div class="muted-2">
+                        Mini App - Next.js - mobile ready
+                      </div>
+                    </div>
+                    <span class="pill">app</span>
+                  </div>
+                  <div class="stats-row">
+                    <div class="stat"><span>DAU</span><b>860</b></div>
+                    <div class="stat"><span>MRR</span><b>120</b></div>
+                    <div class="stat"><span>Price</span><b>1,000</b></div>
+                  </div>
+                  <div class="row" style="gap: 8px; margin-top: auto">
+                    <button class="btn primary sm">Buy now</button
+                    ><button class="btn sm">Msg seller</button>
+                  </div>
+                </article>
+                <article class="card market-card">
+                  <div class="asset-art social"></div>
+                  <div class="market-card-head">
+                    <div>
+                      <strong>@based-launch</strong>
+                      <div class="muted-2">Farcaster FID #587128</div>
+                    </div>
+                    <span class="pill funded">verified</span>
+                  </div>
+                  <div class="stats-row">
+                    <div class="stat"><span>Followers</span><b>2.3k</b></div>
+                    <div class="stat"><span>Casts</span><b>312</b></div>
+                    <div class="stat"><span>Price</span><b>2,000</b></div>
+                  </div>
+                  <div class="row" style="gap: 8px; margin-top: auto">
+                    <button class="btn primary sm">Buy now</button
+                    ><button class="btn sm">Offer</button>
+                  </div>
+                </article>
+                <article class="card market-card">
+                  <div
+                    class="asset-art social"
+                    style="filter: hue-rotate(160deg)"
+                  ></div>
+                  <div class="market-card-head">
+                    <div>
+                      <strong>@defiIntel</strong>
+                      <div class="muted-2">X account - finance niche</div>
+                    </div>
+                    <span class="pill">x</span>
+                  </div>
+                  <div class="stats-row">
+                    <div class="stat"><span>Followers</span><b>84.2k</b></div>
+                    <div class="stat"><span>Engage</span><b>3.8%</b></div>
+                    <div class="stat"><span>Price</span><b>6,800</b></div>
+                  </div>
+                  <div class="row" style="gap: 8px; margin-top: auto">
+                    <button class="btn primary sm">Buy now</button
+                    ><button class="btn sm">Msg seller</button>
+                  </div>
+                </article>
+                <article class="card market-card">
+                  <div class="asset-art bundle"></div>
+                  <div class="market-card-head">
+                    <div>
+                      <strong>$FED CHAIN BUNDLE</strong>
+                      <div class="muted-2">4 assets - ETH</div>
+                    </div>
+                    <span class="pill warn">bundle</span>
+                  </div>
+                  <div class="stats-row">
+                    <div class="stat"><span>Assets</span><b>4</b></div>
+                    <div class="stat"><span>Rights</span><b>3</b></div>
+                    <div class="stat"><span>Price</span><b>2,000 ETH</b></div>
+                  </div>
+                  <div class="row" style="gap: 8px; margin-top: auto">
+                    <button class="btn primary sm">View bundle</button
+                    ><button class="btn sm">Share</button>
+                  </div>
+                </article>
+                <article class="card market-card">
+                  <div
+                    class="asset-art bundle"
+                    style="filter: hue-rotate(90deg)"
+                  ></div>
+                  <div class="market-card-head">
+                    <div>
+                      <strong>$CLANK deployer rights</strong>
+                      <div class="muted-2">Creator fees + vaulted claim</div>
+                    </div>
+                    <span class="pill funded">clanker</span>
+                  </div>
+                  <div class="stats-row">
+                    <div class="stat"><span>Supply</span><b>1B</b></div>
+                    <div class="stat"><span>Vaulted</span><b>120M</b></div>
+                    <div class="stat"><span>Price</span><b>9,500</b></div>
+                  </div>
+                  <div class="row" style="gap: 8px; margin-top: auto">
+                    <button class="btn primary sm">Buy rights</button
+                    ><button class="btn sm">Inspect</button>
+                  </div>
+                </article>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="detail">
+        <div class="section-head">
+          <div>
+            <div class="route">/detail?id=L-8842</div>
+            <h2>Listing detail with offer and escrow preview</h2>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="app">
+            <header class="topbar">
+              <a class="brand"
+                ><span
+                  class="mark"
+                  style="width: 26px; height: 26px; font-size: 17px"
+                  >B</span
+                ><span class="name">Baseshire Hethaway<em></em></span
+              ></a>
+              <nav class="topnav">
+                <a class="active">NFT Loans</a><a>Mini Apps</a><a>X Accounts</a
+                ><a>Farcaster</a><a>Clanker</a><a>Bundles</a><a>Profile</a>
+              </nav>
+              <button class="btn primary">0x8b2c...91af</button>
+            </header>
+            <aside class="sidebar">
+              <a class="side-link active"
+                ><span class="icn">M</span><span>Marketplace</span></a
+              ><a class="side-link"
+                ><span class="icn">P</span><span>Profile</span></a
+              >
+            </aside>
+            <main class="main">
+              <div class="detail-layout">
+                <div class="col" style="gap: 14px">
+                  <div
+                    class="card"
+                    style="
+                      padding: 18px;
+                      display: grid;
+                      grid-template-columns: 180px 1fr;
+                      gap: 18px;
+                    "
+                  >
+                    <div
+                      class="asset-art nft-a"
+                      style="aspect-ratio: 1/1"
+                    ></div>
+                    <div>
+                      <div class="row between">
+                        <span class="pill funded">Open loan listing</span
+                        ><span class="mono muted-2">L-8842</span>
+                      </div>
+                      <h1 class="h2" style="margin: 18px 0 8px">
+                        Meridian Genesis #8842
+                      </h1>
+                      <p class="muted">
+                        Borrower is listing this NFT as collateral for a 30 day
+                        USDC loan. Lender receives repayment plus APR, or
+                        collateral transfer on default.
+                      </p>
+                      <div class="grid grid-4" style="margin-top: 16px">
+                        <div class="metric">
+                          <span class="lab">Principal</span
+                          ><span class="val">8,400</span
+                          ><span class="delta">USDC</span>
+                        </div>
+                        <div class="metric">
+                          <span class="lab">APR</span
+                          ><span class="val">14.2%</span>
+                        </div>
+                        <div class="metric">
+                          <span class="lab">Term</span
+                          ><span class="val">30d</span>
+                        </div>
+                        <div class="metric">
+                          <span class="lab">LTV</span
+                          ><span class="val">52%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="card" style="padding: 18px">
+                    <div class="row between">
+                      <strong>Escrow lifecycle</strong
+                      ><span class="pill warn">offer pending</span>
+                    </div>
+                    <div class="timeline">
+                      <div class="step done">1. Lender funds USDC</div>
+                      <div class="step done">2. NFT approval checked</div>
+                      <div class="step now">3. Borrower accepts</div>
+                      <div class="step">4. Repay or default</div>
+                      <div class="step">5. Release collateral</div>
+                    </div>
+                    <table class="tbl">
+                      <thead>
+                        <tr>
+                          <th>Tx</th>
+                          <th>Type</th>
+                          <th>From</th>
+                          <th class="right">Value</th>
+                          <th class="right">When</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td class="mono">0xb7...91fd</td>
+                          <td>Listing signed</td>
+                          <td class="mono">0x54...be10</td>
+                          <td class="right mono">NFT approval</td>
+                          <td class="right muted">2h ago</td>
+                        </tr>
+                        <tr>
+                          <td class="mono">0x31...aa82</td>
+                          <td>Offer signed</td>
+                          <td class="mono">0x8b...91af</td>
+                          <td class="right mono">8,400 USDC</td>
+                          <td class="right muted">18m ago</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <aside class="col" style="gap: 14px">
+                  <div class="card" style="padding: 18px">
+                    <div class="eyebrow">Fund listing</div>
+                    <h3 class="serif" style="font-size: 24px; margin: 8px 0">
+                      Send one atomic transaction.
+                    </h3>
+                    <div class="grid" style="gap: 8px; margin: 14px 0">
+                      <div class="row between">
+                        <span class="muted">Principal</span
+                        ><span class="mono">8,400 USDC</span>
+                      </div>
+                      <div class="row between">
+                        <span class="muted">Platform fee</span
+                        ><span class="mono">42 USDC</span>
+                      </div>
+                      <div class="row between">
+                        <span class="muted">Total at signing</span
+                        ><span class="mono">8,442 USDC</span>
+                      </div>
+                    </div>
+                    <button class="btn primary" style="width: 100%">
+                      Fund loan
+                    </button>
+                    <button class="btn" style="width: 100%; margin-top: 8px">
+                      Submit counter offer
+                    </button>
+                  </div>
+                  <div class="card" style="padding: 18px">
+                    <span class="smallcaps">Signed offers</span>
+                    <div class="offer-row">
+                      <div>
+                        <strong>8,250 USDC</strong>
+                        <div class="muted-2">13.9% APR - 30d</div>
+                      </div>
+                      <span class="pill">pending</span
+                      ><button class="btn sm">Accept</button>
+                    </div>
+                    <div class="offer-row">
+                      <div>
+                        <strong>7,900 USDC</strong>
+                        <div class="muted-2">15.0% APR - 21d</div>
+                      </div>
+                      <span class="pill">counter</span
+                      ><button class="btn sm">Review</button>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="profile">
+        <div class="section-head">
+          <div>
+            <div class="route">/deals</div>
+            <h2>Connected profile with listings, offers, escrows, and inbox</h2>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="app">
+            <header class="topbar">
+              <a class="brand"
+                ><span
+                  class="mark"
+                  style="width: 26px; height: 26px; font-size: 17px"
+                  >B</span
+                ><span class="name">Baseshire Hethaway<em></em></span
+              ></a>
+              <nav class="topnav">
+                <a>Market</a><a>Mini Apps</a><a>X Accounts</a><a>Farcaster</a
+                ><a>Clanker</a><a>Bundles</a><a class="active">Profile</a>
+              </nav>
+              <button class="btn primary">0x8b2c...91af</button>
+            </header>
+            <aside class="sidebar">
+              <a class="side-link"
+                ><span class="icn">M</span><span>Marketplaces</span></a
+              ><a class="side-link active"
+                ><span class="icn">P</span><span>Profile</span></a
+              ><a class="side-link"
+                ><span class="icn">I</span><span>Inbox</span></a
+              ><a class="side-link"
+                ><span class="icn">S</span><span>Settings</span></a
+              >
+            </aside>
+            <main class="main">
+              <div
+                class="row between"
+                style="align-items: flex-end; margin-bottom: 18px; gap: 12px"
+              >
+                <div>
+                  <div class="eyebrow">Profile</div>
+                  <h1 class="h2" style="margin-top: 8px">
+                    Listings, signed offers, and deal rooms.
+                  </h1>
+                  <p class="muted" style="margin: 8px 0 0">
+                    Wallet 0x8b2c...91af - seller on 4 listings, buyer on 2
+                    active escrows.
+                  </p>
+                </div>
+                <div class="row" style="gap: 8px">
+                  <button class="btn">Export CSV</button
+                  ><button class="btn primary">Create listing</button>
+                </div>
+              </div>
+              <div class="grid grid-4" style="margin-bottom: 16px">
+                <div class="metric">
+                  <span class="lab">Listed value</span
+                  ><span class="val">18,700</span
+                  ><span class="delta">USDC + ETH bundle</span>
+                </div>
+                <div class="metric">
+                  <span class="lab">Active deals</span><span class="val">3</span
+                  ><span class="delta">2 need action</span>
+                </div>
+                <div class="metric">
+                  <span class="lab">Unread</span
+                  ><span class="val" style="color: var(--risk)">4</span
+                  ><span class="delta">buyer questions</span>
+                </div>
+                <div class="metric">
+                  <span class="lab">Reputation</span><span class="val">98%</span
+                  ><span class="delta">12 completed trades</span>
+                </div>
+              </div>
+              <div class="profile-grid">
+                <div class="col" style="gap: 14px">
+                  <section class="card" style="overflow: hidden">
+                    <div
+                      class="row between"
+                      style="
+                        padding: 14px 16px;
+                        border-bottom: 1px solid var(--line);
+                      "
+                    >
+                      <strong>My live listings</strong
+                      ><span class="smallcaps">4 listings</span>
+                    </div>
+                    <div class="profile-listings">
+                      <div class="profile-item">
+                        <div class="mini-art asset-art app-a"></div>
+                        <div>
+                          <strong>Who Wants to Be a Millionaire</strong>
+                          <div class="muted-2">
+                            Mini App - listed at 1,000 USDC - 2 offers
+                          </div>
+                        </div>
+                        <div class="right">
+                          <span class="pill funded">live</span>
+                          <div style="margin-top: 6px">
+                            <button class="btn sm">Share</button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="profile-item">
+                        <div class="mini-art asset-art app-b"></div>
+                        <div>
+                          <strong>Connect 4</strong>
+                          <div class="muted-2">
+                            Mini App - listed at 1,000 USDC - buyer message
+                          </div>
+                        </div>
+                        <div class="right">
+                          <span class="pill warn">negotiating</span>
+                          <div style="margin-top: 6px">
+                            <button class="btn sm">Open</button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="profile-item">
+                        <div class="mini-art asset-art social"></div>
+                        <div>
+                          <strong>@based-launch FID #587128</strong>
+                          <div class="muted-2">
+                            Farcaster account - listed at 2,000 USDC
+                          </div>
+                        </div>
+                        <div class="right">
+                          <span class="pill funded">verified</span>
+                          <div style="margin-top: 6px">
+                            <button class="btn sm">Message</button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="profile-item">
+                        <div class="mini-art asset-art bundle"></div>
+                        <div>
+                          <strong>$FED CHAIN BUNDLE</strong>
+                          <div class="muted-2">
+                            4 assets - listed at 2,000 ETH
+                          </div>
+                        </div>
+                        <div class="right">
+                          <span class="pill">bundle</span>
+                          <div style="margin-top: 6px">
+                            <button class="btn sm">Manage</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                  <section class="card" style="overflow: hidden">
+                    <div
+                      class="row between"
+                      style="
+                        padding: 14px 16px;
+                        border-bottom: 1px solid var(--line);
+                      "
+                    >
+                      <strong>Incoming offers</strong
+                      ><span class="smallcaps">Signed payloads</span>
+                    </div>
+                    <div style="padding: 0 16px">
+                      <div class="offer-row">
+                        <div>
+                          <strong>950 USDC for Connect 4</strong>
+                          <div class="muted-2">
+                            Buyer 0x21...7e8c - expires in 16h
+                          </div>
+                        </div>
+                        <span class="pill warn">counter?</span
+                        ><button class="btn primary sm">Accept</button>
+                      </div>
+                      <div class="offer-row">
+                        <div>
+                          <strong>1,850 USDC for @based-launch</strong>
+                          <div class="muted-2">
+                            Buyer 0x42...ff01 - requests linked recovery handoff
+                          </div>
+                        </div>
+                        <span class="pill">pending</span
+                        ><button class="btn sm">Review</button>
+                      </div>
+                      <div class="offer-row">
+                        <div>
+                          <strong>1,720 ETH for $FED CHAIN BUNDLE</strong>
+                          <div class="muted-2">
+                            Buyer 0xaa...98b3 - requires bundle room
+                          </div>
+                        </div>
+                        <span class="pill risk">high value</span
+                        ><button class="btn sm">Review</button>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+                <aside class="col" style="gap: 14px">
+                  <section class="card" style="padding: 16px">
+                    <div class="row between">
+                      <strong>Needs action</strong
+                      ><span class="pill warn">2</span>
+                    </div>
+                    <div class="warn-banner" style="margin-top: 12px">
+                      <strong>Hollow Forms #3301</strong>
+                      <div>
+                        Repayment due in 5h 42m. Repay 4,250 USDC or collateral
+                        transfers.
+                      </div>
+                    </div>
+                    <div class="warn-banner" style="margin-top: 10px">
+                      <strong>Connect 4 transfer</strong>
+                      <div>
+                        Buyer funded escrow. Deliver source repo, Vercel
+                        project, and frame metadata.
+                      </div>
+                    </div>
+                  </section>
+                  <section class="card" style="padding: 16px">
+                    <div class="row between">
+                      <strong>Listing inbox</strong
+                      ><span class="pill risk">4 unread</span>
+                    </div>
+                    <div class="profile-listings" style="margin-top: 10px">
+                      <div
+                        class="row between"
+                        style="
+                          padding: 8px 0;
+                          border-bottom: 1px solid var(--line);
+                        "
+                      >
+                        <div>
+                          <strong>0x21...7e8c</strong>
+                          <div class="muted-2">Can you include the domain?</div>
+                        </div>
+                        <span class="mono muted-2">2m</span>
+                      </div>
+                      <div
+                        class="row between"
+                        style="
+                          padding: 8px 0;
+                          border-bottom: 1px solid var(--line);
+                        "
+                      >
+                        <div>
+                          <strong>0x42...ff01</strong>
+                          <div class="muted-2">
+                            FID transfer checklist looks good.
+                          </div>
+                        </div>
+                        <span class="mono muted-2">14m</span>
+                      </div>
+                      <div class="row between" style="padding: 8px 0">
+                        <div>
+                          <strong>0xaa...98b3</strong>
+                          <div class="muted-2">
+                            Need bundle asset proof before funding.
+                          </div>
+                        </div>
+                        <span class="mono muted-2">1h</span>
+                      </div>
+                    </div>
+                  </section>
+                </aside>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="deal-room">
+        <div class="section-head">
+          <div>
+            <div class="route">/deals?room=D-1024</div>
+            <h2>End-to-end deal room and encrypted chat</h2>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="app">
+            <header class="topbar">
+              <a class="brand"
+                ><span
+                  class="mark"
+                  style="width: 26px; height: 26px; font-size: 17px"
+                  >B</span
+                ><span class="name">Baseshire Hethaway<em></em></span
+              ></a>
+              <nav class="topnav">
+                <a>Market</a><a>Mini Apps</a><a>X Accounts</a><a>Farcaster</a
+                ><a>Clanker</a><a>Bundles</a><a class="active">Profile</a>
+              </nav>
+              <button class="btn primary">0x8b2c...91af</button>
+            </header>
+            <aside class="sidebar">
+              <a class="side-link"
+                ><span class="icn">A</span><span>Active</span></a
+              ><a class="side-link active"
+                ><span class="icn">D</span><span>Deal Room</span></a
+              ><a class="side-link"
+                ><span class="icn">H</span><span>History</span></a
+              >
+            </aside>
+            <main class="main">
+              <div class="deal-room">
+                <div class="col" style="gap: 14px">
+                  <div class="card" style="padding: 18px">
+                    <div class="row between">
+                      <div>
+                        <span class="eyebrow">Deal D-1024</span>
+                        <h1 class="h2" style="margin-top: 8px">
+                          Connect 4 mini app sale
+                        </h1>
+                      </div>
+                      <span class="pill warn">Transfer stage</span>
+                    </div>
+                    <div class="grid grid-3" style="margin-top: 16px">
+                      <div class="metric">
+                        <span class="lab">Escrow value</span
+                        ><span class="val">1,000</span
+                        ><span class="delta">USDC locked</span>
+                      </div>
+                      <div class="metric">
+                        <span class="lab">Seller</span
+                        ><span class="val" style="font-size: 14px"
+                          >0x8b...91af</span
+                        ><span class="delta">you</span>
+                      </div>
+                      <div class="metric">
+                        <span class="lab">Buyer</span
+                        ><span class="val" style="font-size: 14px"
+                          >0x21...7e8c</span
+                        ><span class="delta">funded</span>
+                      </div>
+                    </div>
+                    <div class="timeline">
+                      <div class="step done">Buyer deposits</div>
+                      <div class="step now">Seller transfers</div>
+                      <div class="step">Buyer confirms</div>
+                      <div class="step">Funds release</div>
+                      <div class="step">Fee deducted</div>
+                    </div>
+                  </div>
+                  <div class="card" style="padding: 18px">
+                    <strong>Delivery checklist</strong>
+                    <table class="tbl" style="margin-top: 8px">
+                      <tbody>
+                        <tr>
+                          <td><span class="pill funded">done</span></td>
+                          <td>Source repo transferred to buyer GitHub org</td>
+                          <td class="right mono">09:42</td>
+                        </tr>
+                        <tr>
+                          <td><span class="pill warn">waiting</span></td>
+                          <td>Vercel project ownership transfer</td>
+                          <td class="right mono">pending</td>
+                        </tr>
+                        <tr>
+                          <td><span class="pill">ready</span></td>
+                          <td>Domain and frame manifest handoff</td>
+                          <td class="right mono">queued</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <div class="row" style="gap: 8px; margin-top: 14px">
+                      <button class="btn primary">Mark delivered</button
+                      ><button class="btn danger">Open dispute</button>
+                    </div>
+                  </div>
+                </div>
+                <aside class="card chat">
+                  <div
+                    class="row between"
+                    style="
+                      padding: 14px 16px;
+                      border-bottom: 1px solid var(--line);
+                    "
+                  >
+                    <strong>Encrypted chat</strong
+                    ><span class="smallcaps">AES-256-GCM</span>
+                  </div>
+                  <div class="chat-scroll">
+                    <div class="msg">
+                      <strong>Buyer</strong>
+                      <div>
+                        Funds are locked. Please transfer the repo and Vercel
+                        project before 18:00 UTC.
+                      </div>
+                      <small>10:12</small>
+                    </div>
+                    <div class="msg me">
+                      <strong>You</strong>
+                      <div>
+                        Repo transferred. I am waiting for Vercel ownership
+                        confirmation, then I will mark delivered.
+                      </div>
+                      <small>10:18</small>
+                    </div>
+                    <div class="msg">
+                      <strong>Buyer</strong>
+                      <div>
+                        Got the GitHub invite. Add the production domain and I
+                        will confirm delivery.
+                      </div>
+                      <small>10:26</small>
+                    </div>
+                    <div class="msg me">
+                      <strong>You</strong>
+                      <div>
+                        Domain auth code attached in proofs. Final manifest is
+                        pinned in the delivery checklist.
+                      </div>
+                      <small>10:31</small>
+                    </div>
+                  </div>
+                  <div class="composer">
+                    <input
+                      class="input"
+                      value="Attach proof or write message..."
+                      aria-label="Message draft"
+                    /><button class="btn primary">Send</button>
+                  </div>
+                </aside>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="verticals">
+        <div class="section-head">
+          <div>
+            <div class="route">
+              /miniapps /x /farcaster /clanker /market?tab=bundles
+            </div>
+            <h2>Vertical pages populated from the same listings</h2>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="app">
+            <header class="topbar">
+              <a class="brand"
+                ><span
+                  class="mark"
+                  style="width: 26px; height: 26px; font-size: 17px"
+                  >B</span
+                ><span class="name">Baseshire Hethaway<em></em></span
+              ></a>
+              <nav class="topnav">
+                <a>Market</a><a class="active">Mini Apps</a><a>X Accounts</a
+                ><a>Farcaster</a><a>Clanker</a><a>Bundles</a><a>Profile</a>
+              </nav>
+              <button class="btn primary">List vertical asset</button>
+            </header>
+            <aside class="sidebar">
+              <a class="side-link active">Mini Apps</a
+              ><a class="side-link">X Accounts</a
+              ><a class="side-link">Farcaster</a
+              ><a class="side-link">Clanker Tokens</a
+              ><a class="side-link">Bundles</a>
+            </aside>
+            <main class="main">
+              <div
+                class="row between"
+                style="align-items: flex-end; margin-bottom: 18px"
+              >
+                <div>
+                  <div class="eyebrow">Vertical marketplaces</div>
+                  <h1 class="h2" style="margin-top: 8px">
+                    Dedicated buying workflows.
+                  </h1>
+                </div>
+                <div class="seg">
+                  <button class="active">Price</button><button>Traffic</button
+                  ><button>Newest</button>
+                </div>
+              </div>
+              <div class="grid grid-3">
+                <article class="card market-card">
+                  <div class="asset-art app-a"></div>
+                  <strong>Who Wants to Be a Millionaire</strong>
+                  <p class="muted" style="margin: 0">
+                    Mini app includes source, production deployment, frame
+                    config, and analytics history.
+                  </p>
+                  <div class="stats-row">
+                    <div class="stat"><span>DAU</span><b>2.1k</b></div>
+                    <div class="stat"><span>MRR</span><b>410</b></div>
+                    <div class="stat"><span>Ask</span><b>1,000</b></div>
+                  </div>
+                  <button class="btn primary sm" style="margin-top: auto">
+                    Buy app
+                  </button>
+                </article>
+                <article class="card market-card">
+                  <div class="asset-art social"></div>
+                  <strong>@defiIntel</strong>
+                  <p class="muted" style="margin: 0">
+                    X account with finance niche audience and verified ad
+                    handoff checklist.
+                  </p>
+                  <div class="stats-row">
+                    <div class="stat"><span>Followers</span><b>84.2k</b></div>
+                    <div class="stat"><span>Engage</span><b>3.8%</b></div>
+                    <div class="stat"><span>Ask</span><b>6,800</b></div>
+                  </div>
+                  <button class="btn primary sm" style="margin-top: auto">
+                    Buy handle
+                  </button>
+                </article>
+                <article class="card market-card">
+                  <div
+                    class="asset-art social"
+                    style="filter: hue-rotate(40deg)"
+                  ></div>
+                  <strong>@based-launch</strong>
+                  <p class="muted" style="margin: 0">
+                    FID #587128 with custody transfer, recovery update, and
+                    power-badge review.
+                  </p>
+                  <div class="stats-row">
+                    <div class="stat"><span>Followers</span><b>2.3k</b></div>
+                    <div class="stat"><span>FID</span><b>587128</b></div>
+                    <div class="stat"><span>Ask</span><b>2,000</b></div>
+                  </div>
+                  <button class="btn primary sm" style="margin-top: auto">
+                    Buy FID
+                  </button>
+                </article>
+                <article class="card market-card">
+                  <div class="asset-art bundle"></div>
+                  <strong>$CLANK deployer rights</strong>
+                  <p class="muted" style="margin: 0">
+                    Creator fee recipients, reward admin rights, vaulted token
+                    claim, remaining supply.
+                  </p>
+                  <div class="stats-row">
+                    <div class="stat"><span>Vaulted</span><b>120M</b></div>
+                    <div class="stat"><span>Fees</span><b>32k</b></div>
+                    <div class="stat"><span>Ask</span><b>9,500</b></div>
+                  </div>
+                  <button class="btn primary sm" style="margin-top: auto">
+                    Inspect rights
+                  </button>
+                </article>
+                <article class="card market-card" style="grid-column: span 2">
+                  <div class="asset-art bundle" style="aspect-ratio: 3/1"></div>
+                  <div class="row between">
+                    <strong>$FED CHAIN BUNDLE</strong
+                    ><span class="pill warn">4 assets</span>
+                  </div>
+                  <p class="muted" style="margin: 0">
+                    Turnkey bundle: token rights, X distribution handle,
+                    Farcaster FID, and mini app landing flow. Buyer funds one
+                    escrow, seller completes each transfer step.
+                  </p>
+                  <table class="tbl">
+                    <tbody>
+                      <tr>
+                        <td>Mini App</td>
+                        <td>$FED launch page</td>
+                        <td class="right mono">400 ETH</td>
+                      </tr>
+                      <tr>
+                        <td>X Account</td>
+                        <td>@fedchain</td>
+                        <td class="right mono">550 ETH</td>
+                      </tr>
+                      <tr>
+                        <td>Farcaster</td>
+                        <td>@fedchain FID</td>
+                        <td class="right mono">250 ETH</td>
+                      </tr>
+                      <tr>
+                        <td>Clanker</td>
+                        <td>creator fee rights</td>
+                        <td class="right mono">800 ETH</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </article>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="admin">
+        <div class="section-head">
+          <div>
+            <div class="route">/admin/dash</div>
+            <h2>Admin operations populated with the same escrow state</h2>
+          </div>
+        </div>
+        <div class="frame">
+          <div class="app admin-app">
+            <header class="topbar">
+              <div class="row" style="gap: 12px">
+                <span
+                  class="mark"
+                  style="
+                    width: 26px;
+                    height: 26px;
+                    font-size: 17px;
+                    background: var(--admin-coral);
+                  "
+                  >B</span
+                ><strong>Baseshire Hethaway</strong
+                ><span class="pill admin-badge">ADMIN</span
+                ><span class="muted-2">Internal</span>
+              </div>
+              <a class="btn sm" href="#landing">Switch to user view</a>
+            </header>
+            <aside class="sidebar">
+              <div class="side-h">Operations</div>
+              <a class="side-link active">Dashboard</a
+              ><a class="side-link">Disputes</a><a class="side-link">Support</a>
+              <div class="side-h">Oversight</div>
+              <a class="side-link">Listings</a><a class="side-link">Users</a>
+              <div class="side-h">System</div>
+              <a class="side-link">Escrow ops</a
+              ><a class="side-link">Audit log</a>
+            </aside>
+            <main class="main">
+              <div
+                class="row between"
+                style="align-items: flex-end; margin-bottom: 18px"
+              >
+                <div>
+                  <div class="eyebrow" style="color: var(--admin-coral)">
+                    Admin Dashboard
+                  </div>
+                  <h1 class="h2" style="margin-top: 8px">
+                    Moderate live listings and escrow risk.
+                  </h1>
+                </div>
+                <button class="btn danger">Emergency pause</button>
+              </div>
+              <div class="grid grid-4" style="margin-bottom: 16px">
+                <div class="metric">
+                  <span class="lab">Locked GMV</span
+                  ><span class="val">8,950</span
+                  ><span class="delta">USDC active</span>
+                </div>
+                <div class="metric">
+                  <span class="lab">Estimated fees</span
+                  ><span class="val">447</span
+                  ><span class="delta">5% platform</span>
+                </div>
+                <div class="metric">
+                  <span class="lab">Active disputes</span
+                  ><span class="val" style="color: var(--warn)">1</span
+                  ><span class="delta">requires review</span>
+                </div>
+                <div class="metric">
+                  <span class="lab">Open tickets</span
+                  ><span class="val" style="color: var(--risk)">4</span
+                  ><span class="delta">support inbox</span>
+                </div>
+              </div>
+              <div class="grid grid-2">
+                <div class="card" style="overflow: hidden">
+                  <div
+                    style="
+                      padding: 14px 16px;
+                      border-bottom: 1px solid var(--line);
+                    "
+                  >
+                    <strong>Listing moderation</strong>
+                  </div>
+                  <table class="tbl">
+                    <thead>
+                      <tr>
+                        <th>Listing</th>
+                        <th>Market</th>
+                        <th>Risk</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Connect 4</td>
+                        <td>Mini App</td>
+                        <td><span class="pill warn">42</span></td>
+                        <td class="right">
+                          <button class="btn sm">Review</button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>$FED CHAIN BUNDLE</td>
+                        <td>Bundle</td>
+                        <td><span class="pill risk">81</span></td>
+                        <td class="right">
+                          <button class="btn danger sm">Hold</button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>@based-launch</td>
+                        <td>Farcaster</td>
+                        <td><span class="pill funded">12</span></td>
+                        <td class="right">
+                          <button class="btn sm">Approve</button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="card" style="overflow: hidden">
+                  <div
+                    style="
+                      padding: 14px 16px;
+                      border-bottom: 1px solid var(--line);
+                    "
+                  >
+                    <strong>Dispute queue</strong>
+                  </div>
+                  <table class="tbl">
+                    <thead>
+                      <tr>
+                        <th>Case</th>
+                        <th>Asset</th>
+                        <th>Frozen</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="mono">DSP-204</td>
+                        <td>Hollow Forms #3301</td>
+                        <td class="mono">4,250 USDC</td>
+                        <td class="right">
+                          <button class="btn primary sm">Resolve</button>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td class="mono">DSP-205</td>
+                        <td>$FED bundle proof</td>
+                        <td class="mono">0 ETH</td>
+                        <td class="right">
+                          <button class="btn sm">Request proof</button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </main>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="mobile">
+        <div class="section-head">
+          <div>
+            <div class="route">mobile responsive views</div>
+            <h2>Mobile pages populated end to end</h2>
+          </div>
+        </div>
+        <div class="mobile-showcase">
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="mobile-top">
+                <strong>Baseshire</strong><span class="pill funded">Live</span>
+              </div>
+              <div class="mobile-body">
+                <div class="eyebrow">Mobile home</div>
+                <div class="mobile-h1">On-chain assets in escrow.</div>
+                <p class="muted">
+                  Borrow, buy, sell, and manage every deal from one compact
+                  profile.
+                </p>
+                <div class="mobile-card">
+                  <div class="row between">
+                    <span class="smallcaps">Listed value</span
+                    ><span class="mono">42,250</span>
+                  </div>
+                  <div class="bar" style="margin-top: 8px">
+                    <i style="width: 64%"></i>
+                  </div>
+                </div>
+                <div class="mobile-row">
+                  <div
+                    class="mini-art asset-art nft-a"
+                    style="width: 44px; height: 44px"
+                  ></div>
+                  <div>
+                    <strong>Meridian #8842</strong>
+                    <div class="muted-2">8,400 USDC loan</div>
+                  </div>
+                  <span class="pill">NFT</span>
+                </div>
+                <div class="mobile-row">
+                  <div
+                    class="mini-art asset-art app-a"
+                    style="width: 44px; height: 44px"
+                  ></div>
+                  <div>
+                    <strong>Millionaire</strong>
+                    <div class="muted-2">1,000 USDC app</div>
+                  </div>
+                  <span class="pill">App</span>
+                </div>
+                <div class="mobile-row">
+                  <div
+                    class="mini-art asset-art social"
+                    style="width: 44px; height: 44px"
+                  ></div>
+                  <div>
+                    <strong>@based-launch</strong>
+                    <div class="muted-2">FID #587128</div>
+                  </div>
+                  <span class="pill">FID</span>
+                </div>
+              </div>
+              <nav class="mobile-nav">
+                <a class="active">Home</a><a>Market</a><a>Info</a><a>Profile</a>
+              </nav>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="mobile-top">
+                <strong>Market</strong><button class="btn sm">Filter</button>
+              </div>
+              <div class="mobile-body">
+                <div class="mobile-card">
+                  <span class="smallcaps">All markets</span>
+                  <div class="chips" style="margin-top: 8px">
+                    <button class="chip active">All 9</button
+                    ><button class="chip">NFT 3</button
+                    ><button class="chip">Apps 2</button>
+                  </div>
+                </div>
+                <div class="mobile-row">
+                  <div
+                    class="mini-art asset-art nft-b"
+                    style="width: 44px; height: 44px"
+                  ></div>
+                  <div>
+                    <strong>Hollow Forms #3301</strong>
+                    <div class="muted-2">18.5% APR - funded</div>
+                  </div>
+                  <span class="mono">4,250</span>
+                </div>
+                <div class="mobile-row">
+                  <div
+                    class="mini-art asset-art bundle"
+                    style="width: 44px; height: 44px"
+                  ></div>
+                  <div>
+                    <strong>$FED CHAIN</strong>
+                    <div class="muted-2">4 asset bundle</div>
+                  </div>
+                  <span class="mono">2k ETH</span>
+                </div>
+                <div class="mobile-row">
+                  <div
+                    class="mini-art asset-art app-b"
+                    style="width: 44px; height: 44px"
+                  ></div>
+                  <div>
+                    <strong>Connect 4</strong>
+                    <div class="muted-2">source + Vercel</div>
+                  </div>
+                  <span class="mono">1,000</span>
+                </div>
+              </div>
+              <nav class="mobile-nav">
+                <a>Home</a><a class="active">Market</a><a>Info</a><a>Profile</a>
+              </nav>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="mobile-top">
+                <strong>Profile</strong><span class="pill risk">4</span>
+              </div>
+              <div class="mobile-body">
+                <div class="mobile-card">
+                  <div class="row between">
+                    <div>
+                      <strong>0x8b2c...91af</strong>
+                      <div class="muted-2">12 completed trades</div>
+                    </div>
+                    <span class="pill funded">98%</span>
+                  </div>
+                </div>
+                <div class="mobile-card">
+                  <strong>Needs action</strong>
+                  <div class="warn-banner" style="margin-top: 8px">
+                    Connect 4 buyer funded. Transfer Vercel project.
+                  </div>
+                  <div class="warn-banner" style="margin-top: 8px">
+                    Hollow Forms repayment due in 5h 42m.
+                  </div>
+                </div>
+                <div class="mobile-row">
+                  <div
+                    class="mini-art asset-art app-a"
+                    style="width: 44px; height: 44px"
+                  ></div>
+                  <div>
+                    <strong>Millionaire</strong>
+                    <div class="muted-2">2 offers</div>
+                  </div>
+                  <button class="btn sm">Open</button>
+                </div>
+                <div class="mobile-row">
+                  <div
+                    class="mini-art asset-art social"
+                    style="width: 44px; height: 44px"
+                  ></div>
+                  <div>
+                    <strong>@based-launch</strong>
+                    <div class="muted-2">1 signed offer</div>
+                  </div>
+                  <button class="btn sm">Review</button>
+                </div>
+              </div>
+              <nav class="mobile-nav">
+                <a>Home</a><a>Market</a><a>Info</a><a class="active">Profile</a>
+              </nav>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="phone-screen">
+              <div class="mobile-top">
+                <strong>Deal Room</strong
+                ><span class="pill warn">Transfer</span>
+              </div>
+              <div class="mobile-body">
+                <div class="mobile-card">
+                  <span class="smallcaps">D-1024</span>
+                  <h3 class="serif" style="font-size: 24px; margin: 6px 0">
+                    Connect 4 sale
+                  </h3>
+                  <div class="grid grid-2">
+                    <div class="metric">
+                      <span class="lab">Locked</span
+                      ><span class="val">1,000</span>
+                    </div>
+                    <div class="metric">
+                      <span class="lab">Step</span><span class="val">2/5</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mobile-card">
+                  <strong>Checklist</strong>
+                  <div style="margin-top: 8px">
+                    <span class="pill funded">done</span> Repo transferred
+                  </div>
+                  <div style="margin-top: 8px">
+                    <span class="pill warn">wait</span> Vercel ownership
+                  </div>
+                  <div style="margin-top: 8px">
+                    <span class="pill">ready</span> Domain auth code
+                  </div>
+                </div>
+                <div class="msg" style="max-width: 100%">
+                  <strong>Buyer</strong>
+                  <div>Funds are locked. Please finish Vercel handoff.</div>
+                  <small>10:26</small>
+                </div>
+                <div class="msg me" style="max-width: 100%; margin-top: 8px">
+                  <strong>You</strong>
+                  <div>Final manifest is pinned in proofs.</div>
+                  <small>10:31</small>
+                </div>
+              </div>
+              <nav class="mobile-nav">
+                <a>Home</a><a>Market</a><a>Info</a><a class="active">Profile</a>
+              </nav>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
