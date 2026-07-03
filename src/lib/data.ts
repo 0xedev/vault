@@ -19,6 +19,7 @@ export interface ClankerToken {
   contractListingId?: string;
   txHash?: string;
   txStatus?: string;
+  status?: string;
 }
 
 export type BundleAssetKind = "nft_loan" | "mini_app" | "x_account" | "farcaster" | "clanker";
@@ -46,6 +47,7 @@ export interface BundleListing {
   contractListingId?: string;
   txHash?: string;
   txStatus?: string;
+  status?: string;
   createdAt: string;
 }
 
@@ -140,6 +142,7 @@ export interface XAccount {
   contractListingId?: string;
   txHash?: string;
   txStatus?: string;
+  status?: string;
   includes?: string[];
 }
 
@@ -160,6 +163,7 @@ export interface FarcasterAccount {
   contractListingId?: string;
   txHash?: string;
   txStatus?: string;
+  status?: string;
   includes?: string[];
 }
 
@@ -180,6 +184,7 @@ export interface MiniApp {
   contractListingId?: string;
   txHash?: string;
   txStatus?: string;
+  status?: string;
   includes?: string[];
   description?: string;
 }
