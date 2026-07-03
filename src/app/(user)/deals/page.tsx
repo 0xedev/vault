@@ -23,7 +23,6 @@ import {
   writeAcceptSignedLoanOffer,
   writeCancelDeal,
   writeCancelListing,
-  writeCancelMiniApp,
   writeCancelDealOfferNonce,
   writeCancelNftOfferNonce,
   readPlatformFeeBps,
@@ -1212,9 +1211,7 @@ export default function DealsPage() {
         const contractId = BigInt(listing.contractListingId);
         txHash = listing.shareKind === "nft"
           ? await writeCancelListing(account, contractId)
-          : listing.shareKind === "miniapps"
-            ? await writeCancelMiniApp(account, contractId)
-            : await writeCancelDeal(account, contractId);
+          : await writeCancelDeal(account, contractId);
         await getPublicClient().waitForTransactionReceipt({ hash: txHash });
       }
       const res = await fetch(listing.cancelPath, {

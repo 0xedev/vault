@@ -174,18 +174,28 @@ export function getWalletClient() {
 
 async function waitForCallsResult(id: string): Promise<ContractCallsResult> {
   const client = getWalletClient();
-  const status = await getCallsStatus(client, { id });
-  const receipts: ContractCallReceipt[] = (status.receipts || []).map(
-    (receipt) => ({
-      hash: receipt.transactionHash,
-      status: receipt.status === "success" ? "success" : ("failure" as const),
-    }),
-  );
-  return {
-    id: status.id,
-    status: status.status ?? "pending",
-    receipts,
-  };
+  const deadline = Date.now() + 120_000;
+
+  while (true) {
+    const status = await getCallsStatus(client, { id });
+    const receipts: ContractCallReceipt[] = (status.receipts || []).map(
+      (receipt) => ({
+        hash: receipt.transactionHash,
+        status: receipt.status === "success" ? "success" : ("failure" as const),
+      }),
+    );
+    const result = {
+      id: status.id,
+      status: status.status ?? "pending",
+      receipts,
+    } satisfies ContractCallsResult;
+
+    if (result.status !== "pending" || Date.now() >= deadline) {
+      return result;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
 }
 
 function shouldFallbackToWriteContract(err: unknown): boolean {
@@ -201,13 +211,16 @@ function shouldFallbackToWriteContract(err: unknown): boolean {
     "wallet_sendcall",
     "eip-5792",
     "eip5792",
+    "atomic",
+    "batch not supported",
+    "capability",
   ].some((text) => name.includes(text) || msg.includes(text));
 }
 
 export async function sendContractCalls(
   account: Address,
   calls: ContractCall[],
-  options?: { forceAtomic?: boolean },
+  options?: { forceAtomic?: boolean; waitForReceipts?: boolean },
 ): Promise<ContractCallsResult> {
   if (calls.length === 0) {
     throw new Error("No contract calls provided.");
@@ -233,22 +246,37 @@ export async function sendContractCalls(
     return waitForCallsResult(result.id);
   } catch (err) {
     if (shouldFallbackToWriteContract(err)) {
-      const hashes = await Promise.all(
-        calls.map((call) =>
-          client.writeContract({
-            address: call.address,
-            abi: call.abi,
-            functionName: call.functionName,
-            args: call.args,
-            account,
-            chain: base,
-          }),
-        ),
-      );
+      const receipts: ContractCallReceipt[] = [];
+      for (const call of calls) {
+        const hash = await client.writeContract({
+          address: call.address,
+          abi: call.abi,
+          functionName: call.functionName,
+          args: call.args,
+          account,
+          chain: base,
+        });
+        if (options?.waitForReceipts) {
+          const receipt = await getPublicClient().waitForTransactionReceipt({ hash });
+          receipts.push({
+            hash,
+            status: receipt.status === "success" ? "success" : "failure",
+          });
+          if (receipt.status !== "success") {
+            return {
+              id: receipts.map((item) => item.hash).join(","),
+              status: "failure",
+              receipts,
+            };
+          }
+        } else {
+          receipts.push({ hash, status: "success" });
+        }
+      }
       return {
-        id: hashes.join(","),
-        status: "pending",
-        receipts: hashes.map((hash) => ({ hash, status: "success" })),
+        id: receipts.map((receipt) => receipt.hash).join(","),
+        status: options?.waitForReceipts ? "success" : "pending",
+        receipts,
       };
     }
     throw err;
@@ -266,6 +294,9 @@ export function parseUSDC(amount: string): bigint {
 
 export async function waitForListingId(hash: Hash): Promise<string> {
   const receipt = await getPublicClient().waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") {
+    throw new Error("Listing transaction reverted.");
+  }
   for (const log of receipt.logs) {
     try {
       const decoded = decodeEventLog({
@@ -287,6 +318,9 @@ export async function waitForListingId(hash: Hash): Promise<string> {
 
 export async function waitForDealId(hash: Hash): Promise<string> {
   const receipt = await getPublicClient().waitForTransactionReceipt({ hash });
+  if (receipt.status !== "success") {
+    throw new Error("Deal listing transaction reverted.");
+  }
   for (const log of receipt.logs) {
     try {
       const decoded = decodeEventLog({
@@ -344,7 +378,15 @@ export function parseContractError(err: unknown): string {
     return "Insufficient USDC balance to complete this transaction.";
   }
 
-  if (lower.includes("notnfrowner")) return "You don't own this NFT.";
+  if (lower.includes("notnftowner")) return "You don't own this NFT.";
+  if (
+    lower.includes("erc721insufficientapproval") ||
+    lower.includes("not approved") ||
+    lower.includes("not owner nor approved") ||
+    lower.includes("caller is not token owner or approved")
+  ) {
+    return "NFT approval is missing, has not confirmed yet, or this wallet is not owner of the NFT.";
+  }
   if (lower.includes("notborrower"))
     return "Only the borrower can perform this action.";
   if (lower.includes("notlender"))

@@ -10,7 +10,7 @@ import { ListingSuccessModal, type ListingSuccessShare } from "@/components/List
 import { useWallet } from "@/components/WalletProvider";
 import {
   getEscrowAddress,
-  writeListMiniApp,
+  writeListDeal,
   waitForDealId,
   hashMetadata,
   parseContractError,
@@ -91,10 +91,11 @@ export default function ListMiniAppModal({ onClose }: Props) {
       };
       const metaHash = hashMetadata(metadata);
       const priceWei = parseUnits(price || "0", 6);
-      const txHash = await writeListMiniApp(
+      const txHash = await writeListDeal(
         address as Address,
         priceWei,
         metaHash,
+        "mini_app",
       );
       const contractListingId = await waitForDealId(txHash);
       const res = await fetch("/api/marketplace/mini-apps", {
