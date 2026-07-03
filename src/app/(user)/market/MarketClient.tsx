@@ -70,15 +70,25 @@ type MarketTab =
   | "clanker"
   | "bundles";
 
-const marketTabs: { key: MarketTab; label: string }[] = [
-  { key: "all", label: "All Markets" },
-  { key: "nft", label: "NFT Loans" },
-  { key: "miniapps", label: "Mini Apps" },
-  { key: "x", label: "X Accounts" },
-  { key: "farcaster", label: "Farcaster" },
-  { key: "clanker", label: "Clanker" },
-  { key: "bundles", label: "Bundles" },
+const marketTabs: { key: MarketTab; label: string; description: string }[] = [
+  { key: "all", label: "Feed", description: "Live drops across every vault market" },
+  { key: "nft", label: "NFTs", description: "Collateralized NFT loans" },
+  { key: "miniapps", label: "Apps", description: "Mini app acquisitions" },
+  { key: "x", label: "X", description: "Audience accounts" },
+  { key: "farcaster", label: "Farcaster", description: "FID transfers" },
+  { key: "clanker", label: "Clanker", description: "Token inventories" },
+  { key: "bundles", label: "Bundles", description: "Multi-asset deals" },
 ];
+
+const marketTabTone: Record<MarketTab, string> = {
+  all: "#0052ff",
+  nft: "#7c3aed",
+  miniapps: "#0ea5e9",
+  x: "#111827",
+  farcaster: "#855dcd",
+  clanker: "#f59e0b",
+  bundles: "#10b981",
+};
 
 function MarketAssetCarousel({ children }: { children: React.ReactNode }) {
   const slides = React.Children.toArray(children);
@@ -1102,28 +1112,45 @@ export default function MarketplacePage() {
     }
   };
 
+  const tabCounts: Record<MarketTab, number> = {
+    all: loans.length + miniApps.length + xAccounts.length + farcaster.length + clankerTokens.length + bundles.length,
+    nft: loans.length,
+    miniapps: miniApps.length,
+    x: xAccounts.length,
+    farcaster: farcaster.length,
+    clanker: clankerTokens.length,
+    bundles: bundles.length,
+  };
+  const activeTabMeta = marketTabs.find((tab) => tab.key === activeMarket) || marketTabs[0];
+
   return (
     <main
       id="main-content"
       role="main"
       aria-label="Main content"
-      className="main"
+      className="main market-discovery"
     >
       <div
-        className="market-page-head row between"
-        style={{ alignItems: "flex-end", marginBottom: 22 }}
+        className="market-page-head market-discovery-hero"
+        style={{ "--market-active": marketTabTone[activeMarket] } as React.CSSProperties}
       >
-        <div>
-          <div className="eyebrow">Marketplace</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>
-            {activeMarket === "all" && "Browse every escrow market."}
-            {activeMarket === "nft" && "NFT Loans"}
-            {activeMarket === "miniapps" && "Mini Apps"}
-            {activeMarket === "x" && "X Accounts"}
-            {activeMarket === "farcaster" && "Farcaster"}
-            {activeMarket === "clanker" && "Clanker Tokens"}
-            {activeMarket === "bundles" && "Bundled Listings"}
+        <div className="market-discovery-copy">
+          <div className="eyebrow">Marketplace / Discover</div>
+          <h1 className="h2">
+            {activeMarket === "all" && "Discover high-signal escrow listings."}
+            {activeMarket === "nft" && "NFT-backed loan opportunities."}
+            {activeMarket === "miniapps" && "Mini Apps ready to acquire."}
+            {activeMarket === "x" && "X accounts with audience leverage."}
+            {activeMarket === "farcaster" && "Farcaster identities for sale."}
+            {activeMarket === "clanker" && "Clanker token positions."}
+            {activeMarket === "bundles" && "Bundled listings with one escrow."}
           </h1>
+          <p>{activeTabMeta.description}. Curated into a feed-first system with quick stats, media-led cards, and fast market switching.</p>
+          <div className="market-discovery-stats" aria-label="Marketplace summary">
+            <span><strong>{tabCounts.all}</strong> live listings</span>
+            <span><strong>{tabCounts.nft}</strong> NFT loans</span>
+            <span><strong>{tabCounts.bundles}</strong> bundles</span>
+          </div>
         </div>
         {activeMarket === "all" && (
           <button
@@ -1227,7 +1254,7 @@ export default function MarketplacePage() {
         )}
       </div>
 
-      <div className="market-tabs" role="tablist" aria-label="Marketplace tabs">
+      <div className="market-tabs market-discovery-tabs" role="tablist" aria-label="Marketplace tabs">
         {marketTabs.map((tab) => (
           <button
             key={tab.key}
@@ -1235,9 +1262,11 @@ export default function MarketplacePage() {
             role="tab"
             aria-selected={activeMarket === tab.key}
             className={activeMarket === tab.key ? "active" : ""}
+            style={{ "--market-tab": marketTabTone[tab.key] } as React.CSSProperties}
             onClick={() => setActiveMarket(tab.key)}
           >
-            {tab.label}
+            <span>{tab.label}</span>
+            <small>{tabCounts[tab.key]}</small>
           </button>
         ))}
       </div>

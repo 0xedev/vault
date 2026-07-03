@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container": "#1f1f1f",
+              "secondary-fixed-dim": "#c8c6c5",
+              "error": "#ffb4ab",
+              "tertiary": "#00dbe9",
+              "surface-container-lowest": "#0e0e0e",
+              "surface-container-high": "#2a2a2a",
+              "on-surface": "#e2e2e2",
+              "inverse-primary": "#bb0058",
+              "outline-variant": "#5c3f45",
+              "surface-container-highest": "#353535",
+              "on-secondary": "#313030",
+              "primary-fixed": "#ffd9e0",
+              "on-secondary-container": "#bab8b7",
+              "on-tertiary-fixed-variant": "#004f54",
+              "on-secondary-fixed": "#1c1b1b",
+              "primary": "#ffb1c3",
+              "inverse-on-surface": "#303030",
+              "inverse-surface": "#e2e2e2",
+              "on-surface-variant": "#e5bcc4",
+              "on-background": "#e2e2e2",
+              "on-error-container": "#ffdad6",
+              "tertiary-fixed-dim": "#00dbe9",
+              "tertiary-fixed": "#7df4ff",
+              "surface-tint": "#ffb1c3",
+              "surface-variant": "#353535",
+              "on-primary-container": "#590026",
+              "error-container": "#93000a",
+              "surface": "#131313",
+              "primary-fixed-dim": "#ffb1c3",
+              "on-tertiary-container": "#002f33",
+              "secondary-container": "#4a4949",
+              "outline": "#ac878f",
+              "on-tertiary-fixed": "#002022",
+              "surface-container-low": "#1b1b1b",
+              "secondary": "#c8c6c5",
+              "surface-bright": "#393939",
+              "background": "#131313",
+              "tertiary-container": "#00a0aa",
+              "on-error": "#690005",
+              "primary-container": "#ff4b89",
+              "on-tertiary": "#00363a",
+              "on-primary-fixed": "#3f0019",
+              "on-primary": "#66002c",
+              "secondary-fixed": "#e5e2e1",
+              "on-secondary-fixed-variant": "#474646",
+              "on-primary-fixed-variant": "#8f0041",
+              "surface-dim": "#131313"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .masonry-grid {
+            column-count: 2;
+            column-gap: 1rem;
+        }
+        .masonry-item {
+            break-inside: avoid;
+            margin-bottom: 1rem;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface-container-lowest text-on-surface font-body antialiased min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="sticky top-0 z-50 bg-surface/60 backdrop-blur-xl border-b border-outline-variant/10">
+<div class="flex items-center justify-between px-6 py-4 max-w-2xl mx-auto">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary" data-icon="movie">movie</span>
+<h1 class="font-headline text-2xl font-bold tracking-tight">CineSwipe</h1>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-surface-container-highest rounded-full transition-colors">
+<span class="material-symbols-outlined text-on-surface" data-icon="search">search</span>
+</button>
+</div>
+</div>
+</header>
+<main class="max-w-2xl mx-auto px-6 pt-6">
+<!-- Prominent Search Bar -->
+<div class="relative mb-8">
+<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-on-surface-variant/60" data-icon="search">search</span>
+</div>
+<input class="w-full bg-surface-container-high border-none rounded-full py-4 pl-12 pr-6 text-on-surface placeholder-on-surface-variant/40 focus:ring-2 focus:ring-primary/30 transition-all" placeholder="Search for movies, actors, moods..." type="text"/>
+</div>
+<!-- Genre Tags Horizontal Scroll -->
+<div class="flex overflow-x-auto gap-3 mb-10 hide-scrollbar -mx-6 px-6">
+<button class="flex-shrink-0 px-6 py-2 rounded-full bg-primary text-on-primary font-medium text-sm">All</button>
+<button class="flex-shrink-0 px-6 py-2 rounded-full bg-surface-container-highest text-on-surface-variant font-medium text-sm hover:bg-surface-variant transition-colors">Cyberpunk</button>
+<button class="flex-shrink-0 px-6 py-2 rounded-full bg-surface-container-highest text-on-surface-variant font-medium text-sm hover:bg-surface-variant transition-colors">Neo-Noir</button>
+<button class="flex-shrink-0 px-6 py-2 rounded-full bg-surface-container-highest text-on-surface-variant font-medium text-sm hover:bg-surface-variant transition-colors">Psychological</button>
+<button class="flex-shrink-0 px-6 py-2 rounded-full bg-surface-container-highest text-on-surface-variant font-medium text-sm hover:bg-surface-variant transition-colors">Space Opera</button>
+<button class="flex-shrink-0 px-6 py-2 rounded-full bg-surface-container-highest text-on-surface-variant font-medium text-sm hover:bg-surface-variant transition-colors">Retro-Future</button>
+</div>
+<!-- Section 1: Late Night Thrills -->
+<section class="mb-12">
+<div class="flex items-center justify-between mb-6">
+<h2 class="font-headline text-2xl font-semibold text-on-surface">Late Night Thrills</h2>
+<span class="text-primary text-sm font-medium">See All</span>
+</div>
+<div class="masonry-grid">
+<!-- Poster 1 -->
+<div class="masonry-item relative group rounded-lg overflow-hidden bg-surface-container shadow-2xl">
+<img alt="Dark cinematic movie poster" class="w-full object-cover rounded-lg group-hover:scale-105 transition-transform duration-500" data-alt="Cinematic movie poster with moody neon lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDayhRNsfMRQpE2mfI3yecVRvrifRWtmuw-RYSZ9-nifo1gDar4qCuCeODLzJ7UBpNSlqLF5PeI7Gkg9GSi2R8-4Ylq_tc5WyNoLFEZiLCnbMgOTZEEw7ACkHzl3F7nT-n_Q_1zZwLvCzXwFwnXN6OC1Hrs4HJ8KHkUAQH1WSkOUoRtubGWEbt6gespkZzA2xpwZR0cql0-H_WIeYORvKafNeVDJEZtulDR3xLulT_35T4nLYxTq2YHdvmmOt9o1BVdaYslWMx-6ME"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
+<div class="absolute bottom-4 left-4 right-4">
+<p class="font-headline text-lg font-bold leading-tight">Neon Pulse</p>
+<p class="text-on-surface-variant text-xs mt-1">Thriller • 2024</p>
+</div>
+</div>
+<!-- Poster 2 -->
+<div class="masonry-item relative group rounded-lg overflow-hidden bg-surface-container shadow-2xl">
+<img alt="Abstract motion blur movie poster" class="w-full object-cover rounded-lg group-hover:scale-105 transition-transform duration-500" data-alt="Abstract cinematic motion blur artwork" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDkt4kkLiPG5d-HLW1w6dh-P92CLbMq0NoVB9d6xuUqHVkRIQSvOAqEcc0EDc8JTDS-wmchGSDWlVLB8ENT3NDM3eZEjujO8fKUvunZKy1VZZUvF2-v-rjX4BzrjjTBJ_pY5l5sl0j8kRT6Wl7Uh7yCC9ryBr7QnAFZ87z7N1J91MQ6Q03VCVqZTSWtxIo0Ssl00ybuzns0iHEnEO7Whr7Lb6pQqA4gEoWTe8FFziJZBUNJ6QElFGBsa7-2Stwpq1mX9gAfhT-m0Mk"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
+<div class="absolute bottom-4 left-4 right-4">
+<p class="font-headline text-lg font-bold leading-tight">Shutter Speed</p>
+<p class="text-on-surface-variant text-xs mt-1">Action • 2023</p>
+</div>
+</div>
+<!-- Poster 3 -->
+<div class="masonry-item relative group rounded-lg overflow-hidden bg-surface-container shadow-2xl">
+<img alt="Dark city street movie poster" class="w-full object-cover rounded-lg group-hover:scale-105 transition-transform duration-500" data-alt="Moody dark urban street cinematic shot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBja80OydzDgQ1FIxPjKXoQvl9cQLX7YDLtpDevEaiQy0RbXTJFnrTJ8fA2t31jnUIzIV5Yqut_E72LSvHnz_ptyQmqHJahuERre2KnX4lyPm1FaBpvJp73A3oSUFgo0DIPxF-RlAkG2CHWCyYFGRsqyNUb4AD_S04Kr5Qg9SMbMPiHILIDfsv4Y7lpG6ZX48n3wIclO9h6un2toeKamMCsb6CmTChxlXIgIF9wU8NWMIdHIR3k9rly30aE6N9_IHmpDgXh8J3dbCQ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
+<div class="absolute bottom-4 left-4 right-4">
+<p class="font-headline text-lg font-bold leading-tight">Rainy Alley</p>
+<p class="text-on-surface-variant text-xs mt-1">Noir • 2024</p>
+</div>
+</div>
+<!-- Poster 4 -->
+<div class="masonry-item relative group rounded-lg overflow-hidden bg-surface-container shadow-2xl">
+<img alt="Modern futuristic poster" class="w-full object-cover rounded-lg group-hover:scale-105 transition-transform duration-500" data-alt="Modern high contrast futuristic movie poster" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyLgciTtUAkpqA3XH8LJdBT4ZuI9JDT5AxyslZHJ6aq7bkkCNiyrx25xOiLyPWXIIDMSd1gjNmDXdiLZ1hcqPujHipEya1WcDAsKRTuHv5Gb7sNRUw-gs0JyEralJSicGR7nJSAzWYuyulQclkVZZ8oMqSDIGwbZfAMSEQ5k9xz0LVXaPZAJYS2m-ZZ_XdhVOlPVZGiTqtIosKW4rmnTmGNXnph6j2HWpcmzTUcq5LeeLNPt0hRxrK3aIc3mUT2dQ0v-oSSUmRJwA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
+<div class="absolute bottom-4 left-4 right-4">
+<p class="font-headline text-lg font-bold leading-tight">Ghost Shell</p>
+<p class="text-on-surface-variant text-xs mt-1">Sci-Fi • 2024</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 2: Sunday Morning Vibes -->
+<section class="mb-12">
+<div class="flex items-center justify-between mb-6">
+<h2 class="font-headline text-2xl font-semibold text-on-surface">Sunday Morning Vibes</h2>
+<span class="text-primary text-sm font-medium">See All</span>
+</div>
+<div class="grid grid-cols-1 gap-6">
+<!-- Editorial Card -->
+<div class="relative h-64 rounded-lg overflow-hidden group">
+<img alt="Soft morning light" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[2000ms]" data-alt="Soft morning light filtering through window" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcPTPuu9G3RqDD8BipCZ_ICujtKmkA1HxvPzW5m0PC6UzgpDO6M-xadIh_tTc4VldxNBRS8Ze56L2zp8yklTkEZ_MMERfPruk1itPOSOWpNriUZTrZP-LRJ0nKa_gFJwswEcr_Z0Pnp4w89mOu-zeCGeq_S1ZCVQkq_E1v5Tj0LU_16WcU7Qnpswp46Ow_gyKDphpHr8zHn_bDlxZlSeF1OsV2ZmmZqxiKqUCnuCwD9h-9BZunywVIXX2OHnozhjau3GxU2coiF2g"/>
+<div class="absolute inset-0 bg-gradient-to-r from-surface-container-lowest via-surface-container-lowest/40 to-transparent"></div>
+<div class="absolute inset-0 flex flex-col justify-center p-8">
+<span class="text-tertiary text-xs font-bold uppercase tracking-widest mb-2">Curated Collection</span>
+<h3 class="font-headline text-3xl font-bold max-w-[200px] leading-tight mb-4 text-white">Quiet Contemplation</h3>
+<button class="w-fit px-6 py-2 rounded-full bg-primary-container text-white font-medium text-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                            Watch Now
+                        </button>
+</div>
+</div>
+<!-- Small Grid for Vibes -->
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-high p-4 rounded-lg flex flex-col items-center text-center">
+<div class="w-12 h-12 rounded-full bg-tertiary/20 flex items-center justify-center mb-3">
+<span class="material-symbols-outlined text-tertiary" data-icon="coffee">coffee</span>
+</div>
+<p class="font-headline font-bold text-on-surface">Feel Good</p>
+<p class="text-on-surface-variant text-xs mt-1">12 Movies</p>
+</div>
+<div class="bg-surface-container-high p-4 rounded-lg flex flex-col items-center text-center">
+<div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-3">
+<span class="material-symbols-outlined text-primary" data-icon="auto_awesome">auto_awesome</span>
+</div>
+<p class="font-headline font-bold text-on-surface">Indie Gold</p>
+<p class="text-on-surface-variant text-xs mt-1">8 Movies</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-surface-container-low/70 backdrop-blur-2xl border border-outline-variant/20 rounded-full px-8 py-4 z-50 shadow-2xl flex justify-between items-center">
+<a class="flex flex-col items-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="play_circle">play_circle</span>
+<span class="text-[10px] font-medium text-on-surface-variant group-hover:text-primary tracking-wide">Feed</span>
+</a>
+<a class="flex flex-col items-center gap-1 relative" href="#">
+<div class="absolute -top-1 w-1 h-1 bg-primary rounded-full shadow-[0_0_8px_#ffb1c3]"></div>
+<span class="material-symbols-outlined text-primary" data-icon="explore" style="font-variation-settings: 'FILL' 1;">explore</span>
+<span class="text-[10px] font-medium text-primary tracking-wide">Discover</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" data-icon="person">person</span>
+<span class="text-[10px] font-medium text-on-surface-variant group-hover:text-primary tracking-wide">Profile</span>
+</a>
+</nav>
+<!-- Floating Reaction Bar (Hybrid Contextual) -->
+<div class="fixed right-6 bottom-32 flex flex-col gap-4 z-40">
+<div class="flex flex-col items-center gap-1">
+<button class="w-12 h-12 rounded-full bg-surface-container-highest/80 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-primary transition-colors border border-outline-variant/10">
+<span class="material-symbols-outlined" data-icon="favorite">favorite</span>
+</button>
+<span class="text-[10px] text-on-surface-variant font-medium">Like</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<button class="w-12 h-12 rounded-full bg-surface-container-highest/80 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-primary transition-colors border border-outline-variant/10">
+<span class="material-symbols-outlined" data-icon="add_to_photos">add_to_photos</span>
+</button>
+<span class="text-[10px] text-on-surface-variant font-medium">Save</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<button class="w-12 h-12 rounded-full bg-surface-container-highest/80 backdrop-blur-md flex items-center justify-center text-on-surface hover:text-primary transition-colors border border-outline-variant/10">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+</button>
+<span class="text-[10px] text-on-surface-variant font-medium">Share</span>
+</div>
+</div>
+</body></html>
