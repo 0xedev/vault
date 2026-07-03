@@ -4,9 +4,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
-import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
 import ShareListingModal from "@/components/ShareListingModal";
+import AgreementModal from "@/components/AgreementModal";
 import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
 import { useWallet } from "@/components/WalletProvider";
 import {
@@ -75,9 +75,9 @@ export default function XAccountsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [listingSuccess, setListingSuccess] = useState<ListingSuccessShare | null>(null);
   const [buying, setBuying] = useState("");
-  const [offerListing, setOfferListing] = useState<XAccount | null>(null);
   const [messageListing, setMessageListing] = useState<XAccount | null>(null);
   const [shareListing, setShareListing] = useState<XAccount | null>(null);
+  const [pendingBuy, setPendingBuy] = useState<XAccount | null>(null);
 
   const submitListing = async () => {
     if (!address) return;
@@ -133,7 +133,7 @@ export default function XAccountsPage() {
       const listingId = String(json.data?.id || contractListingId || Date.now());
       setListingSuccess({
         title: normalized,
-        text: `${normalized} — ${Number(price).toLocaleString("en-US")} USDC X account listing on Vault`,
+        text: `${normalized} — ${Number(price).toLocaleString("en-US")} USDC X account listing on Baseshire Hethaway`,
         url: `${window.location.origin}/x?id=${encodeURIComponent(listingId)}`,
       });
       setHandle("");
@@ -519,7 +519,7 @@ export default function XAccountsPage() {
                       marginTop: 4,
                     }}
                   >
-                    <span className="meta">{a.id}</span>
+                    <span className="meta">Asking</span>
                     <span className="mono" style={{ fontSize: 16 }}>
                       {a.price}{" "}
                       <span style={{ color: "var(--ink-3)", fontSize: 12 }}>
@@ -530,28 +530,21 @@ export default function XAccountsPage() {
                   <div className="market-card-actions">
                     <button
                       className="btn primary"
-                      onClick={() => fundEscrow(a)}
+                      onClick={() => setPendingBuy(a)}
                       disabled={buying === a.id || isOwnListing}
                     >
                       {buying === a.id
                         ? "Funding..."
                         : isOwnListing
                           ? "Your listing"
-                          : "Buy now"}
-                    </button>
-                    <button
-                      className="btn"
-                      onClick={() => setOfferListing(a)}
-                      disabled={isOwnListing}
-                    >
-                      Propose offer
+                          : "Buy"}
                     </button>
                     <button
                       className="btn ghost"
                       onClick={() => messageSeller(a)}
                       disabled={isOwnListing}
                     >
-                      Msg seller
+                      Negotiate with seller
                     </button>
                     <button
                       type="button"
@@ -567,18 +560,15 @@ export default function XAccountsPage() {
           </div>
         </>
       )}
-      {offerListing && (
-        <SubmitDealOfferModal
-          listing={{
-            id: offerListing.id,
-            title: offerListing.handle,
-            price: offerListing.price,
-            sellerAddress: offerListing.sellerAddress,
-            contractListingId: offerListing.contractListingId,
-            contractAddress: offerListing.contractAddress,
-            chainId: offerListing.chainId,
+      {pendingBuy && (
+        <AgreementModal
+          variant="buyer-buy"
+          onCancel={() => setPendingBuy(null)}
+          onConfirm={() => {
+            const account = pendingBuy;
+            setPendingBuy(null);
+            void fundEscrow(account);
           }}
-          onClose={() => setOfferListing(null)}
         />
       )}
       {messageListing && (
@@ -594,7 +584,7 @@ export default function XAccountsPage() {
       {shareListing && (
         <ShareListingModal
           title={shareListing.handle}
-          text={`${shareListing.handle} — ${fmtUSDC(shareListing.price)} USDC X account listing on Vault`}
+          text={`${shareListing.handle} — ${fmtUSDC(shareListing.price)} USDC X account listing on Baseshire Hethaway`}
           url={shareUrl(shareListing)}
           onClose={() => setShareListing(null)}
         />

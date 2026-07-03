@@ -49,7 +49,7 @@ async function sendEmail(
   if (!client) return;
 
   await client.emails.send({
-    from: "Vault <deals@baseshirehethaway.com>",
+    from: "Baseshire Hethaway <deals@baseshirehethaway.com>",
     to,
     subject: `New message in Deal Room — ${escrowId}`,
     html: `
@@ -64,7 +64,7 @@ async function sendEmail(
           Open Deal Room
         </a>
         <p style="color:#94a3b8;font-size:12px;margin-top:24px">
-          Reply directly in the app. To stop receiving emails, update your notification settings in Vault.
+          Reply directly in the app. To stop receiving emails, update your notification settings in Baseshire Hethaway.
         </p>
       </div>
     `,

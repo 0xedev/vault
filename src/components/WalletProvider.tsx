@@ -197,7 +197,7 @@ async function farcasterSignIn(
         { status: sessionRes.status },
       );
       console.warn(
-        "Vault Farcaster sign-in failed:",
+        "Baseshire Hethaway Farcaster sign-in failed:",
         json.error || sessionRes.statusText,
       );
       return null;
@@ -206,7 +206,7 @@ async function farcasterSignIn(
     return sessionRes.json();
   } catch (err) {
     logClientError("wallet:farcasterSignIn:exception", err);
-    console.warn("Vault Farcaster sign-in failed:", err);
+    console.warn("Baseshire Hethaway Farcaster sign-in failed:", err);
     return null;
   }
 }
@@ -225,7 +225,7 @@ async function linkFarcasterWallet(
     const message = new SiweMessage({
       domain: window.location.host,
       address: siweAddr,
-      statement: "Link this wallet to your Vault Farcaster session.",
+      statement: "Link this wallet to your Baseshire Hethaway Farcaster session.",
       uri: window.location.origin,
       version: "1",
       chainId,
@@ -355,7 +355,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
               chainId: wallet.chainId,
             });
             if (session) {
-              await linkFarcasterWallet(wallet.address, wallet.chainId, wallet.provider);
               setSessionAddress(session.address);
               setRole(session.role === "admin" ? "admin" : "user");
             }

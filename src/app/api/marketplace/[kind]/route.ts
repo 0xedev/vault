@@ -193,7 +193,7 @@ export async function POST(
   const db = auth.db;
   const activeContract = await activeListingContractAddress(dbKind);
   if (!parsed.data.contractAddress || parsed.data.contractAddress.toLowerCase() !== activeContract) {
-    return badRequest("Listing must be created against the active Vault escrow contract.");
+    return badRequest("Listing must be created against the active Baseshire Hethaway escrow contract.");
   }
   const sellerAddress = actorAddressForRequest(auth.user, parsed.data.sellerAddress);
   if (!isEvmAddress(sellerAddress)) {

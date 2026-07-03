@@ -287,7 +287,7 @@ export async function GET(request: Request) {
                     color: "#0648a8",
                   }}
                 >
-                  vault marketplace
+                  Baseshire Hethaway marketplace
                 </div>
               )}
             </div>

@@ -74,7 +74,7 @@ export default function ListXModal({ onClose }: { onClose: () => void }) {
       const listingId = String(json.data?.id || contractListingId || Date.now());
       setSuccess({
         title: normalized,
-        text: `${normalized} — ${Number(price).toLocaleString("en-US")} USDC X account listing on Vault`,
+        text: `${normalized} — ${Number(price).toLocaleString("en-US")} USDC X account listing on Baseshire Hethaway`,
         url: `${window.location.origin}/x?id=${encodeURIComponent(listingId)}`,
       });
       setHandle("");

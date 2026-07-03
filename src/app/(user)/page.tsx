@@ -168,7 +168,7 @@ function DashboardPreview({ loans }: { loans: Loan[] }) {
                   className="mono"
                   style={{ fontSize: 11, color: "var(--ink-4)" }}
                 >
-                  {l.id} · {l.term}d · {l.apr}% APR
+                  {l.term}d · {l.apr}% APR
                 </span>
               </div>
             </div>

@@ -132,7 +132,7 @@ export default function ListMiniAppModal({ onClose }: Props) {
       const listingId = String(json.data?.id || contractListingId || Date.now());
       setSuccess({
         title: name,
-        text: `${name} — ${Number(price).toLocaleString("en-US")} USDC Mini App listing on Vault`,
+        text: `${name} — ${Number(price).toLocaleString("en-US")} USDC Mini App listing on Baseshire Hethaway`,
         url: `${window.location.origin}/miniapps?id=${encodeURIComponent(listingId)}`,
       });
     } catch (err) {

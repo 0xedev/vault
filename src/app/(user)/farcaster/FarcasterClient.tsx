@@ -5,10 +5,10 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
 import ListFidModal from "@/components/ListFidModal";
-import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
 import ShareListingModal from "@/components/ShareListingModal";
 import BackButton from "@/components/BackButton";
+import AgreementModal from "@/components/AgreementModal";
 import type { FarcasterAccount } from "@/lib/data";
 import { fmtCompact, fmtFarcasterAccount, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
@@ -39,15 +39,13 @@ export default function FarcasterPage() {
   const [filter, setFilter] = useState("all");
   const [listing, setListing] = useState(false);
   const [buying, setBuying] = useState("");
-  const [offerListing, setOfferListing] = useState<FarcasterAccount | null>(
-    null,
-  );
   const [messageListing, setMessageListing] = useState<FarcasterAccount | null>(
     null,
   );
   const [shareListing, setShareListing] = useState<FarcasterAccount | null>(
     null,
   );
+  const [pendingBuy, setPendingBuy] = useState<FarcasterAccount | null>(null);
 
   useEffect(() => {
     fetch("/api/marketplace/farcaster")
@@ -363,28 +361,21 @@ export default function FarcasterPage() {
                   <div className="market-card-actions">
                     <button
                       className="btn primary"
-                      onClick={() => fundEscrow(a)}
+                      onClick={() => setPendingBuy(a)}
                       disabled={buying === a.id || isOwnListing}
                     >
                       {buying === a.id
                         ? "Funding..."
                         : isOwnListing
                           ? "Your listing"
-                          : "Buy now"}
-                    </button>
-                    <button
-                      className="btn"
-                      onClick={() => setOfferListing(a)}
-                      disabled={isOwnListing}
-                    >
-                      Propose offer
+                          : "Buy"}
                     </button>
                     <button
                       className="btn ghost"
                       onClick={() => messageSeller(a)}
                       disabled={isOwnListing}
                     >
-                      Msg seller
+                      Negotiate with seller
                     </button>
                     <button
                       type="button"
@@ -400,18 +391,15 @@ export default function FarcasterPage() {
           </div>
         </>
       )}
-      {offerListing && (
-        <SubmitDealOfferModal
-          listing={{
-            id: offerListing.id,
-            title: fmtFarcasterAccount(offerListing),
-            price: offerListing.price,
-            sellerAddress: offerListing.sellerAddress,
-            contractListingId: offerListing.contractListingId,
-            contractAddress: offerListing.contractAddress,
-            chainId: offerListing.chainId,
+      {pendingBuy && (
+        <AgreementModal
+          variant="buyer-buy"
+          onCancel={() => setPendingBuy(null)}
+          onConfirm={() => {
+            const account = pendingBuy;
+            setPendingBuy(null);
+            void fundEscrow(account);
           }}
-          onClose={() => setOfferListing(null)}
         />
       )}
       {messageListing && (
@@ -427,7 +415,7 @@ export default function FarcasterPage() {
       {shareListing && (
         <ShareListingModal
           title={fmtFarcasterAccount(shareListing)}
-          text={`${fmtFarcasterAccount(shareListing)} — ${fmtUSDC(shareListing.price)} USDC Farcaster listing on Vault`}
+          text={`${fmtFarcasterAccount(shareListing)} — ${fmtUSDC(shareListing.price)} USDC Farcaster listing on Baseshire Hethaway`}
           url={shareUrl(shareListing)}
           onClose={() => setShareListing(null)}
         />

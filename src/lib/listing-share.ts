@@ -47,13 +47,13 @@ const configs: Record<ListingShareKind, ListingKindConfig> = {
     marketplace: "nft_loan",
     routePath: "/detail",
     fallbackTitle: "NFT loans on Baseshire Hethaway",
-    fallbackDescription: "Browse NFT-backed loan listings on Vault.",
+    fallbackDescription: "Browse NFT-backed loan listings on Baseshire Hethaway.",
   },
   miniapps: {
     marketplace: "mini_app",
     routePath: "/miniapps",
     fallbackTitle: "Mini Apps for sale on Baseshire Hethaway",
-    fallbackDescription: "Browse Mini App and on-chain project listings on Vault.",
+    fallbackDescription: "Browse Mini App and on-chain project listings on Baseshire Hethaway.",
   },
   x: {
     marketplace: "x_account",
@@ -77,7 +77,7 @@ const configs: Record<ListingShareKind, ListingKindConfig> = {
     marketplace: "bundle",
     routePath: "/market",
     fallbackTitle: "Bundled listings on Baseshire Hethaway",
-    fallbackDescription: "Browse bundled digital asset listings on Vault.",
+    fallbackDescription: "Browse bundled digital asset listings on Baseshire Hethaway.",
   },
 };
 

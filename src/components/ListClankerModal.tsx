@@ -191,7 +191,7 @@ export default function ListClankerModal({ onClose, onListed }: Props) {
       onListed();
       setSuccess({
         title: `${name} (${symbol})`,
-        text: `${name} (${symbol}) — ${Number(price).toLocaleString("en-US")} USDC Clanker token listing on Vault`,
+        text: `${name} (${symbol}) — ${Number(price).toLocaleString("en-US")} USDC Clanker token listing on Baseshire Hethaway`,
         url: `${window.location.origin}/clanker?id=${encodeURIComponent(listingId)}`,
       });
     } catch (err) {

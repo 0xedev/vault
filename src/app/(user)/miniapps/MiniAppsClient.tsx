@@ -4,9 +4,9 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
-import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
 import ShareListingModal from "@/components/ShareListingModal";
+import AgreementModal from "@/components/AgreementModal";
 import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
 import { appColor, fmtCompact, fmtUSDC } from "@/lib/utils";
 import { useWallet } from "@/components/WalletProvider";
@@ -133,7 +133,7 @@ function ListMiniAppModal({ onClose }: { onClose: () => void }) {
       const listingId = String(json.data?.id || contractListingId || Date.now());
       setSuccess({
         title: name,
-        text: `${name} — ${Number(price).toLocaleString("en-US")} USDC Mini App listing on Vault`,
+        text: `${name} — ${Number(price).toLocaleString("en-US")} USDC Mini App listing on Baseshire Hethaway`,
         url: `${window.location.origin}/miniapps?id=${encodeURIComponent(listingId)}`,
       });
     } catch (err) {
@@ -286,9 +286,9 @@ export default function MiniAppsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [buying, setBuying] = useState("");
-  const [offerListing, setOfferListing] = useState<MiniApp | null>(null);
   const [messageListing, setMessageListing] = useState<MiniApp | null>(null);
   const [shareListing, setShareListing] = useState<MiniApp | null>(null);
+  const [pendingBuy, setPendingBuy] = useState<MiniApp | null>(null);
   const [filter, setFilter] = useState("all");
   const [sort, setSort] = useState("dau");
 
@@ -425,7 +425,7 @@ export default function MiniAppsPage() {
                 )}
                 <span className="pill" style={{ position: "absolute", top: 10, left: 10, background: "rgba(0,0,0,0.45)", borderColor: "transparent" }}><span className="pdot" />{a.kind}</span>
               </div>
-              <div className="row between"><span className="nm trunc">{a.name}</span><span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{a.id}</span></div>
+              <div className="row between"><span className="nm trunc">{a.name}</span><span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{a.kind}</span></div>
               <div className="row between">
                 <div className="col" style={{ gap: 1 }}><span className="meta">DAU</span><span className="amt mono" style={{ fontSize: 14 }}>{fmtCompact(a.dau)}</span></div>
                 <div className="col" style={{ gap: 1 }}><span className="meta">MRR</span><span className="amt mono" style={{ fontSize: 14 }}>{fmtUSDC(a.mrr)} USDC</span></div>
@@ -436,14 +436,11 @@ export default function MiniAppsPage() {
                 <span className="mono" style={{ fontSize: 16 }}>{fmtUSDC(a.price)} <span style={{ color: "var(--ink-3)", fontSize: 12 }}>USDC</span></span>
               </div>
               <div className="market-card-actions">
-                <button className="btn primary" onClick={() => fundEscrow(a)} disabled={buying === a.id || isOwnListing}>
-                  {buying === a.id ? "Funding..." : isOwnListing ? "Your listing" : "Buy now"}
-                </button>
-                <button className="btn" onClick={() => setOfferListing(a)} disabled={isOwnListing}>
-                  Propose offer
+                <button className="btn primary" onClick={() => setPendingBuy(a)} disabled={buying === a.id || isOwnListing}>
+                  {buying === a.id ? "Funding..." : isOwnListing ? "Your listing" : "Buy"}
                 </button>
                 <button className="btn ghost" onClick={() => messageSeller(a)} disabled={isOwnListing}>
-                  Msg seller
+                  Negotiate with seller
                 </button>
                 <button type="button" className="btn ghost" onClick={() => setShareListing(a)}>
                   <Icon.share /> Share
@@ -455,18 +452,15 @@ export default function MiniAppsPage() {
         </div>
         </>
       )}
-      {offerListing && (
-        <SubmitDealOfferModal
-          listing={{
-            id: offerListing.id,
-            title: offerListing.name,
-            price: offerListing.price,
-            sellerAddress: offerListing.sellerAddress,
-            contractListingId: offerListing.contractListingId,
-            contractAddress: offerListing.contractAddress,
-            chainId: offerListing.chainId,
+      {pendingBuy && (
+        <AgreementModal
+          variant="buyer-buy"
+          onCancel={() => setPendingBuy(null)}
+          onConfirm={() => {
+            const app = pendingBuy;
+            setPendingBuy(null);
+            void fundEscrow(app);
           }}
-          onClose={() => setOfferListing(null)}
         />
       )}
       {messageListing && (
@@ -482,7 +476,7 @@ export default function MiniAppsPage() {
       {shareListing && (
         <ShareListingModal
           title={shareListing.name}
-          text={`${shareListing.name} — ${fmtUSDC(shareListing.price)} USDC Mini App listing on Vault`}
+          text={`${shareListing.name} — ${fmtUSDC(shareListing.price)} USDC Mini App listing on Baseshire Hethaway`}
           url={shareUrl(shareListing)}
           onClose={() => setShareListing(null)}
         />

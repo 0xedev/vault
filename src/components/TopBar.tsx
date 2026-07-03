@@ -23,6 +23,7 @@ const topNavItems: TopNavItem[] = [
   { href: "/farcaster", label: "Farcaster", match: "/farcaster" },
   { href: "/clanker", label: "Clanker", match: "/clanker" },
   { href: "/market?tab=bundles", label: "Bundles", match: "/market", tab: "bundles" },
+  { href: "/messages", label: "Messages", match: "/messages" },
   { href: "/deals", label: "Profile", match: "/deals" },
 ];
 
