@@ -100,7 +100,6 @@ export function ListingSuccessModal({ share, onClose }: Props) {
 
           <div className="share-preview listing-success-preview">
             <strong>{share.text}</strong>
-            <span>{share.url}</span>
           </div>
 
           <button type="button" className="btn primary listing-success-primary" onClick={viewListing}>
@@ -109,7 +108,7 @@ export function ListingSuccessModal({ share, onClose }: Props) {
 
           <div className="listing-success-share-actions">
             <button type="button" className="btn" onClick={composeCast}>
-              <Icon.cast /> Share to Farcaster
+              <Icon.farcaster /> Share to Farcaster
             </button>
             <button type="button" className="btn" onClick={copyLink}>
               <Icon.link /> Copy link

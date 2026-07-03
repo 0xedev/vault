@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import React, { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
@@ -207,11 +207,13 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
 
 function LoanDetailContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const loanId = searchParams.get("id");
   const [loan, setLoan] = useState<LoanRecord | null>(null);
   const [offers, setOffers] = useState<OfferRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [tab, setTab] = useState("offers");
   const [modal, setModal] = useState<string | null>(null);
   const [offerAction, setOfferAction] = useState("");
@@ -326,12 +328,14 @@ function LoanDetailContent() {
       .catch(() => setOffers([]));
   }, [loan?.id]);
 
-  // Fetch on-chain deadline when loan has contractListingId
+  // Fetch repayment deadline only after a loan is funded.
   useEffect(() => {
-    if (!loan?.contractListingId || loan.status === "repaid" || loan.status === "default") return;
+    if (!loan?.contractListingId || loan.status !== "funded") {
+      return;
+    }
     readDeadline(BigInt(loan.contractListingId))
       .then(d => setDeadline(Number(d) * 1000))
-      .catch(() => {});
+      .catch(() => setDeadline(null));
   }, [loan?.contractListingId, loan?.status]);
 
   // Fetch on-chain platform fee when loan has contractListingId
@@ -475,17 +479,27 @@ function LoanDetailContent() {
   const cancelListingAction = async () => {
     if (!address || !loan) return;
     setRepaying(true);
+    setError("");
+    setNotice("");
     try {
       if (!l.contractListingId) throw new Error("Listing is pending chain sync.");
       const cancelHash = await writeCancelListing(address as Address, BigInt(l.contractListingId));
       await waitForTx(cancelHash);
-      fetch(`/api/listings/${loan.id}`, {
+      const res = await fetch(`/api/listings/${loan.id}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "cancelled", txHash: cancelHash, actorAddress, action: "cancel_listing" }),
-      }).catch(() => {});
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        if (!loan.id.startsWith("C-")) {
+          throw new Error(json.error || "Listing cancelled on-chain, but the app could not update its local status.");
+        }
+      }
       setLoan((prev) => prev ? { ...prev, status: "cancelled" as Loan["status"] } : prev);
+      setNotice("Listing cancelled successfully. Returning to the market...");
+      setTimeout(() => router.push("/market?tab=nft"), 1200);
     } catch (err) {
       setError(parseContractError(err));
     } finally {
@@ -542,15 +556,17 @@ function LoanDetailContent() {
   const isFunded = l.status === "funded";
   const isRepaid = l.status === "repaid";
   const isDefaulted = l.status === "default";
+  const isCancelled = l.status === "cancelled";
 
-  const deadlinePassed = deadline !== null && now > 0 && now >= deadline;
-  const msLeft = deadline !== null && now > 0 ? Math.max(0, deadline - now) : 0;
+  const hasActiveDeadline = isFunded && deadline !== null;
+  const deadlinePassed = hasActiveDeadline && now > 0 && now >= deadline;
+  const msLeft = hasActiveDeadline && now > 0 ? Math.max(0, deadline - now) : 0;
   const daysLeft = Math.floor(msLeft / 86400000);
   const hoursLeft = Math.floor((msLeft % 86400000) / 3600000);
   const minsLeft = Math.floor((msLeft % 3600000) / 60000);
   const secsLeft = Math.floor((msLeft % 60000) / 1000);
   const formatDate = (ts: number) => new Date(ts).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  const elapsedDays = deadline !== null && now > 0 ? Math.max(0, (now - (deadline - l.term * 86400000)) / 86400000) : 0;
+  const elapsedDays = hasActiveDeadline && now > 0 ? Math.max(0, (now - (deadline - l.term * 86400000)) / 86400000) : 0;
   const proRatedInterest = l.amt * (l.apr / 100) * Math.min(elapsedDays, l.term) / 365;
   const fullInterest = l.amt * (l.apr / 100) * l.term / 365;
   const repaymentDue = deadlinePassed ? l.amt + fullInterest : l.amt + proRatedInterest;
@@ -561,6 +577,7 @@ function LoanDetailContent() {
         <Link href="/market" className="btn ghost sm">← Back</Link>
         <span>NFT Loans</span><span>/</span><span className="mono" style={{ color: "var(--ink-2)" }}>{l.id}</span>
       </div>
+      {notice && <div className="success-banner" style={{ marginBottom: 14 }}>{notice}</div>}
 
       <div className="grid" style={{ gridTemplateColumns: "1.2fr 1fr", gap: 28 }}>
         <div className="col" style={{ gap: 18 }}>
@@ -678,10 +695,10 @@ function LoanDetailContent() {
             <div className="kv"><span className="k">Escrow</span><span className="v" style={{ color: "var(--accent)" }}>baseshire.eth · EOA</span></div>
 
             <div className="row" style={{ gap: 8, marginTop: 18 }}>
-              {!isFunded && !isBorrower && (
+              {!isFunded && !isCancelled && !isBorrower && (
                 <button className="btn primary lg" style={{ flex: 1 }} onClick={() => { setMatchOffer(null); setModal("counter"); }}>Submit offer</button>
               )}
-              {!isFunded && isBorrower && (
+              {!isFunded && !isCancelled && isBorrower && (
                 <button className="btn danger lg" style={{ flex: 1 }} onClick={cancelListingAction} disabled={repaying}>
                   {repaying ? "Cancelling…" : "Cancel listing"}
                 </button>
@@ -714,8 +731,9 @@ function LoanDetailContent() {
               )}
             </div>
             <div className="muted-2" style={{ fontSize: 11.5, marginTop: 10, textAlign: "center" }}>
-              {!isFunded
-                ? `NFT is locked in escrow. Borrower receives ${fmtUSDC(l.amt)} USDC only when they accept an offer.`
+              {isCancelled ? "Listing cancelled. The NFT has been returned to the borrower."
+                : !isFunded
+                  ? `NFT is locked in escrow. Borrower receives ${fmtUSDC(l.amt)} USDC only when they accept an offer.`
                 : isRepaid ? "Loan repaid. NFT returned to borrower."
                 : isDefaulted ? "Loan defaulted. NFT claimed by lender."
                 : deadlinePassed && isBorrower
@@ -730,24 +748,28 @@ function LoanDetailContent() {
 
           <div className="card" style={{ padding: 22 }}>
             <div className="row between" style={{ marginBottom: 12 }}>
-              <span className="eyebrow">{deadlinePassed ? "Default countdown — OVERDUE" : isRepaid ? "Loan closed" : isDefaulted ? "Loan closed" : "Default countdown"}</span>
+              <span className="eyebrow">{isCancelled ? "Listing closed" : deadlinePassed ? "Default countdown — OVERDUE" : isRepaid ? "Loan closed" : isDefaulted ? "Loan closed" : isFunded ? "Default countdown" : "Awaiting funding"}</span>
               {deadlinePassed ? (
                 <span className="pill danger"><span className="pdot" />Overdue</span>
+              ) : isCancelled ? (
+                <span className="pill"><span className="pdot" />Cancelled</span>
               ) : isRepaid ? (
                 <span className="pill success"><span className="pdot" />Repaid</span>
               ) : isDefaulted ? (
                 <span className="pill danger"><span className="pdot" />Defaulted</span>
-              ) : deadline !== null ? (
+              ) : hasActiveDeadline ? (
                 <span className="pill warn"><span className="pdot" />{daysLeft}d {hoursLeft}h left</span>
               ) : (
-                <span className="pill warn"><span className="pdot" />{l.term} days</span>
+                <span className="pill"><span className="pdot" />Not started</span>
               )}
             </div>
-            {isRepaid ? (
+            {isCancelled ? (
+              <div className="display-num" style={{ fontSize: 38, color: "var(--ink-3)" }}>Cancelled</div>
+            ) : isRepaid ? (
               <div className="display-num" style={{ fontSize: 38, color: "var(--go)" }}>Repaid ✓</div>
             ) : isDefaulted ? (
               <div className="display-num" style={{ fontSize: 38, color: "var(--risk)" }}>Defaulted</div>
-            ) : deadline !== null ? (
+            ) : hasActiveDeadline ? (
               <div className="display-num" style={{ fontSize: 38, color: deadlinePassed ? "var(--risk)" : "var(--ink)" }}>
                 {deadlinePassed ? "-" : ""}{daysLeft}<span className="muted-2" style={{ fontSize: 18 }}>d</span>{" "}
                 {hoursLeft}<span className="muted-2" style={{ fontSize: 18 }}>h</span>{" "}
@@ -755,18 +777,22 @@ function LoanDetailContent() {
                 <span className="muted-2" style={{ fontSize: 14 }}>{secsLeft}s</span>
               </div>
             ) : (
-              <div className="display-num" style={{ fontSize: 38, color: "var(--ink)" }}>{l.term}<span className="muted-2" style={{ fontSize: 18 }}>d</span></div>
+              <div className="display-num" style={{ fontSize: 38, color: "var(--ink)" }}>Not started</div>
             )}
             <hr className="hr" style={{ margin: "16px 0" }} />
             <div className="tline">
               <div className="ev done"><div className="ttl">NFT locked in escrow</div><div className="sub">{l.contractListingId ? "On-chain synced" : "Pending sync"}</div></div>
-              <div className="ev done"><div className="ttl">Loan funded · {fmtUSDC(l.amt)} USDC to borrower</div><div className="sub">{isFunded || isRepaid || isDefaulted ? "Funded" : "Awaiting lender"}</div></div>
-              {deadlinePassed ? (
+              <div className={isFunded || isRepaid || isDefaulted ? "ev done" : "ev"}><div className="ttl">Loan funded · {fmtUSDC(l.amt)} USDC to borrower</div><div className="sub">{isCancelled ? "Cancelled before funding" : isFunded || isRepaid || isDefaulted ? "Funded" : "Awaiting lender"}</div></div>
+              {isCancelled ? (
+                <div className="ev now"><div className="ttl">Listing cancelled</div><div className="sub">NFT returned to borrower</div></div>
+              ) : deadlinePassed ? (
                 <div className="ev now" style={{ color: "var(--risk)" }}><div className="ttl">Deadline passed</div><div className="sub">{deadline ? formatDate(deadline) : ""}</div></div>
+              ) : !isFunded ? (
+                <div className="ev now"><div className="ttl">Waiting for lender offer</div><div className="sub">Countdown starts after funding</div></div>
               ) : (
                 <div className="ev now"><div className="ttl">Active — accruing interest</div><div className="sub">{proRatedInterest.toFixed(3)} USDC accrued · {l.apr}% APR</div></div>
               )}
-              <div className="ev"><div className="ttl">Repayment due</div><div className="sub">{deadline !== null ? formatDate(deadline) : `${l.term} days`}</div></div>
+              <div className="ev"><div className="ttl">Repayment due</div><div className="sub">{hasActiveDeadline ? formatDate(deadline) : `Starts when funded · ${l.term} days`}</div></div>
             </div>
           </div>
         </div>

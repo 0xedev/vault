@@ -133,6 +133,13 @@ function statusForDealListing(status: string) {
   return status || "active";
 }
 
+function marketplaceForDealKind(kind: string, existing?: ListingRow) {
+  const existingMarketplace = String(existing?.marketplace || "");
+  if (existingMarketplace) return existingMarketplace;
+  if (["mini_app", "x_account", "farcaster", "clanker", "bundle", "otc"].includes(kind)) return kind;
+  return "otc";
+}
+
 function rowKey(row: ListingRow) {
   const contract = String(row.contract_address || "").toLowerCase();
   const listingId = String(row.contract_listing_id || "");
@@ -179,7 +186,7 @@ export function nftListingRowFromSubgraph(listing: SubgraphNftListing, existing?
 }
 
 export function dealListingRowFromSubgraph(listing: SubgraphDealListing, existing?: ListingRow): ListingRow {
-  const marketplace = listing.kind === "mini_app" ? "mini_app" : String(existing?.marketplace || "otc");
+  const marketplace = marketplaceForDealKind(listing.kind, existing);
   return {
     ...(existing || {}),
     id: existing?.id || `D-${listing.dealId}`,

@@ -23,7 +23,6 @@ import {
   writeAcceptSignedLoanOffer,
   writeCancelDeal,
   writeCancelListing,
-  writeCancelMiniApp,
   writeCancelDealOfferNonce,
   writeCancelNftOfferNonce,
   readPlatformFeeBps,
@@ -929,7 +928,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
     clankerResult,
     bundlesResult,
   ] = await Promise.allSettled([
-    fetch(`/api/listings?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true`, { credentials: "include" }).then((r) => r.json()),
+    fetch(`/api/listings?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true&includeCancelled=true`, { credentials: "include" }).then((r) => r.json()),
     fetch(`/api/marketplace/mini-apps?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true`, { credentials: "include" }).then((r) => r.json()),
     fetch(`/api/marketplace/x-accounts?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true`, { credentials: "include" }).then((r) => r.json()),
     fetch(`/api/marketplace/farcaster?sellerAddress=${encodeURIComponent(address)}&includeOffchain=true`, { credentials: "include" }).then((r) => r.json()),
@@ -1095,6 +1094,7 @@ export default function DealsPage() {
   const [dealDetail, setDealDetail] = useState<DealDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [profileListings, setProfileListings] = useState<ProfileListing[]>([]);
+  const [profileListingFilter, setProfileListingFilter] = useState<"active" | "cancelled" | "all">("active");
   const [profileMessageListing, setProfileMessageListing] = useState<ProfileListing | null>(null);
   const [profileShareListing, setProfileShareListing] = useState<ProfileListing | null>(null);
   const [profileMessageBuyer, setProfileMessageBuyer] = useState("");
@@ -1186,7 +1186,13 @@ export default function DealsPage() {
   const needsAct   = escrows.filter(e => e.action !== "On schedule" && e.action !== "None");
   const totalLocked = active.reduce((s, e) => s + e.amount, 0);
   const completed   = escrows.filter(e => e.stage === "Released").length;
-  const activeListingCount = profileListings.length;
+  const visibleProfileListings = profileListings.filter((listing) => {
+    const cancelled = listing.status === "cancelled";
+    if (profileListingFilter === "cancelled") return cancelled;
+    if (profileListingFilter === "active") return !cancelled;
+    return true;
+  });
+  const activeListingCount = profileListings.filter((listing) => listing.status !== "cancelled").length;
 
   const viewFiltered = filterByView(escrows, view);
   const stageFiltered = stage === "all"
@@ -1212,9 +1218,7 @@ export default function DealsPage() {
         const contractId = BigInt(listing.contractListingId);
         txHash = listing.shareKind === "nft"
           ? await writeCancelListing(account, contractId)
-          : listing.shareKind === "miniapps"
-            ? await writeCancelMiniApp(account, contractId)
-            : await writeCancelDeal(account, contractId);
+          : await writeCancelDeal(account, contractId);
         await getPublicClient().waitForTransactionReceipt({ hash: txHash });
       }
       const res = await fetch(listing.cancelPath, {
@@ -1225,6 +1229,7 @@ export default function DealsPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Unable to cancel listing");
+      setProfileListingFilter("cancelled");
       setListingNotice(txHash ? "Listing cancelled on-chain." : "Listing cancelled.");
       await refreshProfileListings();
     } catch (err) {
@@ -1392,25 +1397,42 @@ export default function DealsPage() {
           <div className="row between profile-listings-head">
             <div>
               <div className="eyebrow">My listings</div>
-              <h2 className="serif" style={{ fontSize: 22, margin: "4px 0 0" }}>Active listings</h2>
+              <h2 className="serif" style={{ fontSize: 22, margin: "4px 0 0" }}>
+                {profileListingFilter === "cancelled" ? "Cancelled listings" : profileListingFilter === "all" ? "All listings" : "Active listings"}
+              </h2>
             </div>
             <Link href="/market" className="btn primary sm">List asset</Link>
+          </div>
+          <div className="chips" style={{ padding: "0 18px 12px" }}>
+            {[
+              ["active", "Active"],
+              ["cancelled", "Cancelled"],
+              ["all", "All"],
+            ].map(([key, label]) => (
+              <button
+                key={key}
+                className={"chip" + (profileListingFilter === key ? " active" : "")}
+                onClick={() => setProfileListingFilter(key as "active" | "cancelled" | "all")}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           {listingNotice && <div className="warn-banner" style={{ margin: "0 18px 12px", fontSize: 12 }}>{listingNotice}</div>}
           {listingsLoading ? (
             <div className="muted" style={{ padding: 22, textAlign: "center" }}>Loading listings...</div>
-          ) : profileListings.length === 0 ? (
+          ) : visibleProfileListings.length === 0 ? (
             <Empty className="profile-empty-state">
               <EmptyHeader>
                 <EmptyMedia variant="icon"><Icon.asset /></EmptyMedia>
-                <EmptyTitle>No active listings yet</EmptyTitle>
-                <EmptyDescription>List an asset to start receiving offers from buyers.</EmptyDescription>
+                <EmptyTitle>No {profileListingFilter === "cancelled" ? "cancelled" : "active"} listings yet</EmptyTitle>
+                <EmptyDescription>{profileListingFilter === "cancelled" ? "Cancelled listings will appear here." : "List an asset to start receiving offers from buyers."}</EmptyDescription>
               </EmptyHeader>
               <Link href="/market" className="btn sm">Create listing</Link>
             </Empty>
           ) : (
             <div className="profile-listings profile-listings-grid">
-              {profileListings.map((listing) => (
+              {visibleProfileListings.map((listing) => (
                 <div key={`${listing.kind}-${listing.id}`} className="profile-listing-item">
                   <ListingFeedCard
                     href={listing.href}
@@ -1436,9 +1458,11 @@ export default function DealsPage() {
                         <button type="button" className="btn sm" onClick={() => { setProfileMessageBuyer(""); setProfileMessageListing(listing); }} aria-label={`Messages for ${listing.title}`}>
                           <Icon.send /> Msg
                         </button>
-                        <button type="button" className="btn danger sm" onClick={() => cancelListing(listing)} disabled={listingAction === listing.id} aria-label={`Cancel ${listing.title}`}>
-                          {listingAction === listing.id ? <Icon.clock /> : <Icon.x />} Cancel
-                        </button>
+                        {listing.status !== "cancelled" && (
+                          <button type="button" className="btn danger sm" onClick={() => cancelListing(listing)} disabled={listingAction === listing.id} aria-label={`Cancel ${listing.title}`}>
+                            {listingAction === listing.id ? <Icon.clock /> : <Icon.x />} Cancel
+                          </button>
+                        )}
                       </>
                     }
                   >

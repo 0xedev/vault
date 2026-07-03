@@ -11,22 +11,23 @@ import { COLLECTIONS, bundleAssetLabel } from "@/lib/data";
 import { nftImageUrl } from "@/lib/nft-images";
 import { useWallet } from "@/components/WalletProvider";
 import {
-  approveNft,
+  ERC721_ABI,
   getDealsAddress,
   getEscrowAddress,
   getPublicClient,
   getNftAddress,
+  sendContractCalls,
+  VaultNFT_ABI,
   writeApproveUsdc,
   writeFundDeal,
-  writeListNFT,
   waitForListingId,
   parseContractError,
   readPlatformFeeBps,
 } from "@/lib/contract";
-import { getActiveWalletProvider } from "@/lib/contract-helpers";
 import { isOwnListing as ownsListing } from "@/lib/identity";
+import { logClientError } from "@/lib/client-log";
 import { fmtFarcasterAccount, fmtUSDC } from "@/lib/utils";
-import { parseUnits, type Address } from "viem";
+import { parseUnits, type Address, type Hash } from "viem";
 import type {
   ClankerToken,
   FarcasterAccount,
@@ -96,6 +97,24 @@ const marketTabTone: Record<MarketTab, string> = {
   clanker: "#f59e0b",
   bundles: "#10b981",
 };
+
+function parseDisplayedTokenId(tokenId: string): bigint {
+  const normalized = tokenId.trim().replace(/^#/, "");
+  if (!normalized) throw new Error("Select a detected NFT before listing on-chain.");
+  return BigInt(normalized);
+}
+
+async function listingIdFromReceipts(receipts: { hash: Hash }[]) {
+  for (const receipt of [...receipts].reverse()) {
+    try {
+      const contractListingId = await waitForListingId(receipt.hash);
+      return { contractListingId, txHash: receipt.hash };
+    } catch {
+      // Keep scanning older receipts; fallback mode returns approval then list txs.
+    }
+  }
+  throw new Error("Listing transaction confirmed, but no Listed event was found.");
+}
 
 function MarketAssetCarousel({ children }: { children: React.ReactNode }) {
   const slides = React.Children.toArray(children);
@@ -190,8 +209,18 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     queueMicrotask(() => setScanning(true));
     fetch(`/api/nfts/${address}?chain=base`)
       .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to fetch NFTs");
+        if (!res.ok) throw new Error(`Failed to fetch NFTs (${res.status})`);
         const json = await res.json();
+        if (json.error) {
+          logClientError("nft_scan_failed", json.error, {
+            address,
+            chain: "base",
+            code: json.code,
+          });
+          setError("Could not fetch NFTs. Make sure your wallet is on Base.");
+        } else {
+          setError("");
+        }
         const nfts = (json.data || []) as {
           contract: { address: string; name?: string };
           tokenId: string;
@@ -213,9 +242,10 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
             };
           };
           media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
+          transferable?: boolean;
         }[];
         const found = nfts
-          .filter((n) => n.name || n.collection?.name)
+          .filter((n) => (n.name || n.collection?.name) && n.transferable !== false)
           .slice(0, 20)
           .map((n) => ({
             collection: n.collection?.name || n.contract.name || "Unknown",
@@ -228,7 +258,8 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
         setDetectedNfts(found);
         setScanning(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        logClientError("nft_scan_failed", err, { address, chain: "base" });
         setError("Could not fetch NFTs. Make sure your wallet is on Base.");
         setScanning(false);
       });
@@ -239,8 +270,18 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     setScanning(true);
     try {
       const res = await fetch(`/api/nfts/${address}?chain=base`);
-      if (!res.ok) throw new Error("Failed to fetch NFTs");
+      if (!res.ok) throw new Error(`Failed to fetch NFTs (${res.status})`);
       const json = await res.json();
+      if (json.error) {
+        logClientError("nft_scan_failed", json.error, {
+          address,
+          chain: "base",
+          code: json.code,
+        });
+        setError("Could not fetch NFTs. Make sure your wallet is on Base.");
+      } else {
+        setError("");
+      }
       const nfts = (json.data || []) as {
         contract: { address: string; name?: string };
         tokenId: string;
@@ -262,9 +303,10 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           };
         };
         media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
+        transferable?: boolean;
       }[];
       const found = nfts
-        .filter((n) => n.name || n.collection?.name)
+        .filter((n) => (n.name || n.collection?.name) && n.transferable !== false)
         .slice(0, 20)
         .map((n) => ({
           collection: n.collection?.name || n.contract.name || "Unknown",
@@ -275,7 +317,8 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           imageUrl: nftImageUrl(n),
         }));
       setDetectedNfts(found);
-    } catch {
+    } catch (err) {
+      logClientError("nft_scan_failed", err, { address, chain: "base" });
       setError("Could not fetch NFTs. Make sure your wallet is on Base.");
     }
     setScanning(false);
@@ -318,18 +361,9 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     try {
       if (!address) throw new Error("Wallet not connected");
 
-      // 1. Sign a message proving intent to list
-      const provider = getActiveWalletProvider();
-      if (provider) {
-        const message = `List ${collection} ${tokenId} as collateral for ${amount} USDC loan at ${apr}% APR / ${term} days on Vault`;
-        await provider.request({
-          method: "personal_sign",
-          params: [message, address],
-        });
-      }
-
-      // 2. Approve NFT for escrow contract, then list on-chain
-      const nftTokenId = BigInt(parseInt(tokenId.replace("#", "")) || collSeed);
+      // 1. Approve NFT and list on-chain. Uses wallet_sendCalls when supported,
+      // with an ordered two-transaction fallback for wallets without EIP-5792.
+      const nftTokenId = parseDisplayedTokenId(tokenId);
       const amountWei = parseUnits(amount || "0", 6);
       const aprBps = Math.round(Number(apr) * 100); // e.g. 14.2 → 1420
       const termDays = Number(term);
@@ -337,23 +371,46 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       if (!selectedContract)
         throw new Error("Select a detected NFT before listing on-chain.");
       const escrowAddr = await getNftAddress();
-      await approveNft(
-        address as `0x${string}`,
-        selectedContract as `0x${string}`,
-        nftTokenId,
-        escrowAddr,
-      );
-      const listTxHash = await writeListNFT(
-        address as `0x${string}`,
-        selectedContract as `0x${string}`,
-        nftTokenId,
-        amountWei,
-        aprBps,
-        termDays,
-      );
-      const contractListingId = await waitForListingId(listTxHash);
+      await getPublicClient().simulateContract({
+        address: selectedContract as `0x${string}`,
+        abi: ERC721_ABI,
+        functionName: "safeTransferFrom",
+        args: [address as `0x${string}`, escrowAddr, nftTokenId],
+        account: address as `0x${string}`,
+      });
 
-      // 3. POST to API
+      const callsResult = await sendContractCalls(
+        address as `0x${string}`,
+        [
+          {
+            address: selectedContract as `0x${string}`,
+            abi: ERC721_ABI,
+            functionName: "approve",
+            args: [escrowAddr, nftTokenId],
+          },
+          {
+            address: escrowAddr,
+            abi: VaultNFT_ABI,
+            functionName: "listNFT",
+            args: [
+              selectedContract as `0x${string}`,
+              nftTokenId,
+              amountWei,
+              BigInt(aprBps),
+              BigInt(termDays),
+            ],
+          },
+        ],
+        { forceAtomic: true, waitForReceipts: true },
+      );
+      if (callsResult.status === "failure") {
+        throw new Error("NFT listing transaction failed.");
+      }
+      const { contractListingId, txHash: listTxHash } = await listingIdFromReceipts(
+        callsResult.receipts,
+      );
+
+      // 2. POST to API
       const listingId = `L-${Date.now()}`;
       const res = await fetch("/api/listings", {
         method: "POST",
@@ -383,6 +440,11 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
         url: `${window.location.origin}/detail?id=${encodeURIComponent(listingId)}`,
       });
     } catch (err) {
+      logClientError("market:list-nft:failed", err, {
+        collection,
+        tokenId,
+        selectedContract,
+      });
       setError(parseContractError(err));
     } finally {
       setSubmitting(false);
@@ -933,7 +995,7 @@ export default function MarketplacePage() {
 
   useEffect(() => {
     Promise.allSettled([
-      fetch("/api/listings").then(async (r) => {
+      fetch("/api/listings?chain=true&limit=50").then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error || "Unable to load listings");
         return (json.data || []) as Loan[];
@@ -1002,7 +1064,7 @@ export default function MarketplacePage() {
 
   const fetchDbListings = () => {
     setShowOnChain(false);
-    fetch("/api/listings")
+    fetch("/api/listings?chain=true&limit=50")
       .then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFloorPrice, getNFTMetadata } from "@/lib/alchemy";
+import { AlchemyConfigError, getFloorPrice, getNFTMetadata } from "@/lib/alchemy";
 
 export async function GET(
   _req: NextRequest,
@@ -17,6 +17,7 @@ export async function GET(
     return NextResponse.json({ data: { floorPrice, metadata } });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to fetch NFT data";
-    return NextResponse.json({ error: message }, { status: 502 });
+    const status = err instanceof AlchemyConfigError ? 503 : 502;
+    return NextResponse.json({ error: message }, { status });
   }
 }

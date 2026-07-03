@@ -83,7 +83,7 @@ export interface Loan {
   apr: number;
   term: number;
   ltv: number;
-  status: "open" | "funded" | "repaid" | "warn" | "default" | "disputed";
+  status: "open" | "funded" | "repaid" | "warn" | "default" | "disputed" | "cancelled";
   bid: number;
   value: number;
   borrower: string;

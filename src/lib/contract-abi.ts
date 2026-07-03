@@ -60,6 +60,26 @@ export const ERC721_ABI = [
     outputs: [],
     stateMutability: "nonpayable",
   },
+  {
+    type: "function",
+    name: "safeTransferFrom",
+    inputs: [
+      {
+        name: "from",
+        type: "address",
+      },
+      {
+        name: "to",
+        type: "address",
+      },
+      {
+        name: "tokenId",
+        type: "uint256",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
 ] as const;
 
 export const VaultNFT_ABI = [
