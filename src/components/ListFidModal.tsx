@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Icon from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,15 @@ const FONT_MONO = "'JetBrains Mono', ui-monospace, monospace";
 
 export default function ListFidModal({ onClose }: { onClose: () => void }) {
   const { address } = useWallet();
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
   const [fid, setFid] = useState("");
   const [profile, setProfile] = useState<FidProfile | null>(null);
   const [price, setPrice] = useState("");
@@ -43,8 +52,6 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
 
   const normalizedFid = fid.replace(/\D/g, "").trim();
   const profileHandle = profile?.username ? `@${profile.username}` : "";
-  const listingLabel =
-    profileHandle || (normalizedFid ? `FID #${normalizedFid}` : "");
   const canSubmit = Boolean(price && normalizedFid);
 
   const fetchFidProfile = async () => {
@@ -155,6 +162,9 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="list-fid-title"
         className="w-full max-w-100 overflow-hidden"
         style={{
           background: "#FFFFFF",
@@ -198,6 +208,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
                 Farcaster listing
               </div>
               <div
+                id="list-fid-title"
                 style={{
                   fontFamily: FONT_SANS,
                   fontSize: 14,
@@ -225,7 +236,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
           className="px-4 py-3 flex flex-col gap-3"
           style={{ maxHeight: "70vh", overflowY: "auto" }}
         >
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <div>
               <Label
                 htmlFor="fid-account"
