@@ -1393,6 +1393,7 @@ export default function MarketplacePage() {
                     imageAlt={`${app.name} preview`}
                     title={app.name}
                     subtitle={app.kind}
+                    description={app.description}
                     stats={[
                       { label: "DAU", value: app.dau.toLocaleString() },
                       { label: "MRR", value: `${fmtUSDC(app.mrr)} USDC` },
@@ -1779,6 +1780,7 @@ export default function MarketplacePage() {
                   imageAlt={`${app.name} preview`}
                   title={app.name}
                   subtitle={app.kind}
+                  description={app.description}
                   stats={[
                     { label: "DAU", value: app.dau.toLocaleString() },
                     { label: "MRR", value: `${fmtUSDC(app.mrr)} USDC` },

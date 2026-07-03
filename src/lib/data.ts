@@ -181,4 +181,5 @@ export interface MiniApp {
   txHash?: string;
   txStatus?: string;
   includes?: string[];
+  description?: string;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 
 type ListingFeedStat = {
@@ -14,7 +14,17 @@ function hasVisibleStatValue(value: React.ReactNode) {
   if (typeof value === "string") {
     const normalized = value.trim().toLowerCase();
     if (!normalized) return false;
-    return !["0", "0%", "0 usdc", "$0", "n/a", "none", "undefined", "null"].includes(normalized);
+    if (["n/a", "none", "undefined", "null"].includes(normalized)) return false;
+
+    const numericValue = Number(
+      normalized
+        .replace(/[$,%]/g, "")
+        .replace(/\busdc\b/g, "")
+        .replace(/,/g, "")
+        .trim(),
+    );
+
+    if (!Number.isNaN(numericValue) && numericValue === 0) return false;
   }
   return true;
 }
@@ -31,6 +41,7 @@ export default function ListingFeedCard({
   imageUrl,
   imageAlt,
   actions,
+  description,
   children,
   className = "",
 }: {
@@ -45,11 +56,16 @@ export default function ListingFeedCard({
   imageUrl?: string | null;
   imageAlt?: string;
   actions?: React.ReactNode;
+  description?: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
 }) {
+  const [showDescription, setShowDescription] = useState(false);
   const visibleStats = stats.filter((stat) => hasVisibleStatValue(stat.value)).slice(0, 3);
   const mediaUrl = typeof imageUrl === "string" ? imageUrl.trim() : "";
+  const hasDescription = Boolean(
+    typeof description === "string" ? description.trim() : description,
+  );
 
   return (
     <article className={`listing-feed-card market-action-card ${className}`.trim()}>
@@ -76,7 +92,23 @@ export default function ListingFeedCard({
           {subtitle && <span>{subtitle}</span>}
         </div>
         {badge && <span className="listing-feed-badge">{badge}</span>}
+        {hasDescription && (
+          <button
+            type="button"
+            className="listing-feed-info"
+            aria-expanded={showDescription}
+            aria-label={`Show ${title} description`}
+            onClick={() => setShowDescription((open) => !open)}
+          >
+            i
+          </button>
+        )}
       </div>
+      {hasDescription && showDescription && (
+        <div className="listing-feed-description" role="status">
+          {description}
+        </div>
+      )}
       {visibleStats.length > 0 && (
         <div className="listing-feed-stats">
           {visibleStats.map((stat) => (
