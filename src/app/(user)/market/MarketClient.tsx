@@ -209,8 +209,18 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     queueMicrotask(() => setScanning(true));
     fetch(`/api/nfts/${address}?chain=base`)
       .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to fetch NFTs");
+        if (!res.ok) throw new Error(`Failed to fetch NFTs (${res.status})`);
         const json = await res.json();
+        if (json.error) {
+          logClientError("nft_scan_failed", json.error, {
+            address,
+            chain: "base",
+            code: json.code,
+          });
+          setError("Could not fetch NFTs. Make sure your wallet is on Base.");
+        } else {
+          setError("");
+        }
         const nfts = (json.data || []) as {
           contract: { address: string; name?: string };
           tokenId: string;
@@ -247,7 +257,8 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
         setDetectedNfts(found);
         setScanning(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        logClientError("nft_scan_failed", err, { address, chain: "base" });
         setError("Could not fetch NFTs. Make sure your wallet is on Base.");
         setScanning(false);
       });
@@ -258,8 +269,18 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     setScanning(true);
     try {
       const res = await fetch(`/api/nfts/${address}?chain=base`);
-      if (!res.ok) throw new Error("Failed to fetch NFTs");
+      if (!res.ok) throw new Error(`Failed to fetch NFTs (${res.status})`);
       const json = await res.json();
+      if (json.error) {
+        logClientError("nft_scan_failed", json.error, {
+          address,
+          chain: "base",
+          code: json.code,
+        });
+        setError("Could not fetch NFTs. Make sure your wallet is on Base.");
+      } else {
+        setError("");
+      }
       const nfts = (json.data || []) as {
         contract: { address: string; name?: string };
         tokenId: string;
@@ -294,7 +315,8 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           imageUrl: nftImageUrl(n),
         }));
       setDetectedNfts(found);
-    } catch {
+    } catch (err) {
+      logClientError("nft_scan_failed", err, { address, chain: "base" });
       setError("Could not fetch NFTs. Make sure your wallet is on Base.");
     }
     setScanning(false);

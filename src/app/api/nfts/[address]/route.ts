@@ -14,7 +14,7 @@ export async function GET(
     return NextResponse.json({ data: nfts });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to fetch NFTs";
-    const status = err instanceof AlchemyConfigError ? 503 : 502;
-    return NextResponse.json({ error: message }, { status });
+    const code = err instanceof AlchemyConfigError ? "alchemy_config" : "alchemy_upstream";
+    return NextResponse.json({ data: [], error: message, code });
   }
 }
