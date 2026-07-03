@@ -171,10 +171,10 @@ async function farcasterSignIn(
 ): Promise<{ address: string; role: string } | null> {
   try {
     const result = await signInWithFarcaster(options);
-    if (!result?.message || !result?.signature) {
+    if (!result?.token) {
       logClientError(
-        "wallet:farcasterSignIn:no-signature",
-        "signInWithFarcaster returned no message/signature",
+        "wallet:farcasterSignIn:no-token",
+        "signInWithFarcaster returned no token",
         { force: !!options.force },
       );
       return null;
@@ -185,8 +185,8 @@ async function farcasterSignIn(
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        message: result.message,
-        signature: result.signature,
+        token: result.token,
+        chainId: options.chainId,
       }),
     });
     if (!sessionRes.ok) {

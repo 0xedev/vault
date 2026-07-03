@@ -1,4 +1,4 @@
-import { sdk } from "@farcaster/miniapp-sdk";
+import { quickAuth, sdk } from "@farcaster/miniapp-sdk";
 import { logClientError } from "./client-log";
 
 let _isMiniApp: boolean | null = null;
@@ -38,16 +38,11 @@ export async function signInWithFarcaster(options: { force?: boolean } = {}) {
       return null;
     }
 
-    const nonceRes = await fetch("/api/auth/farcaster", { credentials: "include" });
-    const { nonce } = await nonceRes.json().catch(() => ({}));
-    if (!nonce) {
-      logClientError("farcaster-sdk:signInWithFarcaster:no-nonce", "Farcaster nonce endpoint returned no nonce", { force: !!options.force });
-      return null;
-    }
-
-    const result = await sdk.actions.signIn({ nonce, acceptAuthAddress: true });
-    if (!result?.message || !result?.signature) {
-      logClientError("farcaster-sdk:signInWithFarcaster:no-signature", "sdk.actions.signIn returned no message/signature", { hasResult: !!result, force: !!options.force });
+    const result = await quickAuth.getToken({
+      force: options.force ? "true" : undefined,
+    });
+    if (!result?.token) {
+      logClientError("farcaster-sdk:signInWithFarcaster:no-token", "quickAuth.getToken returned no token", { hasResult: !!result, force: !!options.force });
       return null;
     }
 
