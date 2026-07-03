@@ -13,6 +13,7 @@ const statusMap: Record<string, [string, string]> = {
   active:  ["funded",  "Active"],
   pending: ["open",    "Pending"],
   released:["repaid",  "Released"],
+  cancelled:["",  "Cancelled"],
   Open:    ["open",    "Open"],
   Funded:  ["funded",  "Funded"],
   Active:   ["funded",  "Active"],

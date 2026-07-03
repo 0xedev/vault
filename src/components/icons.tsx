@@ -64,6 +64,9 @@ const icons = {
   cast: (p: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><circle cx="8" cy="8" r="6"/><path d="M6 6.5L8.5 3l2.5 3.5M6 9.5L8.5 13l2.5-3.5M8.5 6v4"/></svg>
   ),
+  farcaster: (p: React.SVGProps<SVGSVGElement>) => (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true" {...p}><path d="M4.1 2h7.8l-.8 3h1.2l-.3 1.2h-1.2v5.4c.5.1.9.5.9 1.1v.8H8.9v-.8c0-.5.3-.9.8-1.1V6.2H6.3v5.4c.5.1.8.5.8 1.1v.8H4.3v-.8c0-.6.4-1 .9-1.1V6.2H4L3.7 5h1.2L4.1 2Zm2.4 3h3L9.2 3.8H6.8L6.5 5Z"/></svg>
+  ),
   token: (p: React.SVGProps<SVGSVGElement>) => (
     <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5v7M5.5 6.5h5M5.5 9.5h5"/></svg>
   ),
