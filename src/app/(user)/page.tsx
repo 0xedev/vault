@@ -47,6 +47,10 @@ const feedFilters = [
   { value: "Bundles", label: "Bundles" },
 ];
 
+function isActiveListing<T extends { status?: string }>(listing: T) {
+  return listing.status !== "cancelled";
+}
+
 function Sparkline() {
   const pts = [
     12, 18, 14, 22, 28, 26, 32, 30, 38, 42, 40, 48, 52, 58, 56, 64, 70, 68, 74,
@@ -225,12 +229,12 @@ export default function LandingPage() {
         return (json.data || []) as BundleListing[];
       }),
     ]).then((results) => {
-      if (results[0].status === "fulfilled") setLoans(results[0].value);
-      if (results[1].status === "fulfilled") setMiniApps(results[1].value);
-      if (results[2].status === "fulfilled") setXAccounts(results[2].value);
-      if (results[3].status === "fulfilled") setFarcaster(results[3].value);
-      if (results[4].status === "fulfilled") setClanker(results[4].value);
-      if (results[5].status === "fulfilled") setBundles(results[5].value);
+      if (results[0].status === "fulfilled") setLoans(results[0].value.filter(isActiveListing));
+      if (results[1].status === "fulfilled") setMiniApps(results[1].value.filter(isActiveListing));
+      if (results[2].status === "fulfilled") setXAccounts(results[2].value.filter(isActiveListing));
+      if (results[3].status === "fulfilled") setFarcaster(results[3].value.filter(isActiveListing));
+      if (results[4].status === "fulfilled") setClanker(results[4].value.filter(isActiveListing));
+      if (results[5].status === "fulfilled") setBundles(results[5].value.filter(isActiveListing));
       setLoading(false);
     });
   }, []);

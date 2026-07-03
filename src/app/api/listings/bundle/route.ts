@@ -103,8 +103,8 @@ export async function POST(req: NextRequest) {
 
   await db`INSERT INTO users (address) VALUES (${sellerAddress}) ON CONFLICT (address) DO NOTHING`;
 
-  await db`INSERT INTO listings (id, seller_address, marketplace, title, description, price, collateral_data, status, moderation_status, is_bundle, chain_id, contract_address, contract_listing_id, tx_hash, tx_status)
-    VALUES (${id}, ${sellerAddress}, 'bundle', ${data.name}, ${data.description || null}, ${data.totalPrice}, ${collateralData}, 'active', 'approved', 'true', ${data.chainId || null}, ${activeContract}, ${data.contractListingId || null}, ${data.txHash || null}, ${data.txHash ? "pending" : "offchain"})`;
+  await db`INSERT INTO listings (id, seller_address, marketplace, title, description, price, currency, collateral_data, status, moderation_status, is_bundle, chain_id, contract_address, contract_listing_id, tx_hash, tx_status)
+    VALUES (${id}, ${sellerAddress}, 'bundle', ${data.name}, ${data.description || null}, ${data.totalPrice}, 'USDC', ${collateralData}, 'active', 'approved', 'true', ${data.chainId || null}, ${activeContract}, ${data.contractListingId || null}, ${data.txHash || null}, ${data.txHash ? "pending" : "offchain"})`;
 
   for (let i = 0; i < data.assets.length; i++) {
     const asset = data.assets[i];
@@ -128,6 +128,7 @@ export async function POST(req: NextRequest) {
       name: data.name,
       description: data.description,
       totalPrice: data.totalPrice,
+      currency: "USDC",
       assets: bundle,
       status: "active",
     },

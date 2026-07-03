@@ -98,6 +98,10 @@ const marketTabTone: Record<MarketTab, string> = {
   bundles: "#10b981",
 };
 
+function isActiveListing<T extends { status?: string }>(listing: T) {
+  return listing.status !== "cancelled";
+}
+
 function parseDisplayedTokenId(tokenId: string): bigint {
   const normalized = tokenId.trim().replace(/^#/, "");
   if (!normalized) throw new Error("Select a detected NFT before listing on-chain.");
@@ -1028,12 +1032,12 @@ export default function MarketplacePage() {
         return (json.data || []) as BundleListing[];
       }),
     ]).then((results) => {
-      if (results[0].status === "fulfilled") setLoans(results[0].value);
-      if (results[1].status === "fulfilled") setMiniApps(results[1].value);
-      if (results[2].status === "fulfilled") setXAccounts(results[2].value);
-      if (results[3].status === "fulfilled") setFarcaster(results[3].value);
-      if (results[4].status === "fulfilled") setClankerTokens(results[4].value);
-      if (results[5].status === "fulfilled") setBundles(results[5].value);
+      if (results[0].status === "fulfilled") setLoans(results[0].value.filter(isActiveListing));
+      if (results[1].status === "fulfilled") setMiniApps(results[1].value.filter(isActiveListing));
+      if (results[2].status === "fulfilled") setXAccounts(results[2].value.filter(isActiveListing));
+      if (results[3].status === "fulfilled") setFarcaster(results[3].value.filter(isActiveListing));
+      if (results[4].status === "fulfilled") setClankerTokens(results[4].value.filter(isActiveListing));
+      if (results[5].status === "fulfilled") setBundles(results[5].value.filter(isActiveListing));
       const failed = results.find((result) => result.status === "rejected");
       if (failed && results.every((result) => result.status === "rejected")) {
         setError(
@@ -1053,7 +1057,7 @@ export default function MarketplacePage() {
       const res = await fetch("/api/listings?chain=true&limit=50");
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to read from chain");
-      setLoans(json.data || []);
+      setLoans((json.data || []).filter(isActiveListing));
       setShowOnChain(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "On-chain read failed");
@@ -1068,7 +1072,7 @@ export default function MarketplacePage() {
       .then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error);
-        setLoans(json.data || []);
+        setLoans((json.data || []).filter(isActiveListing));
       })
       .catch((err) =>
         setError(err instanceof Error ? err.message : "Failed to load"),
@@ -2044,7 +2048,7 @@ export default function MarketplacePage() {
       {/* BUNDLES TAB */}
       {activeMarket === "bundles" && (
         <>
-          {selectedBundle && (
+          {selectedBundle ? (
             <BundleDetailPanel
               bundle={selectedBundle}
               buying={buyingBundleId === selectedBundle.id}
@@ -2053,8 +2057,7 @@ export default function MarketplacePage() {
               onBuy={fundBundleEscrow}
               onOffer={setOfferBundle}
             />
-          )}
-          {bundles.length === 0 ? (
+          ) : bundles.length === 0 ? (
             <div className="muted" style={{ padding: 40, textAlign: "center" }}>
               No bundled listings yet.
             </div>
@@ -2092,7 +2095,7 @@ export default function MarketplacePage() {
           onListed={() => {
             fetch("/api/marketplace/clanker").then(async (r) => {
               const json = await r.json();
-              if (json.data) setClankerTokens(json.data);
+              if (json.data) setClankerTokens(json.data.filter(isActiveListing));
             });
           }}
         />
@@ -2103,7 +2106,7 @@ export default function MarketplacePage() {
           onListed={() => {
             fetch("/api/marketplace/bundles").then(async (r) => {
               const json = await r.json();
-              if (json.data) setBundles(json.data);
+              if (json.data) setBundles(json.data.filter(isActiveListing));
             });
           }}
         />

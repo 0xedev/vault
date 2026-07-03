@@ -65,6 +65,7 @@ export function mapMiniAppListing(row: ListingRow) {
     contractListingId: asString(row.contract_listing_id),
     txHash: asString(row.tx_hash),
     txStatus: asString(row.tx_status, "offchain"),
+    status: asString(row.status, "active"),
   };
 }
 
@@ -88,6 +89,7 @@ export function mapXAccountListing(row: ListingRow) {
     contractListingId: asString(row.contract_listing_id),
     txHash: asString(row.tx_hash),
     txStatus: asString(row.tx_status, "offchain"),
+    status: asString(row.status, "active"),
   };
 }
 
@@ -114,6 +116,7 @@ export function mapFarcasterListing(row: ListingRow) {
     contractListingId: asString(row.contract_listing_id),
     txHash: asString(row.tx_hash),
     txStatus: asString(row.tx_status, "offchain"),
+    status: asString(row.status, "active"),
   };
 }
 
@@ -133,6 +136,7 @@ export function mapDigitalDeal(row: ListingRow) {
     contractListingId: asString(row.contract_listing_id),
     txHash: asString(row.tx_hash),
     txStatus: asString(row.tx_status, "offchain"),
+    status: asString(row.status, "active"),
   };
 }
 
@@ -186,13 +190,14 @@ export function mapBundleListing(row: ListingRow): BundleListing {
     imageUrl: asString(data.imageUrl),
     assets,
     totalPrice: asNumber(row.price),
-    currency: asString(row.currency, "USDC"),
+    currency: "USDC",
     sellerAddress: String(row.seller_address || ""),
     chainId: asNumber(row.chain_id),
     contractAddress: asString(row.contract_address),
     contractListingId: asString(row.contract_listing_id),
     txHash: asString(row.tx_hash),
     txStatus: asString(row.tx_status, "offchain"),
+    status: asString(row.status, "active"),
     createdAt: asString(row.created_at, ""),
   };
 }
