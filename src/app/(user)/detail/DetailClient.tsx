@@ -404,12 +404,12 @@ function LoanDetailContent() {
     const ics = [
       "BEGIN:VCALENDAR",
       "VERSION:2.0",
-      "PRODID:-//Vault//Repayment//EN",
+      "PRODID:-//Baseshire Hethaway//Repayment//EN",
       "BEGIN:VEVENT",
-      `UID:${l.id}@vault`,
+      `UID:${l.id}@baseshirehethaway`,
       `DTSTAMP:${stamp(start)}`,
       `DTSTART:${stamp(due)}`,
-      `SUMMARY:Vault repayment due for ${l.id}`,
+      `SUMMARY:Baseshire Hethaway repayment due for ${l.id}`,
       `DESCRIPTION:Repay ${repaymentDue.toFixed(3)} USDC to avoid collateral transfer.`,
       "END:VEVENT",
       "END:VCALENDAR",
@@ -417,7 +417,7 @@ function LoanDetailContent() {
     const href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
     const link = document.createElement("a");
     link.href = href;
-    link.download = `vault-${l.id}-repayment.ics`;
+    link.download = `baseshire-hethaway-${l.id}-repayment.ics`;
     link.click();
     URL.revokeObjectURL(href);
   };
@@ -575,7 +575,7 @@ function LoanDetailContent() {
     <main id="main-content" role="main" aria-label="Main content" className="main">
       <div className="row" style={{ marginBottom: 14, gap: 8, fontSize: 12, color: "var(--ink-4)" }}>
         <Link href="/market" className="btn ghost sm">← Back</Link>
-        <span>NFT Loans</span><span>/</span><span className="mono" style={{ color: "var(--ink-2)" }}>{l.id}</span>
+        <span>NFT Loans</span>
       </div>
       {notice && <div className="success-banner" style={{ marginBottom: 14 }}>{notice}</div>}
 
@@ -668,7 +668,7 @@ function LoanDetailContent() {
                       <Icon.clock style={{ width: 12, height: 12 }} /> Export repayment calendar
                     </button>
                     <button className="btn sm" style={{ width: "fit-content" }} onClick={() => shareAsCast(
-                      `${collectionName} ${l.token} — ${l.amt} USDC at ${l.apr}% APR on Vault`,
+                      `${collectionName} ${l.token} — ${l.amt} USDC at ${l.apr}% APR on Baseshire Hethaway`,
                       `${window.location.origin}/detail?id=${l.id}`
                     )}>
                       <Icon.cast style={{ width: 12, height: 12 }} /> Share

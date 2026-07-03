@@ -40,8 +40,8 @@ export const appkitModal = createAppKit({
   networks,
   projectId,
   metadata: {
-    name: "Vault",
-    description: "Baseshire Vault",
+    name: "Baseshire Hethaway",
+    description: "Baseshire Hethaway",
     url: process.env.NEXT_PUBLIC_URL || "http://localhost:3000",
     icons: [],
   },

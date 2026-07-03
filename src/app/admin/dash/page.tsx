@@ -129,7 +129,7 @@ export default function AdminDashboardPage() {
       <div className="row between" style={{ alignItems: "flex-end", marginBottom: 22, flexWrap: "wrap", gap: 16 }}>
         <div>
           <div className="eyebrow" style={{ color: "var(--risk)" }}>Operations · live database</div>
-          <h1 className="h2" style={{ marginTop: 8 }}>Vault platform · admin overview.</h1>
+          <h1 className="h2" style={{ marginTop: 8 }}>Baseshire Hethaway platform · admin overview.</h1>
         </div>
         <div className="row" style={{ gap: 8 }}>
           <button className="btn" onClick={() => window.print()}>Export report</button>

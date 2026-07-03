@@ -4,11 +4,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
-import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ListingMessageModal from "@/components/ListingMessageModal";
 import BackButton from "@/components/BackButton";
 import ListClankerModal from "@/components/ListClankerModal";
 import ShareListingModal from "@/components/ShareListingModal";
+import AgreementModal from "@/components/AgreementModal";
 import { useWallet } from "@/components/WalletProvider";
 import { getEscrowAddress, getPublicClient, getDealsAddress, writeFundDeal, parseContractError, writeApproveUsdc } from "@/lib/contract";
 import { isOwnListing as ownsListing } from "@/lib/identity";
@@ -37,9 +37,9 @@ export default function ClankerPage() {
   const [error, setError] = useState("");
   const [listing, setListing] = useState(false);
   const [selectedToken, setSelectedToken] = useState<ClankerToken | null>(null);
-  const [offerToken, setOfferToken] = useState<ClankerToken | null>(null);
   const [messageToken, setMessageToken] = useState<ClankerToken | null>(null);
   const [shareToken, setShareToken] = useState<ClankerToken | null>(null);
+  const [pendingBuy, setPendingBuy] = useState<ClankerToken | null>(null);
   const [buying, setBuying] = useState("");
   const [openAfterAuth, setOpenAfterAuth] = useState(false);
 
@@ -199,14 +199,11 @@ export default function ClankerPage() {
                 </div>
               )}
               <div className="market-card-actions" style={{ marginTop: 12, position: "relative", zIndex: 1 }}>
-                <button className="btn primary" onClick={() => fundEscrow(t)} disabled={buying === t.id || isOwnListing || isPendingSync}>
-                  {buying === t.id ? "Funding..." : isOwnListing ? "Your listing" : isPendingSync ? "Pending sync" : "Buy now"}
-                </button>
-                <button className="btn" onClick={() => setOfferToken(t)} disabled={isOwnListing || isPendingSync}>
-                  Propose offer
+                <button className="btn primary" onClick={() => setPendingBuy(t)} disabled={buying === t.id || isOwnListing || isPendingSync}>
+                  {buying === t.id ? "Funding..." : isOwnListing ? "Your listing" : isPendingSync ? "Pending sync" : "Buy"}
                 </button>
                 <button className="btn ghost" onClick={() => messageSeller(t)} disabled={isOwnListing}>
-                  Msg seller
+                  Negotiate with seller
                 </button>
                 <button type="button" className="btn ghost" onClick={() => setShareToken(t)}>
                   <Icon.share /> Share
@@ -239,7 +236,7 @@ export default function ClankerPage() {
                 <div className="metric"><span className="lab">Vaulted</span><span className="val">{fmtCompact(selectedToken.vaultedAmount)}</span></div>
               </div>
               {selectedToken.vaultUnlock && (
-                <div className="metric"><span className="lab">Vault unlock</span><span className="val">{selectedToken.vaultUnlock}</span></div>
+                <div className="metric"><span className="lab">Token unlock</span><span className="val">{selectedToken.vaultUnlock}</span></div>
               )}
               <div className="grid grid-3" style={{ gap: 12 }}>
                 <div className="metric"><span className="lab">Fee earnings</span><span className="val">{selectedToken.feeEarnings.toLocaleString()}</span><span className="delta">via ClankerFeeLocker</span></div>
@@ -249,33 +246,23 @@ export default function ClankerPage() {
             </div>
             <div className="modal-f">
               <button className="btn" onClick={() => setSelectedToken(null)}>Close</button>
-              <button
-                className="btn"
-                onClick={() => setOfferToken(selectedToken)}
-                disabled={!selectedToken.contractListingId || ownsListing(selectedToken, walletIdentity)}
-              >
-                Submit offer
-              </button>
-              <button className="btn primary" onClick={() => fundEscrow(selectedToken)} disabled={buying === selectedToken.id || ownsListing(selectedToken, walletIdentity)}>
-                {buying === selectedToken.id ? "Funding escrow..." : ownsListing(selectedToken, walletIdentity) ? "Your listing" : "Buy with escrow"}
+              <button className="btn primary" onClick={() => setPendingBuy(selectedToken)} disabled={buying === selectedToken.id || ownsListing(selectedToken, walletIdentity)}>
+                {buying === selectedToken.id ? "Funding escrow..." : ownsListing(selectedToken, walletIdentity) ? "Your listing" : "Buy"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {offerToken && (
-        <SubmitDealOfferModal
-          listing={{
-            id: offerToken.id,
-            title: `${offerToken.name} (${offerToken.symbol})`,
-            price: offerToken.price,
-            sellerAddress: offerToken.sellerAddress,
-            contractListingId: offerToken.contractListingId,
-            contractAddress: offerToken.contractAddress,
-            chainId: offerToken.chainId,
+      {pendingBuy && (
+        <AgreementModal
+          variant="buyer-buy"
+          onCancel={() => setPendingBuy(null)}
+          onConfirm={() => {
+            const token = pendingBuy;
+            setPendingBuy(null);
+            void fundEscrow(token);
           }}
-          onClose={() => setOfferToken(null)}
         />
       )}
       {messageToken && (
@@ -291,7 +278,7 @@ export default function ClankerPage() {
       {shareToken && (
         <ShareListingModal
           title={`${shareToken.name} (${shareToken.symbol})`}
-          text={`${shareToken.name} (${shareToken.symbol}) — ${fmtUSDC(shareToken.price)} USDC Clanker token listing on Vault`}
+          text={`${shareToken.name} (${shareToken.symbol}) — ${fmtUSDC(shareToken.price)} USDC Clanker token listing on Baseshire Hethaway`}
           url={shareUrl(shareToken)}
           onClose={() => setShareToken(null)}
         />

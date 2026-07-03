@@ -57,7 +57,7 @@ export default function InfoPage() {
             { label: "Mini Apps", desc: "Buy and sell web apps with escrow protection.", href: "/miniapps" },
             { label: "X Accounts", desc: "Transfer X handles with buyer-confirmed escrow.", href: "/x" },
             { label: "Farcaster FIDs", desc: "Escrow FID custody transfers on Optimism.", href: "/farcaster" },
-            { label: "Clanker Tokens", desc: "Trade token rights, vault claims, and admin.", href: "/clanker" },
+            { label: "Clanker Tokens", desc: "Trade token rights, claim rights, and admin.", href: "/clanker" },
             { label: "Bundles", desc: "Package multiple assets into a single deal.", href: "/market?tab=bundles" },
           ].map((item) => (
             <Link key={item.label} href={item.href} className="card" style={{ padding: 16, textDecoration: "none", color: "inherit" }}>

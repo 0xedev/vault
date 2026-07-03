@@ -136,7 +136,7 @@ export default function ListBundleModal({ onClose, onListed }: Props) {
       onListed();
       setSuccess({
         title: name,
-        text: `${name} — ${fmtUSDC(totalPrice)} USDC bundled listing on Vault`,
+        text: `${name} — ${fmtUSDC(totalPrice)} USDC bundled listing on Baseshire Hethaway`,
         url: `${window.location.origin}/market?tab=bundles&id=${encodeURIComponent(listingId)}`,
       });
     } catch (err) {

@@ -42,8 +42,8 @@ import ListMiniAppModal from "@/components/ListMiniAppModal";
 import ListXModal from "@/components/ListXModal";
 import ListFidModal from "@/components/ListFidModal";
 import ListClankerModal from "@/components/ListClankerModal";
-import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ShareListingModal from "@/components/ShareListingModal";
+import AgreementModal from "@/components/AgreementModal";
 import {
   ListingSuccessModal,
   type ListingSuccessShare,
@@ -78,7 +78,7 @@ const marketTabs: { key: MarketTab; label: string; description: string }[] = [
   {
     key: "all",
     label: "Feed",
-    description: "Live drops across every vault market",
+    description: "Live drops across every Baseshire Hethaway market",
   },
   { key: "nft", label: "NFTs", description: "Collateralized NFT loans" },
   { key: "miniapps", label: "Apps", description: "Mini app acquisitions" },
@@ -440,7 +440,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       if (!res.ok) throw new Error("Listing failed");
       setSuccess({
         title: `${collection} ${tokenId}`,
-        text: `${collection} ${tokenId} — borrow ${Number(amount).toLocaleString("en-US")} USDC at ${apr}% APR on Vault`,
+        text: `${collection} ${tokenId} — borrow ${Number(amount).toLocaleString("en-US")} USDC at ${apr}% APR on Baseshire Hethaway`,
         url: `${window.location.origin}/detail?id=${encodeURIComponent(listingId)}`,
       });
     } catch (err) {
@@ -829,14 +829,12 @@ function BundleDetailPanel({
   buyerAddress,
   sessionAddress,
   onBuy,
-  onOffer,
 }: {
   bundle: BundleListing;
   buying: boolean;
   buyerAddress?: string | null;
   sessionAddress?: string | null;
   onBuy: (bundle: BundleListing) => void;
-  onOffer: (bundle: BundleListing) => void;
 }) {
   const seller = bundle.sellerAddress
     ? `${bundle.sellerAddress.slice(0, 6)}...${bundle.sellerAddress.slice(-4)}`
@@ -932,13 +930,6 @@ function BundleDetailPanel({
             Back to bundles
           </Link>
           <button
-            className="btn"
-            onClick={() => onOffer(bundle)}
-            disabled={isOwnListing || isPendingSync}
-          >
-            Submit offer
-          </button>
-          <button
             className="btn primary"
             onClick={() => onBuy(bundle)}
             disabled={buying || isOwnListing || isPendingSync}
@@ -949,7 +940,7 @@ function BundleDetailPanel({
                 ? "Your listing"
                 : isPendingSync
                   ? "Pending chain sync"
-                  : "Buy with escrow"}
+                  : "Buy"}
           </button>
         </div>
       </div>
@@ -976,11 +967,11 @@ export default function MarketplacePage() {
   const [showListModal, setShowListModal] = useState(false);
   const [showBundleModal, setShowBundleModal] = useState(false);
   const [showClankerModal, setShowClankerModal] = useState(false);
-  const [offerBundle, setOfferBundle] = useState<BundleListing | null>(null);
   const [shareTarget, setShareTarget] = useState<ShareListingTarget | null>(
     null,
   );
   const [buyingBundleId, setBuyingBundleId] = useState("");
+  const [pendingBuyBundle, setPendingBuyBundle] = useState<BundleListing | null>(null);
   const [chainLoading, setChainLoading] = useState(false);
   const [showOnChain, setShowOnChain] = useState(false);
   const { isConnected, connect, isConnecting, address, sessionAddress } =
@@ -1136,21 +1127,21 @@ export default function MarketplacePage() {
   const shareLoanTarget = (loan: Loan): ShareListingTarget => ({
     id: loan.id,
     title: `${COLLECTIONS[loan.coll]} ${loan.token}`,
-    text: `${COLLECTIONS[loan.coll]} ${loan.token} — borrow ${fmtUSDC(loan.amt)} USDC at ${loan.apr}% APR on Vault`,
+    text: `${COLLECTIONS[loan.coll]} ${loan.token} — borrow ${fmtUSDC(loan.amt)} USDC at ${loan.apr}% APR on Baseshire Hethaway`,
     url: `${window.location.origin}/detail?id=${encodeURIComponent(loan.id)}`,
   });
 
   const shareMiniAppTarget = (app: MiniApp): ShareListingTarget => ({
     id: app.id,
     title: app.name,
-    text: `${app.name} — ${fmtUSDC(app.price)} USDC Mini App listing on Vault`,
+    text: `${app.name} — ${fmtUSDC(app.price)} USDC Mini App listing on Baseshire Hethaway`,
     url: `${window.location.origin}/miniapps?id=${encodeURIComponent(app.id)}`,
   });
 
   const shareXTarget = (account: XAccount): ShareListingTarget => ({
     id: account.id,
     title: account.handle,
-    text: `${account.handle} — ${fmtUSDC(account.price)} USDC X account listing on Vault`,
+    text: `${account.handle} — ${fmtUSDC(account.price)} USDC X account listing on Baseshire Hethaway`,
     url: `${window.location.origin}/x?id=${encodeURIComponent(account.id)}`,
   });
 
@@ -1159,21 +1150,21 @@ export default function MarketplacePage() {
   ): ShareListingTarget => ({
     id: account.id,
     title: fmtFarcasterAccount(account),
-    text: `${fmtFarcasterAccount(account)} — ${fmtUSDC(account.price)} USDC Farcaster listing on Vault`,
+    text: `${fmtFarcasterAccount(account)} — ${fmtUSDC(account.price)} USDC Farcaster listing on Baseshire Hethaway`,
     url: `${window.location.origin}/farcaster?id=${encodeURIComponent(account.id)}`,
   });
 
   const shareClankerTarget = (token: ClankerToken): ShareListingTarget => ({
     id: token.id,
     title: `${token.name} (${token.symbol})`,
-    text: `${token.name} (${token.symbol}) — ${fmtUSDC(token.price)} USDC Clanker token listing on Vault`,
+    text: `${token.name} (${token.symbol}) — ${fmtUSDC(token.price)} USDC Clanker token listing on Baseshire Hethaway`,
     url: `${window.location.origin}/clanker?id=${encodeURIComponent(token.id)}`,
   });
 
   const shareBundleTarget = (bundle: BundleListing): ShareListingTarget => ({
     id: bundle.id,
     title: bundle.name,
-    text: `${bundle.name} — ${fmtUSDC(bundle.totalPrice)} ${bundle.currency || "USDC"} bundled listing on Vault`,
+    text: `${bundle.name} — ${fmtUSDC(bundle.totalPrice)} ${bundle.currency || "USDC"} bundled listing on Baseshire Hethaway`,
     url: `${window.location.origin}/market?tab=bundles&id=${encodeURIComponent(bundle.id)}`,
   });
 
@@ -2052,11 +2043,10 @@ export default function MarketplacePage() {
             <BundleDetailPanel
               bundle={selectedBundle}
               buying={buyingBundleId === selectedBundle.id}
-              buyerAddress={address}
-              sessionAddress={sessionAddress}
-              onBuy={fundBundleEscrow}
-              onOffer={setOfferBundle}
-            />
+                buyerAddress={address}
+                sessionAddress={sessionAddress}
+                onBuy={setPendingBuyBundle}
+              />
           ) : bundles.length === 0 ? (
             <div className="muted" style={{ padding: 40, textAlign: "center" }}>
               No bundled listings yet.
@@ -2111,18 +2101,15 @@ export default function MarketplacePage() {
           }}
         />
       )}
-      {offerBundle && (
-        <SubmitDealOfferModal
-          listing={{
-            id: offerBundle.id,
-            title: offerBundle.name,
-            price: offerBundle.totalPrice,
-            sellerAddress: offerBundle.sellerAddress,
-            contractListingId: offerBundle.contractListingId,
-            contractAddress: offerBundle.contractAddress,
-            chainId: offerBundle.chainId,
+      {pendingBuyBundle && (
+        <AgreementModal
+          variant="buyer-buy"
+          onCancel={() => setPendingBuyBundle(null)}
+          onConfirm={() => {
+            const bundle = pendingBuyBundle;
+            setPendingBuyBundle(null);
+            void fundBundleEscrow(bundle);
           }}
-          onClose={() => setOfferBundle(null)}
         />
       )}
       {shareTarget && (

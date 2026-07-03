@@ -41,7 +41,7 @@ export default function AdminAuditPage() {
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = "vault-audit.csv";
+          a.download = "baseshire-hethaway-audit.csv";
           a.click();
         }}>Export full log</button>
       </div>

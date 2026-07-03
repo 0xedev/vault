@@ -6,9 +6,9 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import Icon from "@/components/icons";
-import ListingMessageModal from "@/components/ListingMessageModal";
 import ShareListingModal from "@/components/ShareListingModal";
 import ListingFeedCard from "@/components/ListingFeedCard";
+import AgreementModal, { type AgreementVariant } from "@/components/AgreementModal";
 import StatusPill from "@/components/StatusPill";
 import { useRole } from "@/components/RoleProvider";
 import { useWallet } from "@/components/WalletProvider";
@@ -19,12 +19,8 @@ import {
   writeDisputeDeal,
   writeMarkDelivered,
   writeRefundDeal,
-  writeAcceptSignedDealOffer,
-  writeAcceptSignedLoanOffer,
   writeCancelDeal,
   writeCancelListing,
-  writeCancelDealOfferNonce,
-  writeCancelNftOfferNonce,
   readPlatformFeeBps,
 } from "@/lib/contract";
 import {
@@ -35,7 +31,6 @@ import {
   transferClankerTokenSupply,
 } from "@/lib/clanker-writes";
 import { fmtUSDC } from "@/lib/utils";
-import type { SignedDealOfferMessage, SignedLoanOfferMessage } from "@/lib/signed-offers";
 import { selectedRights } from "@/lib/clanker";
 import { currentActorAddress } from "@/lib/identity";
 import type { BundleListing, ClankerToken, FarcasterAccount, Loan, MiniApp, XAccount } from "@/lib/data";
@@ -145,45 +140,7 @@ interface ProfileListing {
   contractListingId?: string;
   cancelPath: string;
   cancelMethod: "PATCH" | "DELETE";
-  offers: ProfileOffer[];
 }
-
-interface ListingInboxThread {
-  listingId: string;
-  listingTitle: string;
-  marketplace: string;
-  buyerAddress: string;
-  sellerAddress: string;
-  counterpartyAddress: string;
-  counterpartyName: string;
-  lastSenderName: string;
-  preview: string;
-  createdAt: string;
-  unreadCount: number;
-  role: "buyer" | "seller";
-}
-
-interface ProfileOffer {
-  id: string;
-  listingId: string;
-  offererAddress: string;
-  amt: number;
-  apr: number;
-  term: number;
-  status: string;
-  expiresAt?: string | null;
-  signature?: `0x${string}`;
-  nonce?: string;
-  typedData?: unknown;
-  marketplace?: string;
-  contractListingId?: string;
-}
-
-type ProfileOfferAcceptPayload = ProfileOffer & {
-  signature: `0x${string}`;
-  nonce: string;
-  typedData: unknown;
-};
 
 type ProfileLoan = Loan & {
   collection?: string;
@@ -251,6 +208,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
   const [actionNotice, setActionNotice] = useState("");
   const [actionBusy, setActionBusy] = useState("");
   const [platformFeeBps, setPlatformFeeBps] = useState(500);
+  const [agreement, setAgreement] = useState<AgreementVariant | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -262,6 +220,12 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
   const actorRole = walletAddress === sellerAddress ? "seller" : walletAddress === buyerAddress ? "buyer" : role;
   const isContractBacked = Boolean(deal.contractListingId);
   const isClankerDeal = Boolean(deal.clankerTransfer?.tokenAddress);
+  const agreementActionRef = useRef<() => void>(() => {});
+
+  const withAgreement = (variant: AgreementVariant, action: () => void) => {
+    agreementActionRef.current = action;
+    setAgreement(variant);
+  };
 
   useEffect(() => {
     if (isContractBacked) {
@@ -487,13 +451,13 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
               chainId: deal.chainId,
             });
             hashes.push(...transferHashes);
-            note = "Clanker vaulted tokens claimed and transferred to buyer";
+            note = "Clanker locked tokens claimed and transferred to buyer";
           } catch (err) {
-            note = "Clanker vaulted tokens claimed but supply transfer failed — tokens are in seller wallet. Re-run supply transfer to complete.";
+            note = "Clanker locked tokens claimed but supply transfer failed — tokens are in seller wallet. Re-run supply transfer to complete.";
             throw err;
           }
         } else {
-          note = "Clanker vaulted tokens claimed by seller";
+          note = "Clanker locked tokens claimed by seller";
         }
       } else {
         hashes = await transferClankerTokenSupply({
@@ -601,7 +565,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
           )}
         </div>
         <div className="row" style={{ gap: 10 }}>
-          <button className="btn ghost" onClick={openDispute} disabled={Boolean(actionBusy)}><Icon.warn /> Open dispute</button>
+          <button className="btn ghost" onClick={() => withAgreement("dispute", () => void openDispute())} disabled={Boolean(actionBusy)}><Icon.warn /> Open dispute</button>
           <button className="btn" onClick={() => window.open("/contracts/VaultEscrow.sol", "_blank")}>Download contract</button>
         </div>
       </div>
@@ -673,19 +637,19 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
                   {actorRole === "seller" ? (
                     <div className="grid grid-2" style={{ gap: 8, marginTop: 12 }}>
                       {selectedRights(deal.clankerTransfer.saleRights).feeRights && (
-                        <button className="btn sm" onClick={() => runClankerTransfer("fee")} disabled={Boolean(actionBusy)}>
+                        <button className="btn sm" onClick={() => withAgreement("seller-delivery", () => void runClankerTransfer("fee"))} disabled={Boolean(actionBusy)}>
                           {actionBusy === "clanker-fee" ? "Transferring..." : "Transfer fee rights"}
                         </button>
                       )}
                       {selectedRights(deal.clankerTransfer.saleRights).adminRights && (
-                        <button className="btn sm" onClick={() => runClankerTransfer("admin")} disabled={Boolean(actionBusy)}>
+                        <button className="btn sm" onClick={() => withAgreement("seller-delivery", () => void runClankerTransfer("admin"))} disabled={Boolean(actionBusy)}>
                           {actionBusy === "clanker-admin" ? "Transferring..." : "Transfer admin rights"}
                         </button>
                       )}
                       {selectedRights(deal.clankerTransfer.saleRights).vaultedTokens && (
                         <div className="col" style={{ gap: 4 }}>
-                          <button className="btn sm" onClick={() => runClankerTransfer("vault")} disabled={Boolean(actionBusy)}>
-                            {actionBusy === "clanker-vault" ? "Claiming..." : `Claim ${deal.clankerTransfer.vaultedAmount ? `${deal.clankerTransfer.vaultedAmount.toLocaleString()} ` : ""}vaulted tokens`}
+                          <button className="btn sm" onClick={() => withAgreement("seller-delivery", () => void runClankerTransfer("vault"))} disabled={Boolean(actionBusy)}>
+                            {actionBusy === "clanker-vault" ? "Claiming..." : `Claim ${deal.clankerTransfer.vaultedAmount ? `${deal.clankerTransfer.vaultedAmount.toLocaleString()} ` : ""}locked tokens`}
                           </button>
                           {deal.clankerTransfer.vaultUnlock && new Date(deal.clankerTransfer.vaultUnlock) > new Date() && (
                             <span className="muted" style={{ fontSize: 11 }}>Locked until {new Date(deal.clankerTransfer.vaultUnlock).toLocaleDateString()}</span>
@@ -693,7 +657,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
                         </div>
                       )}
                       {selectedRights(deal.clankerTransfer.saleRights).remainingSupply && (
-                        <button className="btn sm" onClick={() => runClankerTransfer("supply")} disabled={Boolean(actionBusy)}>
+                        <button className="btn sm" onClick={() => withAgreement("seller-delivery", () => void runClankerTransfer("supply"))} disabled={Boolean(actionBusy)}>
                           {actionBusy === "clanker-supply" ? "Transferring..." : `Transfer ${deal.clankerTransfer.remainingSupply || ""} ${deal.clankerTransfer.symbol}`}
                         </button>
                       )}
@@ -725,7 +689,7 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
                     </button>
                   )}
                   {!c.done && actorRole === "seller" && (
-                    <button className="btn sm ghost" onClick={submitProof} disabled={Boolean(actionBusy)}>
+                    <button className="btn sm ghost" onClick={() => withAgreement("seller-delivery", () => void submitProof())} disabled={Boolean(actionBusy)}>
                       {actionBusy === "proofs" ? (isContractBacked ? "Confirming..." : "Uploading...") : "Add proof"}
                     </button>
                   )}
@@ -834,22 +798,22 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
             <div className="row" style={{ gap: 8, marginTop: 16 }}>
               {actorRole === "buyer" ? (
                 <>
-                  <button className="btn primary" style={{ flex: 1 }} onClick={() => postEscrowAction("release", {}, "Funds released in the escrow ledger.")} disabled={!canRelease || Boolean(actionBusy)}>
+                  <button className="btn primary" style={{ flex: 1 }} onClick={() => withAgreement("buyer-release", () => void postEscrowAction("release", {}, "Funds released in the escrow ledger."))} disabled={!canRelease || Boolean(actionBusy)}>
                     {actionBusy === "release" ? (isContractBacked ? "Confirming..." : "Releasing...") : "Release funds"}
                   </button>
-                  <button className="btn danger" style={{ flex: 1 }} onClick={openDispute} disabled={Boolean(actionBusy)}>Open dispute</button>
+                  <button className="btn danger" style={{ flex: 1 }} onClick={() => withAgreement("dispute", () => void openDispute())} disabled={Boolean(actionBusy)}>Open dispute</button>
                 </>
               ) : (
                 <>
-                  <button className="btn primary" style={{ flex: 1 }} onClick={submitProof} disabled={Boolean(actionBusy)}>
+                  <button className="btn primary" style={{ flex: 1 }} onClick={() => withAgreement("seller-delivery", () => void submitProof())} disabled={Boolean(actionBusy)}>
                     {actionBusy === "proofs" ? (isContractBacked ? "Confirming..." : "Submitting...") : "Submit proof"}
                   </button>
-                  <button className="btn danger" style={{ flex: 1 }} onClick={openDispute} disabled={Boolean(actionBusy)}>Open dispute</button>
+                  <button className="btn danger" style={{ flex: 1 }} onClick={() => withAgreement("dispute", () => void openDispute())} disabled={Boolean(actionBusy)}>Open dispute</button>
                 </>
               )}
             </div>
             <button className="btn sm" style={{ marginTop: 8, width: "100%" }} onClick={() => shareAsCast(
-              `${deal.name} — ${deal.amount} ${deal.currency} deal on Vault`,
+              `${deal.name} — ${deal.amount} ${deal.currency} deal on Baseshire Hethaway`,
               `${window.location.origin}/deals?id=${deal.id}`
             )}>
               <Icon.cast style={{ width: 12, height: 12 }} /> Share on Farcaster
@@ -860,6 +824,17 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
           </div>
         </div>
       </div>
+      {agreement && (
+        <AgreementModal
+          variant={agreement}
+          onCancel={() => setAgreement(null)}
+          onConfirm={() => {
+            const action = agreementActionRef.current;
+            setAgreement(null);
+            action();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -871,51 +846,6 @@ function DealRoom({ deal, onBack, onChanged }: { deal: DealDetail; onBack: () =>
 function shortWallet(address?: string) {
   if (!address) return "";
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
-}
-
-function profileOfferMessage(offer: ProfileOffer): SignedLoanOfferMessage | SignedDealOfferMessage | null {
-  const typedData = typeof offer.typedData === "string"
-    ? JSON.parse(offer.typedData)
-    : offer.typedData as { message?: Record<string, unknown> } | undefined;
-  const msg = typedData?.message;
-  if (!msg) return null;
-  if (offer.marketplace === "nft_loan") {
-    return {
-      listingId: BigInt(String(msg.listingId)),
-      lender: String(msg.lender) as Address,
-      amount: BigInt(String(msg.amount)),
-      apr: BigInt(String(msg.apr)),
-      term: BigInt(String(msg.term)),
-      expiry: BigInt(String(msg.expiry)),
-      nonce: BigInt(String(msg.nonce)),
-    };
-  }
-  return {
-    dealId: BigInt(String(msg.dealId)),
-    buyer: String(msg.buyer) as Address,
-    amount: BigInt(String(msg.amount)),
-    expiry: BigInt(String(msg.expiry)),
-    nonce: BigInt(String(msg.nonce)),
-  };
-}
-
-async function loadOfferAcceptPayload(offerId: string, actorAddress?: string | null): Promise<ProfileOfferAcceptPayload> {
-  const res = await fetch(`/api/offers/${encodeURIComponent(offerId)}/accept-payload`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ actorAddress }),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || "Unable to load offer accept payload");
-  return json.data as ProfileOfferAcceptPayload;
-}
-
-async function loadOffersForListing(listingId: string): Promise<ProfileOffer[]> {
-  const res = await fetch(`/api/offers?listingId=${encodeURIComponent(listingId)}`, { credentials: "include" });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) return [];
-  return (json.data || []).filter((offer: ProfileOffer) => offer.status === "pending");
 }
 
 async function loadProfileListings(address: string): Promise<ProfileListing[]> {
@@ -960,7 +890,6 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
-      offers: [],
     })),
     ...mine(dataFrom<MiniApp>(miniAppsResult)).map((listing) => ({
       id: listing.id,
@@ -976,7 +905,6 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
-      offers: [],
     })),
     ...mine(dataFrom<XAccount>(xAccountsResult)).map((listing) => ({
       id: listing.id,
@@ -992,7 +920,6 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
-      offers: [],
     })),
     ...mine(dataFrom<FarcasterAccount>(farcasterResult)).map((listing) => ({
       id: listing.id,
@@ -1008,7 +935,6 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
-      offers: [],
     })),
     ...mine(dataFrom<ClankerToken>(clankerResult)).map((listing) => ({
       id: listing.id,
@@ -1024,7 +950,6 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/${encodeURIComponent(listing.id)}`,
       cancelMethod: "PATCH" as const,
-      offers: [],
     })),
     ...mine(dataFrom<BundleListing>(bundlesResult)).map((listing) => ({
       id: listing.id,
@@ -1040,7 +965,6 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       contractListingId: listing.contractListingId,
       cancelPath: `/api/listings/bundle?id=${encodeURIComponent(listing.id)}`,
       cancelMethod: "DELETE" as const,
-      offers: [],
     })),
   ];
   const uniqueListings = Array.from(
@@ -1052,8 +976,7 @@ async function loadProfileListings(address: string): Promise<ProfileListing[]> {
       }, new Map<string, ProfileListing>())
       .values()
   );
-  const offers = await Promise.all(uniqueListings.map((listing) => loadOffersForListing(listing.id)));
-  return uniqueListings.map((listing, index) => ({ ...listing, offers: offers[index] || [] }));
+  return uniqueListings;
 }
 
 function shareUrlForProfileListing(listing: ProfileListing) {
@@ -1095,15 +1018,10 @@ export default function DealsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [profileListings, setProfileListings] = useState<ProfileListing[]>([]);
   const [profileListingFilter, setProfileListingFilter] = useState<"active" | "cancelled" | "all">("active");
-  const [profileMessageListing, setProfileMessageListing] = useState<ProfileListing | null>(null);
   const [profileShareListing, setProfileShareListing] = useState<ProfileListing | null>(null);
-  const [profileMessageBuyer, setProfileMessageBuyer] = useState("");
-  const [listingInbox, setListingInbox] = useState<ListingInboxThread[]>([]);
-  const [outgoingOffers, setOutgoingOffers] = useState<ProfileOffer[]>([]);
   const [listingsLoading, setListingsLoading] = useState(false);
   const [listingNotice, setListingNotice] = useState("");
   const [listingAction, setListingAction] = useState("");
-  const [offerAction, setOfferAction] = useState("");
   const { isConnected, isConnecting, connect, role, address, sessionAddress } = useWallet();
   const actorAddress = React.useMemo(() => currentActorAddress({ address, sessionAddress }), [address, sessionAddress]);
 
@@ -1137,35 +1055,11 @@ export default function DealsPage() {
       .finally(() => setListingsLoading(false));
   }, [actorAddress]);
 
-  const refreshOutgoingOffers = React.useCallback(() => {
-    if (!actorAddress) {
-      setOutgoingOffers([]);
-      return Promise.resolve();
-    }
-    return fetch(`/api/offers?offererAddress=${encodeURIComponent(actorAddress)}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((json) => setOutgoingOffers((json.data || []).filter((offer: ProfileOffer) => offer.status === "pending")))
-      .catch(() => setOutgoingOffers([]));
-  }, [actorAddress]);
-
-  const refreshListingInbox = React.useCallback(() => {
-    if (!actorAddress) {
-      setListingInbox([]);
-      return Promise.resolve();
-    }
-    return fetch(`/api/listings/messages?walletAddress=${encodeURIComponent(actorAddress)}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((json) => setListingInbox(json.data || []))
-      .catch(() => setListingInbox([]));
-  }, [actorAddress]);
-
   useEffect(() => {
     queueMicrotask(() => {
       refreshProfileListings();
-      refreshOutgoingOffers();
-      refreshListingInbox();
     });
-  }, [refreshListingInbox, refreshOutgoingOffers, refreshProfileListings]);
+  }, [refreshProfileListings]);
 
   useEffect(() => {
     if (linkedDealId) queueMicrotask(() => setSelectedDealId(linkedDealId));
@@ -1244,77 +1138,6 @@ export default function DealsPage() {
     setProfileShareListing(listing);
   };
 
-  const patchOfferStatus = async (offer: ProfileOffer, status: "accepted" | "rejected" | "cancelled", txHash?: Hash) => {
-    const res = await fetch("/api/offers", {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: offer.id, status, actorAddress, txHash }),
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(json.error || "Unable to update offer");
-  };
-
-  const acceptProfileOffer = async (offer: ProfileOffer) => {
-    if (!address) return;
-    setOfferAction(offer.id);
-    setListingNotice("");
-    try {
-      const payload = await loadOfferAcceptPayload(offer.id, actorAddress);
-      const message = profileOfferMessage({ ...offer, ...payload });
-      if (!message) throw new Error("Offer typed data is missing.");
-      const txHash = payload.marketplace === "nft_loan"
-        ? await writeAcceptSignedLoanOffer(address as Address, message as SignedLoanOfferMessage, payload.signature)
-        : await writeAcceptSignedDealOffer(address as Address, message as SignedDealOfferMessage, payload.signature);
-      await getPublicClient().waitForTransactionReceipt({ hash: txHash });
-      await patchOfferStatus(offer, "accepted", txHash);
-      setListingNotice(offer.marketplace === "nft_loan"
-        ? "Offer accepted and loan activated."
-        : "Offer accepted. Buyer funds are locked in escrow until delivery is confirmed.");
-      await Promise.all([refreshProfileListings(), refreshOutgoingOffers(), loadEscrows()]);
-    } catch (err) {
-      setListingNotice(parseContractError(err));
-    } finally {
-      setOfferAction("");
-    }
-  };
-
-  const rejectProfileOffer = async (offer: ProfileOffer) => {
-    setOfferAction(offer.id);
-    setListingNotice("");
-    try {
-      await patchOfferStatus(offer, "rejected");
-      setListingNotice("Offer rejected.");
-      await refreshProfileListings();
-    } catch (err) {
-      setListingNotice(err instanceof Error ? err.message : "Unable to reject offer");
-    } finally {
-      setOfferAction("");
-    }
-  };
-
-  const cancelOutgoingOffer = async (offer: ProfileOffer) => {
-    if (!address) return;
-    setOfferAction(offer.id);
-    setListingNotice("");
-    try {
-      if (offer.nonce) {
-        const nonce = BigInt(offer.nonce);
-        const txHash = offer.marketplace === "nft_loan"
-          ? await writeCancelNftOfferNonce(address as Address, nonce)
-          : await writeCancelDealOfferNonce(address as Address, nonce);
-        await getPublicClient().waitForTransactionReceipt({ hash: txHash });
-      }
-      await patchOfferStatus(offer, "cancelled");
-      setListingNotice("Offer cancelled.");
-      await refreshOutgoingOffers();
-    } catch (err) {
-      setListingNotice(parseContractError(err));
-    } finally {
-      setOfferAction("");
-    }
-  };
-
   /* -- render -- */
   if (loading) return <main id="main-content" role="main" aria-label="Main content" className="main"><div className="muted" style={{ padding: 80, textAlign: "center" }}>Loading…</div></main>;
   if (error)   return (
@@ -1382,7 +1205,7 @@ export default function DealsPage() {
             {needsAct.slice(0, 2).map(e => (
               <div key={e.id} className="card row between" style={{ padding: 14, borderLeft: "3px solid var(--warn)" }}>
                 <div className="col" style={{ gap: 2 }}>
-                  <span className="mono" style={{ fontSize: 13, color: "var(--ink)" }}>{e.id} · {e.asset}</span>
+                  <span className="mono" style={{ fontSize: 13, color: "var(--ink)" }}>{e.asset}</span>
                   <span style={{ fontSize: 12 }}>{e.action}</span>
                 </div>
                 <button className="btn primary sm" onClick={() => setSelectedDealId(e.id)}>Resolve →</button>
@@ -1426,7 +1249,7 @@ export default function DealsPage() {
               <EmptyHeader>
                 <EmptyMedia variant="icon"><Icon.asset /></EmptyMedia>
                 <EmptyTitle>No {profileListingFilter === "cancelled" ? "cancelled" : "active"} listings yet</EmptyTitle>
-                <EmptyDescription>{profileListingFilter === "cancelled" ? "Cancelled listings will appear here." : "List an asset to start receiving offers from buyers."}</EmptyDescription>
+                <EmptyDescription>{profileListingFilter === "cancelled" ? "Cancelled listings will appear here." : "List an asset to start selling through escrow."}</EmptyDescription>
               </EmptyHeader>
               <Link href="/market" className="btn sm">Create listing</Link>
             </Empty>
@@ -1441,10 +1264,7 @@ export default function DealsPage() {
                     imageAlt={`${listing.title} preview`}
                     title={listing.title}
                     subtitle={listing.kind}
-                    stats={[
-                      { label: "Offers", value: listing.offers.length },
-                      { label: "ID", value: listing.id },
-                    ]}
+                    stats={[]}
                     price={fmtUSDC(listing.price)}
                     priceMeta={listing.currency}
                     actions={
@@ -1455,9 +1275,6 @@ export default function DealsPage() {
                         <button type="button" className="btn sm" onClick={() => shareListing(listing)} aria-label={`Share ${listing.title}`}>
                           <Icon.share /> Share
                         </button>
-                        <button type="button" className="btn sm" onClick={() => { setProfileMessageBuyer(""); setProfileMessageListing(listing); }} aria-label={`Messages for ${listing.title}`}>
-                          <Icon.send /> Msg
-                        </button>
                         {listing.status !== "cancelled" && (
                           <button type="button" className="btn danger sm" onClick={() => cancelListing(listing)} disabled={listingAction === listing.id} aria-label={`Cancel ${listing.title}`}>
                             {listingAction === listing.id ? <Icon.clock /> : <Icon.x />} Cancel
@@ -1465,112 +1282,11 @@ export default function DealsPage() {
                         )}
                       </>
                     }
-                  >
-                  {listing.offers.length > 0 && (
-                    <div className="profile-offers">
-                      {listing.offers.map((offer) => (
-                        <div key={offer.id} className="profile-offer-row">
-                          <div>
-                            <strong>{fmtUSDC(offer.amt)} USDC offer</strong>
-                            <small>
-                              {shortWallet(offer.offererAddress)}
-                              {offer.apr > 0 ? ` · ${offer.apr}% APR` : ""}
-                              {offer.term > 0 ? ` · ${offer.term} days` : ""}
-                            </small>
-                          </div>
-                          <div className="row" style={{ gap: 8 }}>
-                            <button className="btn sm" onClick={() => rejectProfileOffer(offer)} disabled={offerAction === offer.id}>
-                              Reject
-                            </button>
-                            <button className="btn primary sm" onClick={() => acceptProfileOffer(offer)} disabled={offerAction === offer.id}>
-                              {offerAction === offer.id ? "Working..." : "Accept"}
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  </ListingFeedCard>
+                  />
                 </div>
               ))}
             </div>
           )}
-        </section>
-      )}
-
-      {!selectedDealId && listingInbox.length > 0 && (
-        <section className="card profile-listings-card">
-          <div className="profile-listings-head">
-            <div className="eyebrow">Pre-deal messages</div>
-            <h2 className="serif" style={{ fontSize: 22, margin: "4px 0 0" }}>Listing inbox</h2>
-          </div>
-          <div className="profile-listings">
-            {listingInbox.map((thread) => (
-              <button
-                key={`${thread.listingId}-${thread.buyerAddress}`}
-                type="button"
-                className="profile-listing-item"
-                style={{ textAlign: "left" }}
-                onClick={() => {
-                  setProfileMessageBuyer(thread.role === "seller" ? thread.buyerAddress : "");
-                  setProfileMessageListing({
-                    id: thread.listingId,
-                    kind: thread.marketplace || "Listing",
-                    shareKind: "miniapps",
-                    title: thread.listingTitle,
-                    price: 0,
-                    currency: "USDC",
-                    status: "active",
-                    href: `/market?id=${encodeURIComponent(thread.listingId)}`,
-                    cancelPath: `/api/listings/${encodeURIComponent(thread.listingId)}`,
-                    cancelMethod: "PATCH",
-                    sellerAddress: thread.sellerAddress,
-                    contractListingId: "",
-                    offers: [],
-                  });
-                }}
-              >
-                <div className="profile-listing-row">
-                  <div>
-                    <span className="smallcaps">{thread.role === "seller" ? "Buyer thread" : "Seller thread"}</span>
-                    <strong>{thread.listingTitle}</strong>
-                    <small>
-                      {thread.counterpartyName} · {thread.lastSenderName}: {thread.preview}
-                    </small>
-                  </div>
-                  {thread.unreadCount > 0 && (
-                    <span className="pill warn">{thread.unreadCount} new</span>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {!selectedDealId && outgoingOffers.length > 0 && (
-        <section className="card profile-listings-card">
-          <div className="profile-listings-head">
-            <div className="eyebrow">My offers</div>
-            <h2 className="serif" style={{ fontSize: 22, margin: "4px 0 0" }}>Outgoing offers</h2>
-          </div>
-          <div className="profile-listings">
-            {outgoingOffers.map((offer) => (
-              <div key={offer.id} className="profile-offer-row">
-                <div>
-                  <span className="smallcaps">{offer.marketplace === "nft_loan" ? "NFT loan" : "P2P market"}</span>
-                  <strong>{fmtUSDC(offer.amt)} USDC offer</strong>
-                  <small>
-                    {offer.status}
-                    {offer.expiresAt ? ` · expires ${new Date(offer.expiresAt).toLocaleString()}` : ""}
-                  </small>
-                </div>
-                <button className="btn sm" onClick={() => cancelOutgoingOffer(offer)} disabled={offerAction === offer.id}>
-                  {offerAction === offer.id ? "Cancelling..." : "Cancel offer"}
-                </button>
-              </div>
-            ))}
-          </div>
         </section>
       )}
 
@@ -1674,26 +1390,10 @@ export default function DealsPage() {
           )}
         </div>
       )}
-      {profileMessageListing && (
-        <ListingMessageModal
-          key={`${profileMessageListing.id}-${profileMessageBuyer}`}
-          listing={{
-            id: profileMessageListing.id,
-            title: profileMessageListing.title,
-            sellerAddress: profileMessageListing.sellerAddress,
-          }}
-          initialBuyerAddress={profileMessageBuyer}
-          onClose={() => {
-            setProfileMessageListing(null);
-            setProfileMessageBuyer("");
-            refreshListingInbox();
-          }}
-        />
-      )}
       {profileShareListing && (
         <ShareListingModal
           title={profileShareListing.title}
-          text={`${profileShareListing.title} — ${fmtUSDC(profileShareListing.price)} ${profileShareListing.currency} on Vault`}
+          text={`${profileShareListing.title} — ${fmtUSDC(profileShareListing.price)} ${profileShareListing.currency} on Baseshire Hethaway`}
           url={shareUrlForProfileListing(profileShareListing)}
           onClose={() => setProfileShareListing(null)}
           onCopied={() => setListingNotice("Listing link copied.")}

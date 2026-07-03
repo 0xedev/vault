@@ -86,7 +86,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
       const fetchedProfile = profile || (await fetchFidProfile());
       if (!fetchedProfile)
         throw new Error(
-          "Enter a valid FID so Vault can fetch the Farcaster profile.",
+          "Enter a valid FID so Baseshire Hethaway can fetch the Farcaster profile.",
         );
       const metadata = {
         handle: fetchedProfile.username,
@@ -143,7 +143,7 @@ export default function ListFidModal({ onClose }: { onClose: () => void }) {
       );
       setSuccess({
         title: profileHandle || `FID #${normalizedFid}`,
-        text: `${profileHandle || `FID #${normalizedFid}`} — ${Number(price).toLocaleString("en-US")} USDC Farcaster listing on Vault`,
+        text: `${profileHandle || `FID #${normalizedFid}`} — ${Number(price).toLocaleString("en-US")} USDC Farcaster listing on Baseshire Hethaway`,
         url: `${window.location.origin}/farcaster?id=${encodeURIComponent(listingId)}`,
       });
     } catch (err) {

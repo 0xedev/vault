@@ -61,7 +61,13 @@ export default function ListingFeedCard({
   className?: string;
 }) {
   const [showDescription, setShowDescription] = useState(false);
-  const visibleStats = stats.filter((stat) => hasVisibleStatValue(stat.value)).slice(0, 3);
+  const visibleStats = stats
+    .filter(
+      (stat) =>
+        stat.label.trim().toLowerCase() !== "id" &&
+        hasVisibleStatValue(stat.value),
+    )
+    .slice(0, 3);
   const mediaUrl = typeof imageUrl === "string" ? imageUrl.trim() : "";
   const hasDescription = Boolean(
     typeof description === "string" ? description.trim() : description,

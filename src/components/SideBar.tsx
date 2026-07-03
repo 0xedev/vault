@@ -28,6 +28,7 @@ const items: SidebarItem[] = [
   { k: "/clanker",   t: "Clanker Tokens",    icon: <Icon.token/> },
   { k: "/market", href: "/market?tab=bundles", tab: "bundles", t: "Bundles",  icon: <Icon.shield/> },
   { sec: "Account" },
+  { k: "/messages", t: "Messages",          icon: <Icon.send/> },
   { k: "/deals",     t: "Profile",           icon: <Icon.escrow/> },
   { k: "/admin/dash", t: "Admin",            icon: <Icon.shield/>, adminOnly: true },
   { sec: "About" },

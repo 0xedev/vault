@@ -1,4 +1,4 @@
-# Vault
+# Baseshire Hethaway
 
 NFT-backed lending & escrow platform — one venue for NFT loans, mini-app sales, X handle transfers, and Farcaster FID escrow.
 
