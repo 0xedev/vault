@@ -3830,7 +3830,7 @@ select:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-right: 38px;
+  padding-right: 0;
 }
 .listing-feed-icon {
   position: relative;
@@ -3888,6 +3888,35 @@ select:focus-visible {
   color: var(--accent);
   font-size: 11px;
   font-weight: 700;
+}
+.listing-feed-info {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.listing-feed-info:hover,
+.listing-feed-info[aria-expanded="true"] {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
+  background: color-mix(in oklab, var(--accent) 10%, var(--surface-2));
+}
+.listing-feed-description {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklab, var(--accent) 28%, var(--line));
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--accent) 7%, var(--surface-container-high));
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.45;
 }
 .listing-feed-stats {
   display: grid;
@@ -3974,7 +4003,7 @@ select:focus-visible {
 .ghost-hit-area {
   position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 1;
   padding: 0;
   border: 0;
   background: transparent;
@@ -3982,7 +4011,7 @@ select:focus-visible {
 }
 .market-action-card > :not(.ghost-hit-area) {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 .listing-message-body {
   min-height: 340px;

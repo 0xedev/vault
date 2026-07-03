@@ -43,7 +43,10 @@ import ListFidModal from "@/components/ListFidModal";
 import ListClankerModal from "@/components/ListClankerModal";
 import SubmitDealOfferModal from "@/components/SubmitDealOfferModal";
 import ShareListingModal from "@/components/ShareListingModal";
-import { ListingSuccessModal, type ListingSuccessShare } from "@/components/ListingSuccessModal";
+import {
+  ListingSuccessModal,
+  type ListingSuccessShare,
+} from "@/components/ListingSuccessModal";
 import ListingFeedCard from "@/components/ListingFeedCard";
 import {
   Carousel,
@@ -71,7 +74,11 @@ type MarketTab =
   | "bundles";
 
 const marketTabs: { key: MarketTab; label: string; description: string }[] = [
-  { key: "all", label: "Feed", description: "Live drops across every vault market" },
+  {
+    key: "all",
+    label: "Feed",
+    description: "Live drops across every vault market",
+  },
   { key: "nft", label: "NFTs", description: "Collateralized NFT loans" },
   { key: "miniapps", label: "Apps", description: "Mini app acquisitions" },
   { key: "x", label: "X", description: "Audience accounts" },
@@ -114,7 +121,15 @@ function MarketAssetCarousel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function DetectedNftThumb({ imageUrl, seed, label }: { imageUrl: string; seed: number; label: string }) {
+function DetectedNftThumb({
+  imageUrl,
+  seed,
+  label,
+}: {
+  imageUrl: string;
+  seed: number;
+  label: string;
+}) {
   const [failed, setFailed] = useState(false);
 
   if (imageUrl && !failed) {
@@ -162,7 +177,9 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
   const [success, setSuccess] = useState<ListingSuccessShare | null>(null);
 
   useEffect(() => {
-    readPlatformFeeBps("nft").then(setNftPlatformFeeBps).catch(() => {});
+    readPlatformFeeBps("nft")
+      .then(setNftPlatformFeeBps)
+      .catch(() => {});
   }, []);
 
   const [tooltip, setTooltip] = useState("");
@@ -181,8 +198,20 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           name?: string;
           floorPriceEth?: number;
           collection?: { name?: string };
-          image?: { cachedUrl?: string; thumbnailUrl?: string; pngUrl?: string; originalUrl?: string };
-          raw?: { metadata?: { image?: string; image_url?: string; imageUrl?: string; animation_url?: string } };
+          image?: {
+            cachedUrl?: string;
+            thumbnailUrl?: string;
+            pngUrl?: string;
+            originalUrl?: string;
+          };
+          raw?: {
+            metadata?: {
+              image?: string;
+              image_url?: string;
+              imageUrl?: string;
+              animation_url?: string;
+            };
+          };
           media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
         }[];
         const found = nfts
@@ -218,8 +247,20 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
         name?: string;
         floorPriceEth?: number;
         collection?: { name?: string };
-        image?: { cachedUrl?: string; thumbnailUrl?: string; pngUrl?: string; originalUrl?: string };
-        raw?: { metadata?: { image?: string; image_url?: string; imageUrl?: string; animation_url?: string } };
+        image?: {
+          cachedUrl?: string;
+          thumbnailUrl?: string;
+          pngUrl?: string;
+          originalUrl?: string;
+        };
+        raw?: {
+          metadata?: {
+            image?: string;
+            image_url?: string;
+            imageUrl?: string;
+            animation_url?: string;
+          };
+        };
         media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
       }[];
       const found = nfts
@@ -247,8 +288,8 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     Number(amount) > 0 &&
     Number(apr) > 0 &&
     Number(term) > 0;
-  const impliedLtv = canReview ? Math.round((Number(amount) / 15) * 100) : 0;
-  const platformFee = Number(amount || 0) * nftPlatformFeeBps / 10000;
+  const impliedLtv = 0;
+  const platformFee = (Number(amount || 0) * nftPlatformFeeBps) / 10000;
 
   const verifyOwnership = async () => {
     if (!address) return false;
@@ -604,44 +645,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                     onChange={(e) => setTerm(e.target.value)}
                   />
                 </div>
-                <div
-                  className="col"
-                  style={{ gap: 6, justifyContent: "flex-end" }}
-                >
-                  <span className="smallcaps">Implied LTV</span>
-                  <span
-                    className="mono"
-                    style={{
-                      fontSize: 18,
-                      color:
-                        impliedLtv > 75
-                          ? "var(--risk)"
-                          : impliedLtv > 65
-                            ? "var(--warn)"
-                            : "var(--accent)",
-                    }}
-                  >
-                    {impliedLtv}%
-                  </span>
-                </div>
               </div>
-
-              {impliedLtv > 75 && (
-                <div
-                  className="warn-banner"
-                  style={{
-                    background: "rgba(255, 71, 71, 0.05)",
-                    borderColor: "var(--risk)",
-                    color: "var(--risk)",
-                  }}
-                >
-                  <Icon.warn />
-                  <div style={{ fontSize: 12 }}>
-                    High LTV detected. Loans above 75% LTV are significantly
-                    less likely to be funded by lenders.
-                  </div>
-                </div>
-              )}
 
               <div className="row" style={{ gap: 8 }}>
                 <button
@@ -691,18 +695,9 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                   <span className="v mono">{term} days</span>
                 </div>
                 <div className="kv">
-                  <span className="k">Implied LTV</span>
-                  <span
-                    className="v mono"
-                    style={{
-                      color: impliedLtv > 65 ? "var(--warn)" : "var(--accent)",
-                    }}
-                  >
-                    {impliedLtv}%
+                  <span className="k">
+                    Platform fee ({nftPlatformFeeBps / 100}%)
                   </span>
-                </div>
-                <div className="kv">
-                  <span className="k">Platform fee ({nftPlatformFeeBps / 100}%)</span>
                   <span className="v mono">{platformFee.toFixed(3)} USDC</span>
                 </div>
                 <div className="kv">
@@ -780,7 +775,10 @@ function BundleDetailPanel({
   const seller = bundle.sellerAddress
     ? `${bundle.sellerAddress.slice(0, 6)}...${bundle.sellerAddress.slice(-4)}`
     : "Unknown";
-  const isOwnListing = ownsListing(bundle, { address: buyerAddress, sessionAddress });
+  const isOwnListing = ownsListing(bundle, {
+    address: buyerAddress,
+    sessionAddress,
+  });
   const isPendingSync = !bundle.contractListingId;
 
   return (
@@ -790,17 +788,32 @@ function BundleDetailPanel({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={bundle.imageUrl} alt={bundle.name} />
         ) : (
-          <span><Icon.shield /></span>
+          <span>
+            <Icon.shield />
+          </span>
         )}
       </div>
       <div className="bundle-detail-body">
-        <div className="row between" style={{ gap: 12, alignItems: "flex-start" }}>
+        <div
+          className="row between"
+          style={{ gap: 12, alignItems: "flex-start" }}
+        >
           <div>
             <div className="eyebrow">Bundle listing</div>
-            <h2 className="serif" style={{ fontSize: 28, margin: "6px 0 4px" }}>{bundle.name}</h2>
-            {bundle.description && <p className="muted" style={{ margin: 0, maxWidth: 620 }}>{bundle.description}</p>}
+            <h2 className="serif" style={{ fontSize: 28, margin: "6px 0 4px" }}>
+              {bundle.name}
+            </h2>
+            {bundle.description && (
+              <p className="muted" style={{ margin: 0, maxWidth: 620 }}>
+                {bundle.description}
+              </p>
+            )}
           </div>
-          <Link href="/market?tab=bundles" className="btn ghost sm" aria-label="Close bundle details">
+          <Link
+            href="/market?tab=bundles"
+            className="btn ghost sm"
+            aria-label="Close bundle details"
+          >
             <Icon.x />
           </Link>
         </div>
@@ -808,7 +821,9 @@ function BundleDetailPanel({
         <div className="grid grid-3" style={{ marginTop: 18 }}>
           <div className="metric">
             <span className="lab">Bundle price</span>
-            <span className="val">{fmtUSDC(bundle.totalPrice)} {bundle.currency || "USDC"}</span>
+            <span className="val">
+              {fmtUSDC(bundle.totalPrice)} {bundle.currency || "USDC"}
+            </span>
           </div>
           <div className="metric">
             <span className="lab">Assets</span>
@@ -816,24 +831,40 @@ function BundleDetailPanel({
           </div>
           <div className="metric">
             <span className="lab">Seller</span>
-            <span className="val" style={{ fontSize: 14 }}>{seller}</span>
+            <span className="val" style={{ fontSize: 14 }}>
+              {seller}
+            </span>
           </div>
         </div>
 
         <div className="bundle-detail-assets">
           {bundle.assets.map((asset) => (
             <div key={asset.id} className="bundle-detail-asset">
-              <span className="bundle-asset-icon"><Icon.asset /></span>
+              <span className="bundle-asset-icon">
+                <Icon.asset />
+              </span>
               <div>
                 <strong>{asset.label}</strong>
-                <small>{bundleAssetLabel(asset.kind)}{asset.detail ? ` · ${asset.detail}` : ""}</small>
+                <small>
+                  {bundleAssetLabel(asset.kind)}
+                  {asset.detail ? ` · ${asset.detail}` : ""}
+                </small>
               </div>
-              {asset.price > 0 && <em>{fmtUSDC(asset.price)} {bundle.currency || "USDC"}</em>}
+              {asset.price > 0 && (
+                <em>
+                  {fmtUSDC(asset.price)} {bundle.currency || "USDC"}
+                </em>
+              )}
             </div>
           ))}
         </div>
-        <div className="row" style={{ gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
-          <Link href="/market?tab=bundles" className="btn">Back to bundles</Link>
+        <div
+          className="row"
+          style={{ gap: 10, justifyContent: "flex-end", marginTop: 18 }}
+        >
+          <Link href="/market?tab=bundles" className="btn">
+            Back to bundles
+          </Link>
           <button
             className="btn"
             onClick={() => onOffer(bundle)}
@@ -880,12 +911,18 @@ export default function MarketplacePage() {
   const [showBundleModal, setShowBundleModal] = useState(false);
   const [showClankerModal, setShowClankerModal] = useState(false);
   const [offerBundle, setOfferBundle] = useState<BundleListing | null>(null);
-  const [shareTarget, setShareTarget] = useState<ShareListingTarget | null>(null);
+  const [shareTarget, setShareTarget] = useState<ShareListingTarget | null>(
+    null,
+  );
   const [buyingBundleId, setBuyingBundleId] = useState("");
   const [chainLoading, setChainLoading] = useState(false);
   const [showOnChain, setShowOnChain] = useState(false);
-  const { isConnected, connect, isConnecting, address, sessionAddress } = useWallet();
-  const walletIdentity = useMemo(() => ({ address, sessionAddress }), [address, sessionAddress]);
+  const { isConnected, connect, isConnecting, address, sessionAddress } =
+    useWallet();
+  const walletIdentity = useMemo(
+    () => ({ address, sessionAddress }),
+    [address, sessionAddress],
+  );
 
   useEffect(() => {
     const tab = searchParams.get("tab") as MarketTab | null;
@@ -966,8 +1003,14 @@ export default function MarketplacePage() {
   const fetchDbListings = () => {
     setShowOnChain(false);
     fetch("/api/listings")
-      .then(async (r) => { const json = await r.json(); if (!r.ok) throw new Error(json.error); setLoans(json.data || []); })
-      .catch(err => setError(err instanceof Error ? err.message : "Failed to load"));
+      .then(async (r) => {
+        const json = await r.json();
+        if (!r.ok) throw new Error(json.error);
+        setLoans(json.data || []);
+      })
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Failed to load"),
+      );
   };
 
   const filtered = useMemo(() => {
@@ -999,7 +1042,8 @@ export default function MarketplacePage() {
     [
       "my",
       "My Listings",
-      loans.filter((l) => ownsListing(l as LoanWithSeller, walletIdentity)).length,
+      loans.filter((l) => ownsListing(l as LoanWithSeller, walletIdentity))
+        .length,
     ],
     ["open", "Open", loans.filter((l) => l.status === "open").length],
     ["funded", "Funded", loans.filter((l) => l.status === "funded").length],
@@ -1044,7 +1088,9 @@ export default function MarketplacePage() {
     url: `${window.location.origin}/x?id=${encodeURIComponent(account.id)}`,
   });
 
-  const shareFarcasterTarget = (account: FarcasterAccount): ShareListingTarget => ({
+  const shareFarcasterTarget = (
+    account: FarcasterAccount,
+  ): ShareListingTarget => ({
     id: account.id,
     title: fmtFarcasterAccount(account),
     text: `${fmtFarcasterAccount(account)} — ${fmtUSDC(account.price)} USDC Farcaster listing on Vault`,
@@ -1078,13 +1124,23 @@ export default function MarketplacePage() {
         throw new Error("You cannot buy your own listing.");
       }
       if (!bundle.contractListingId) {
-        throw new Error("Listing is pending chain sync. Try again after the listing transaction is confirmed.");
+        throw new Error(
+          "Listing is pending chain sync. Try again after the listing transaction is confirmed.",
+        );
       }
 
       const amountWei = parseUnits(String(bundle.totalPrice), 6);
-      const approveHash = await writeApproveUsdc(address as Address, await getDealsAddress(), amountWei);
+      const approveHash = await writeApproveUsdc(
+        address as Address,
+        await getDealsAddress(),
+        amountWei,
+      );
       await getPublicClient().waitForTransactionReceipt({ hash: approveHash });
-      const txHash = await writeFundDeal(address as Address, BigInt(bundle.contractListingId), amountWei);
+      const txHash = await writeFundDeal(
+        address as Address,
+        BigInt(bundle.contractListingId),
+        amountWei,
+      );
 
       const res = await fetch("/api/escrows", {
         method: "POST",
@@ -1104,7 +1160,9 @@ export default function MarketplacePage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Unable to create escrow");
-      router.push(`/deals?id=${encodeURIComponent(json.data?.id || bundle.id)}`);
+      router.push(
+        `/deals?id=${encodeURIComponent(json.data?.id || bundle.id)}`,
+      );
     } catch (err) {
       setError(parseContractError(err));
     } finally {
@@ -1113,7 +1171,13 @@ export default function MarketplacePage() {
   };
 
   const tabCounts: Record<MarketTab, number> = {
-    all: loans.length + miniApps.length + xAccounts.length + farcaster.length + clankerTokens.length + bundles.length,
+    all:
+      loans.length +
+      miniApps.length +
+      xAccounts.length +
+      farcaster.length +
+      clankerTokens.length +
+      bundles.length,
     nft: loans.length,
     miniapps: miniApps.length,
     x: xAccounts.length,
@@ -1130,9 +1194,17 @@ export default function MarketplacePage() {
     >
       <div
         className="market-discovery-toolbar"
-        style={{ "--market-active": marketTabTone[activeMarket] } as React.CSSProperties}
+        style={
+          {
+            "--market-active": marketTabTone[activeMarket],
+          } as React.CSSProperties
+        }
       >
-        <div className="market-tabs market-discovery-tabs" role="tablist" aria-label="Marketplace tabs">
+        <div
+          className="market-tabs market-discovery-tabs"
+          role="tablist"
+          aria-label="Marketplace tabs"
+        >
           {marketTabs.map((tab) => (
             <button
               key={tab.key}
@@ -1140,7 +1212,11 @@ export default function MarketplacePage() {
               role="tab"
               aria-selected={activeMarket === tab.key}
               className={activeMarket === tab.key ? "active" : ""}
-              style={{ "--market-tab": marketTabTone[tab.key] } as React.CSSProperties}
+              style={
+                {
+                  "--market-tab": marketTabTone[tab.key],
+                } as React.CSSProperties
+              }
               onClick={() => setActiveMarket(tab.key)}
             >
               <span>{tab.label}</span>
@@ -1217,7 +1293,10 @@ export default function MarketplacePage() {
           <button
             className="btn primary market-discovery-action"
             onClick={() => {
-              if (!isConnected) { connect(); return; }
+              if (!isConnected) {
+                connect();
+                return;
+              }
               setShowClankerModal(true);
             }}
             disabled={isConnecting}
@@ -1269,13 +1348,20 @@ export default function MarketplacePage() {
                 </button>
               </div>
               {loading ? (
-                <div className="muted" style={{ padding: 32, textAlign: "center" }}>
+                <div
+                  className="muted"
+                  style={{ padding: 32, textAlign: "center" }}
+                >
                   Loading…
                 </div>
               ) : (
                 <MarketAssetCarousel>
                   {loans.slice(0, 4).map((l) => (
-                    <LoanCard key={l.id} l={l} onShare={(loan) => openShareModal(shareLoanTarget(loan))} />
+                    <LoanCard
+                      key={l.id}
+                      l={l}
+                      onShare={(loan) => openShareModal(shareLoanTarget(loan))}
+                    />
                   ))}
                 </MarketAssetCarousel>
               )}
@@ -1307,6 +1393,7 @@ export default function MarketplacePage() {
                     imageAlt={`${app.name} preview`}
                     title={app.name}
                     subtitle={app.kind}
+                    description={app.description}
                     stats={[
                       { label: "DAU", value: app.dau.toLocaleString() },
                       { label: "MRR", value: `${fmtUSDC(app.mrr)} USDC` },
@@ -1314,10 +1401,19 @@ export default function MarketplacePage() {
                     price={fmtUSDC(app.price)}
                     actions={
                       <>
-                        <Link href={`/miniapps?id=${encodeURIComponent(app.id)}`} className="btn primary sm">
+                        <Link
+                          href={`/miniapps?id=${encodeURIComponent(app.id)}`}
+                          className="btn primary sm"
+                        >
                           <Icon.arrow /> View app
                         </Link>
-                        <button type="button" className="btn sm" onClick={() => openShareModal(shareMiniAppTarget(app))}>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() =>
+                            openShareModal(shareMiniAppTarget(app))
+                          }
+                        >
                           <Icon.share /> Share
                         </button>
                       </>
@@ -1354,17 +1450,27 @@ export default function MarketplacePage() {
                     title={account.handle}
                     subtitle={account.niche || "X handle"}
                     stats={[
-                      { label: "Followers", value: account.followers.toLocaleString() },
+                      {
+                        label: "Followers",
+                        value: account.followers.toLocaleString(),
+                      },
                       { label: "Engage", value: `${account.engagement}%` },
                       { label: "30d growth", value: account.growth },
                     ]}
                     price={fmtUSDC(account.price)}
                     actions={
                       <>
-                        <Link href={`/x?id=${encodeURIComponent(account.id)}`} className="btn primary sm">
+                        <Link
+                          href={`/x?id=${encodeURIComponent(account.id)}`}
+                          className="btn primary sm"
+                        >
                           <Icon.arrow /> View account
                         </Link>
-                        <button type="button" className="btn sm" onClick={() => openShareModal(shareXTarget(account))}>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() => openShareModal(shareXTarget(account))}
+                        >
                           <Icon.share /> Share
                         </button>
                       </>
@@ -1401,18 +1507,34 @@ export default function MarketplacePage() {
                     title={fmtFarcasterAccount(account)}
                     subtitle={`FID #${account.fid}${account.channel ? ` · /${account.channel}` : ""}`}
                     stats={[
-                      { label: "Followers", value: account.followers.toLocaleString() },
+                      {
+                        label: "Followers",
+                        value: account.followers.toLocaleString(),
+                      },
                       { label: "Casts / 30d", value: account.casts_30d },
-                      { label: "Revenue", value: account.rev_30d > 0 ? fmtUSDC(account.rev_30d) : "0" },
+                      {
+                        label: "Revenue",
+                        value:
+                          account.rev_30d > 0 ? fmtUSDC(account.rev_30d) : "0",
+                      },
                     ]}
                     price={fmtUSDC(account.price)}
                     badge={account.power_badge ? "Power" : undefined}
                     actions={
                       <>
-                        <Link href={`/farcaster?id=${encodeURIComponent(account.id)}`} className="btn primary sm">
+                        <Link
+                          href={`/farcaster?id=${encodeURIComponent(account.id)}`}
+                          className="btn primary sm"
+                        >
                           <Icon.arrow /> View FID
                         </Link>
-                        <button type="button" className="btn sm" onClick={() => openShareModal(shareFarcasterTarget(account))}>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() =>
+                            openShareModal(shareFarcasterTarget(account))
+                          }
+                        >
                           <Icon.share /> Share
                         </button>
                       </>
@@ -1430,7 +1552,9 @@ export default function MarketplacePage() {
                   <Icon.token />
                 </span>
                 <strong>Clanker Tokens</strong>
-                <span className="market-section-count">{clankerTokens.length}</span>
+                <span className="market-section-count">
+                  {clankerTokens.length}
+                </span>
                 <button
                   className="market-section-cta"
                   onClick={() => setActiveMarket("clanker")}
@@ -1449,18 +1573,36 @@ export default function MarketplacePage() {
                     title={`${token.name} (${token.symbol})`}
                     subtitle={token.chain}
                     stats={[
-                      { label: "Supply", value: token.totalSupply.toLocaleString() },
-                      { label: "Remaining", value: token.remainingSupply.toLocaleString() },
-                      { label: "Fees", value: token.feeEarnings.toLocaleString() },
+                      {
+                        label: "Supply",
+                        value: token.totalSupply.toLocaleString(),
+                      },
+                      {
+                        label: "Remaining",
+                        value: token.remainingSupply.toLocaleString(),
+                      },
+                      {
+                        label: "Fees",
+                        value: token.feeEarnings.toLocaleString(),
+                      },
                     ]}
                     price={fmtUSDC(token.price)}
                     badge={token.verified ? "Verified" : undefined}
                     actions={
                       <>
-                        <Link href={`/clanker?id=${encodeURIComponent(token.id)}`} className="btn primary sm">
+                        <Link
+                          href={`/clanker?id=${encodeURIComponent(token.id)}`}
+                          className="btn primary sm"
+                        >
                           <Icon.arrow /> View token
                         </Link>
-                        <button type="button" className="btn sm" onClick={() => openShareModal(shareClankerTarget(token))}>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() =>
+                            openShareModal(shareClankerTarget(token))
+                          }
+                        >
                           <Icon.share /> Share
                         </button>
                       </>
@@ -1487,18 +1629,33 @@ export default function MarketplacePage() {
                 </button>
               </div>
               <MarketAssetCarousel>
-                {bundles
-                  .slice(0, 3)
-                  .map((b) => <BundleCard key={b.id} bundle={b} onShare={(bundle) => openShareModal(shareBundleTarget(bundle))} />)}
+                {bundles.slice(0, 3).map((b) => (
+                  <BundleCard
+                    key={b.id}
+                    bundle={b}
+                    onShare={(bundle) =>
+                      openShareModal(shareBundleTarget(bundle))
+                    }
+                  />
+                ))}
               </MarketAssetCarousel>
             </>
           )}
 
-          {!loading && loans.length === 0 && miniApps.length === 0 && xAccounts.length === 0 && farcaster.length === 0 && clankerTokens.length === 0 && bundles.length === 0 && (
-            <div className="muted" style={{ padding: 80, textAlign: "center" }}>
-              No listings yet. Be the first to list an asset.
-            </div>
-          )}
+          {!loading &&
+            loans.length === 0 &&
+            miniApps.length === 0 &&
+            xAccounts.length === 0 &&
+            farcaster.length === 0 &&
+            clankerTokens.length === 0 &&
+            bundles.length === 0 && (
+              <div
+                className="muted"
+                style={{ padding: 80, textAlign: "center" }}
+              >
+                No listings yet. Be the first to list an asset.
+              </div>
+            )}
         </>
       )}
 
@@ -1554,7 +1711,11 @@ export default function MarketplacePage() {
                   disabled={chainLoading}
                   style={{ fontSize: 11 }}
                 >
-                  {chainLoading ? "Reading chain…" : showOnChain ? "On-chain ✓" : "On-chain"}
+                  {chainLoading
+                    ? "Reading chain…"
+                    : showOnChain
+                      ? "On-chain ✓"
+                      : "On-chain"}
                 </button>
                 <span className="smallcaps">Sort</span>
                 <div className="seg">
@@ -1590,7 +1751,11 @@ export default function MarketplacePage() {
           ) : (
             <MarketAssetCarousel>
               {filtered.map((l) => (
-                <LoanCard key={l.id} l={l} onShare={(loan) => openShareModal(shareLoanTarget(loan))} />
+                <LoanCard
+                  key={l.id}
+                  l={l}
+                  onShare={(loan) => openShareModal(shareLoanTarget(loan))}
+                />
               ))}
             </MarketAssetCarousel>
           )}
@@ -1615,6 +1780,7 @@ export default function MarketplacePage() {
                   imageAlt={`${app.name} preview`}
                   title={app.name}
                   subtitle={app.kind}
+                  description={app.description}
                   stats={[
                     { label: "DAU", value: app.dau.toLocaleString() },
                     { label: "MRR", value: `${fmtUSDC(app.mrr)} USDC` },
@@ -1622,10 +1788,17 @@ export default function MarketplacePage() {
                   price={fmtUSDC(app.price)}
                   actions={
                     <>
-                      <Link href={`/miniapps?id=${encodeURIComponent(app.id)}`} className="btn primary sm">
+                      <Link
+                        href={`/miniapps?id=${encodeURIComponent(app.id)}`}
+                        className="btn primary sm"
+                      >
                         <Icon.arrow /> View app
                       </Link>
-                      <button type="button" className="btn sm" onClick={() => openShareModal(shareMiniAppTarget(app))}>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => openShareModal(shareMiniAppTarget(app))}
+                      >
                         <Icon.share /> Share
                       </button>
                     </>
@@ -1656,17 +1829,27 @@ export default function MarketplacePage() {
                   title={account.handle}
                   subtitle={account.niche || "X handle"}
                   stats={[
-                    { label: "Followers", value: account.followers.toLocaleString() },
+                    {
+                      label: "Followers",
+                      value: account.followers.toLocaleString(),
+                    },
                     { label: "Engage", value: `${account.engagement}%` },
                     { label: "30d growth", value: account.growth },
                   ]}
                   price={fmtUSDC(account.price)}
                   actions={
                     <>
-                      <Link href={`/x?id=${encodeURIComponent(account.id)}`} className="btn primary sm">
+                      <Link
+                        href={`/x?id=${encodeURIComponent(account.id)}`}
+                        className="btn primary sm"
+                      >
                         <Icon.arrow /> View account
                       </Link>
-                      <button type="button" className="btn sm" onClick={() => openShareModal(shareXTarget(account))}>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => openShareModal(shareXTarget(account))}
+                      >
                         <Icon.share /> Share
                       </button>
                     </>
@@ -1697,18 +1880,34 @@ export default function MarketplacePage() {
                   title={fmtFarcasterAccount(account)}
                   subtitle={`FID #${account.fid}${account.channel ? ` · /${account.channel}` : ""}`}
                   stats={[
-                    { label: "Followers", value: account.followers.toLocaleString() },
+                    {
+                      label: "Followers",
+                      value: account.followers.toLocaleString(),
+                    },
                     { label: "Casts / 30d", value: account.casts_30d },
-                    { label: "Revenue", value: account.rev_30d > 0 ? fmtUSDC(account.rev_30d) : "0" },
+                    {
+                      label: "Revenue",
+                      value:
+                        account.rev_30d > 0 ? fmtUSDC(account.rev_30d) : "0",
+                    },
                   ]}
                   price={fmtUSDC(account.price)}
                   badge={account.power_badge ? "Power" : undefined}
                   actions={
                     <>
-                      <Link href={`/farcaster?id=${encodeURIComponent(account.id)}`} className="btn primary sm">
+                      <Link
+                        href={`/farcaster?id=${encodeURIComponent(account.id)}`}
+                        className="btn primary sm"
+                      >
                         <Icon.arrow /> View FID
                       </Link>
-                      <button type="button" className="btn sm" onClick={() => openShareModal(shareFarcasterTarget(account))}>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() =>
+                          openShareModal(shareFarcasterTarget(account))
+                        }
+                      >
                         <Icon.share /> Share
                       </button>
                     </>
@@ -1739,18 +1938,36 @@ export default function MarketplacePage() {
                   title={`${token.name} (${token.symbol})`}
                   subtitle={token.chain}
                   stats={[
-                    { label: "Supply", value: token.totalSupply.toLocaleString() },
-                    { label: "Remaining", value: token.remainingSupply.toLocaleString() },
-                    { label: "Fees", value: token.feeEarnings.toLocaleString() },
+                    {
+                      label: "Supply",
+                      value: token.totalSupply.toLocaleString(),
+                    },
+                    {
+                      label: "Remaining",
+                      value: token.remainingSupply.toLocaleString(),
+                    },
+                    {
+                      label: "Fees",
+                      value: token.feeEarnings.toLocaleString(),
+                    },
                   ]}
                   price={fmtUSDC(token.price)}
                   badge={token.verified ? "Verified" : undefined}
                   actions={
                     <>
-                      <Link href={`/clanker?id=${encodeURIComponent(token.id)}`} className="btn primary sm">
+                      <Link
+                        href={`/clanker?id=${encodeURIComponent(token.id)}`}
+                        className="btn primary sm"
+                      >
                         <Icon.arrow /> View token
                       </Link>
-                      <button type="button" className="btn sm" onClick={() => openShareModal(shareClankerTarget(token))}>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() =>
+                          openShareModal(shareClankerTarget(token))
+                        }
+                      >
                         <Icon.share /> Share
                       </button>
                     </>
@@ -1776,15 +1993,20 @@ export default function MarketplacePage() {
             />
           )}
           {bundles.length === 0 ? (
-            <div
-              className="muted"
-              style={{ padding: 40, textAlign: "center" }}
-            >
+            <div className="muted" style={{ padding: 40, textAlign: "center" }}>
               No bundled listings yet.
             </div>
           ) : (
             <MarketAssetCarousel>
-              {bundles.map((b) => <BundleCard key={b.id} bundle={b} onShare={(bundle) => openShareModal(shareBundleTarget(bundle))} />)}
+              {bundles.map((b) => (
+                <BundleCard
+                  key={b.id}
+                  bundle={b}
+                  onShare={(bundle) =>
+                    openShareModal(shareBundleTarget(bundle))
+                  }
+                />
+              ))}
             </MarketAssetCarousel>
           )}
         </>
