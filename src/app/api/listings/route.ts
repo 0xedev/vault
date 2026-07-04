@@ -12,12 +12,18 @@ const walletAddressSchema = z.string().startsWith("0x").length(42);
 
 async function filterContractLiveLoanRows(rows: Record<string, unknown>[]) {
   const checked = await Promise.allSettled(rows.map(async (row) => {
+    if (isCancelledLoanRow(row)) return null;
     const contractListingId = String(row.contract_listing_id || "");
     if (!contractListingId) return null;
     const listing = await readListing(BigInt(contractListingId));
     return mapListingStage(listing.stage) === "listed" ? row : null;
   }));
   return checked.flatMap((result) => result.status === "fulfilled" && result.value ? [result.value] : []);
+}
+
+function isCancelledLoanRow(row: Record<string, unknown>) {
+  const collateral = jsonRecord(row.collateral_data);
+  return String(row.status || "") === "cancelled" || String(collateral.status || "") === "cancelled";
 }
 
 const listingSchema = z.object({
@@ -107,7 +113,7 @@ export async function GET(req: NextRequest) {
         const dbCollateral = dbRow ? jsonRecord(dbRow.collateral_data) : null;
 
         const onChainStatus = mapListingStage(data.stage);
-        if (!includeCancelled && onChainStatus === "cancelled") return [];
+        if (!includeCancelled && onChainStatus !== "listed") return [];
         if (parsedSellerAddress?.success && data.borrower.toLowerCase() !== parsedSellerAddress.data.toLowerCase()) return [];
         const mappedStatus: Loan["status"] =
           onChainStatus === "listed" ? "open" :
@@ -205,6 +211,10 @@ export async function GET(req: NextRequest) {
   } catch {
     if (!includeOffchain) rows = await filterContractLiveLoanRows(rows);
   }
+  if (!includeCancelled) {
+    rows = rows.filter((row) => !isCancelledLoanRow(row));
+    if (!includeOffchain) rows = await filterContractLiveLoanRows(rows);
+  }
 
   const total = rows.length;
 
@@ -212,7 +222,6 @@ export async function GET(req: NextRequest) {
 
   if (sort === "apr") data.sort((a, b) => b.apr - a.apr);
   if (sort === "amt") data.sort((a, b) => b.amt - a.amt);
-  if (sort === "ltv") data.sort((a, b) => a.ltv - b.ltv);
 
   return NextResponse.json({ data, total, offset, limit });
 }

@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { badRequest, databaseRequired, getDatabase } from "@/lib/api";
+import { badRequest, databaseRequired, getDatabase, jsonRecord } from "@/lib/api";
 import { mapLoanListing } from "@/lib/marketplace";
 import { actorAddressForRequest, forbidden, requireUser } from "@/lib/auth";
 import { readListing, readRepaymentDue, readDeadline, readOfferCount, mapListingStage } from "@/lib/contract";
 import { activeListingContractAddress } from "@/lib/listing-contracts";
 import { fetchIndexedNftListingById, nftListingRowFromSubgraph } from "@/lib/subgraph";
+
+function isCancelledLoanRow(row: Record<string, unknown>) {
+  const collateral = jsonRecord(row.collateral_data);
+  return String(row.status || "") === "cancelled" || String(collateral.status || "") === "cancelled";
+}
 
 export async function GET(
   req: NextRequest,
@@ -25,6 +30,10 @@ export async function GET(
         readDeadline(listingId),
         readOfferCount(listingId),
       ]);
+      const stage = listing.status === "fulfilled" ? mapListingStage(listing.value.stage) : "unknown";
+      if (stage === "cancelled") {
+        return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+      }
 
       const onChainData = {
         id,
@@ -38,7 +47,7 @@ export async function GET(
         acceptedAmount: listing.status === "fulfilled" ? listing.value.acceptedAmount.toString() : "0",
         fundedAt: listing.status === "fulfilled" ? Number(listing.value.fundedAt) : 0,
         repaidSoFar: listing.status === "fulfilled" ? listing.value.repaidSoFar.toString() : "0",
-        stage: listing.status === "fulfilled" ? mapListingStage(listing.value.stage) : "unknown",
+        stage,
         onChain: true,
         ...(repayment.status === "fulfilled" ? {
           totalDue: repayment.value.totalDue.toString(),
@@ -84,6 +93,7 @@ export async function GET(
     }
   }
   if (rows.length === 0) return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+  if (isCancelledLoanRow(rows[0])) return NextResponse.json({ error: "Listing not found" }, { status: 404 });
 
   let row = rows[0];
   let data = mapLoanListing(row);
@@ -94,6 +104,9 @@ export async function GET(
     try {
       const indexed = await fetchIndexedNftListingById(contractId);
       if (indexed && indexed.contract.toLowerCase() === activeContract) {
+        if (indexed.status === "cancelled") {
+          return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+        }
         row = nftListingRowFromSubgraph(indexed, rows[0]);
         data = mapLoanListing(row);
         return NextResponse.json({
@@ -112,10 +125,14 @@ export async function GET(
     }
     try {
       const listing = await readListing(BigInt(contractId));
+      const stage = mapListingStage(listing.stage);
+      if (stage === "cancelled") {
+        return NextResponse.json({ error: "Listing not found" }, { status: 404 });
+      }
       return NextResponse.json({
         data: {
           ...data,
-          onChainStage: mapListingStage(listing.stage),
+          onChainStage: stage,
           onChainBorrower: listing.borrower,
           onChainAcceptedLender: listing.acceptedLender,
           onChainRepaidSoFar: listing.repaidSoFar.toString(),

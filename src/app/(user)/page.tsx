@@ -101,8 +101,15 @@ function Sparkline() {
   );
 }
 
-function DashboardPreview({ loans }: { loans: Loan[] }) {
-  const activePrincipal = loans.reduce((sum, loan) => sum + loan.amt, 0);
+function DashboardPreview({
+  items,
+  totalListings,
+  listedValue,
+}: {
+  items: MobileOpportunity[];
+  totalListings: number;
+  listedValue: number;
+}) {
   return (
     <div
       className="card"
@@ -125,18 +132,18 @@ function DashboardPreview({ loans }: { loans: Loan[] }) {
       <div className="grid grid-2" style={{ marginBottom: 14 }}>
         <div className="metric">
           <span className="lab">Open listings</span>
-          <span className="val">{loans.length}</span>
+          <span className="val">{totalListings}</span>
         </div>
         <div className="metric">
-          <span className="lab">Active principal</span>
-          <span className="val">{fmtUSDC(activePrincipal)} USDC</span>
+          <span className="lab">Listed value</span>
+          <span className="val">{fmtUSDC(listedValue)} USDC</span>
         </div>
       </div>
       <Sparkline />
       <div className="col" style={{ gap: 10, marginTop: 12 }}>
-        {loans.slice(0, 3).map((l, i) => (
+        {items.slice(0, 3).map((item, i) => (
           <div
-            key={l.id}
+            key={`${item.href}-${item.title}`}
             className="row between"
             style={{
               padding: "8px 0",
@@ -153,28 +160,23 @@ function DashboardPreview({ loans }: { loans: Loan[] }) {
                   flexShrink: 0,
                 }}
               >
-                {l.imageUrl ? (
-                  <img src={l.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                ) : (
-                  <NFTArt seed={l.coll} />
-                )}
+                {item.icon}
               </div>
               <div className="col" style={{ gap: 1 }}>
                 <span style={{ fontSize: 13 }}>
-                  {COLLECTIONS[l.coll]}{" "}
-                  <span className="muted-2">{l.token}</span>
+                  {item.title}
                 </span>
                 <span
                   className="mono"
                   style={{ fontSize: 11, color: "var(--ink-4)" }}
                 >
-                  {l.term}d · {l.apr}% APR
+                  {item.market} · {item.meta}
                 </span>
               </div>
             </div>
             <div className="col right" style={{ gap: 1 }}>
               <span className="mono" style={{ fontSize: 13 }}>
-                {fmtUSDC(l.amt)} USDC
+                {item.value}
               </span>
             </div>
           </div>
@@ -198,7 +200,7 @@ export default function LandingPage() {
 
   useEffect(() => {
     Promise.allSettled([
-      fetch("/api/listings?limit=4").then(async (r) => {
+      fetch("/api/listings?chain=true&limit=50").then(async (r) => {
         const json = await r.json();
         if (!r.ok) throw new Error(json.error);
         return (json.data || []) as Loan[];
@@ -247,14 +249,28 @@ export default function LandingPage() {
     farcaster.length +
     clanker.length +
     bundles.length;
-  const activeLoans = loans.filter((l) => l.status === "funded").length;
+  const totalListedValue =
+    totalPrincipal +
+    miniApps.reduce((sum, app) => sum + app.price, 0) +
+    xAccounts.reduce((sum, account) => sum + account.price, 0) +
+    farcaster.reduce((sum, account) => sum + account.price, 0) +
+    clanker.reduce((sum, token) => sum + token.price, 0) +
+    bundles.reduce((sum, bundle) => sum + bundle.totalPrice, 0);
+  const activeMarkets = [
+    loans.length,
+    miniApps.length,
+    xAccounts.length,
+    farcaster.length,
+    clanker.length,
+    bundles.length,
+  ].filter(Boolean).length;
   const allOpportunities = [
     ...loans.slice(0, 4).map((l) => ({
       href: `/detail?id=${encodeURIComponent(l.id)}`,
       market: "NFT loan",
       title: `${COLLECTIONS[l.coll]} ${l.token}`,
       meta: `${fmtUSDC(l.amt)} USDC · ${l.apr}% APR · ${l.term}d`,
-      value: `${l.ltv}% LTV`,
+      value: `${fmtUSDC(l.amt)} USDC`,
       color: "#4A6CF7",
       icon: l.imageUrl ? (
         <img src={l.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 8 }} onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
@@ -404,8 +420,8 @@ export default function LandingPage() {
               style={{ marginTop: 56, gap: 48, flexWrap: "wrap" }}
             >
               {[
-                ["Listed principal", `${fmtUSDC(totalPrincipal)} USDC`],
-                ["Active loans", String(loans.length)],
+                ["Listed value", `${fmtUSDC(totalListedValue)} USDC`],
+                ["Open listings", String(totalListings)],
               ].map(([k, v]) => (
                 <div key={k} className="col" style={{ gap: 4 }}>
                   <span className="smallcaps">{k}</span>
@@ -417,7 +433,11 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="col" style={{ gap: 20 }}>
-            <DashboardPreview loans={loans} />
+            <DashboardPreview
+              items={allOpportunities}
+              totalListings={totalListings}
+              listedValue={totalListedValue}
+            />
           </div>
         </section>
 
@@ -586,12 +606,12 @@ export default function LandingPage() {
               <span>Listings</span>
             </div>
             <div>
-              <strong>{fmtUSDC(totalPrincipal)} USDC</strong>
-              <span>NFT principal</span>
+              <strong>{fmtUSDC(totalListedValue)} USDC</strong>
+              <span>Listed value</span>
             </div>
             <div>
-              <strong>{activeLoans}</strong>
-              <span>Funded</span>
+              <strong>{activeMarkets}</strong>
+              <span>Markets</span>
             </div>
           </div>
         </section>

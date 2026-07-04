@@ -29,7 +29,6 @@ export interface AlchemyNFT {
   image?: { cachedUrl?: string; thumbnailUrl?: string; pngUrl?: string; originalUrl?: string };
   raw?: { metadata?: { image?: string; image_url?: string; imageUrl?: string; animation_url?: string } };
   media?: Array<{ gateway?: string; thumbnail?: string; raw?: string }>;
-  floorPriceEth?: number;
   collection?: { name?: string; slug?: string };
   transferable?: boolean;
 }
@@ -41,16 +40,6 @@ export async function getNFTsForOwner(address: string, chain: "base" | "eth" = "
     pageSize: "50",
   });
   return (data.ownedNfts || []) as AlchemyNFT[];
-}
-
-export async function getFloorPrice(contractAddress: string, chain: "base" | "eth" = "base") {
-  const key = getApiKey();
-  if (!key) return null;
-  const base = chain === "base" ? BASE_URL : ETH_URL;
-  const res = await fetch(`${base}/${key}/getFloorPrice?contractAddress=${contractAddress}`);
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.openSea?.floorPrice || data.looksRare?.floorPrice || null;
 }
 
 export async function getNFTMetadata(contractAddress: string, tokenId: string, chain: "base" | "eth" = "base") {
