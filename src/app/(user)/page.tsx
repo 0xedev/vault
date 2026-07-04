@@ -51,57 +51,20 @@ function isActiveListing<T extends { status?: string }>(listing: T) {
   return listing.status !== "cancelled";
 }
 
-function Sparkline() {
-  const pts = [
-    12, 18, 14, 22, 28, 26, 32, 30, 38, 42, 40, 48, 52, 58, 56, 64, 70, 68, 74,
-    80, 84,
-  ];
-  const max = Math.max(...pts),
-    min = Math.min(...pts);
-  const w = 100,
-    h = 28;
-  const path = pts
-    .map((v, i) => {
-      const x = (i / (pts.length - 1)) * w;
-      const y = h - ((v - min) / (max - min)) * h;
-      return `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(" ");
+function EscrowRailMini() {
   return (
-    <div
-      style={{
-        background: "var(--surface)",
-        borderRadius: 8,
-        padding: 12,
-        border: "1px solid var(--line)",
-      }}
-    >
-      <svg
-        viewBox={`0 0 ${w} ${h}`}
-        width="100%"
-        height="64"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <linearGradient id="spk" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0" stopColor="#0052FF" stopOpacity="0.3" />
-            <stop offset="1" stopColor="#0052FF" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={`${path} L ${w},${h} L 0,${h} Z`} fill="url(#spk)" />
-        <path
-          d={path}
-          stroke="#0052FF"
-          strokeWidth="0.6"
-          fill="none"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
+    <div className="hero-rail" aria-label="Escrow rail: asset to terms to escrow to release">
+      {["Asset", "Terms", "Escrow", "Release"].map((label, index) => (
+        <div className="hero-rail-step" key={label}>
+          <span>{String(index + 1).padStart(2, "0")}</span>
+          <strong>{label}</strong>
+        </div>
+      ))}
     </div>
   );
 }
 
-function DashboardPreview({
+function VaultSignalHero({
   items,
   totalListings,
   listedValue,
@@ -111,76 +74,51 @@ function DashboardPreview({
   listedValue: number;
 }) {
   return (
-    <div
-      className="card"
-      style={{ padding: 18, position: "relative", overflow: "hidden" }}
-    >
-      <div className="row between" style={{ marginBottom: 14 }}>
-        <div className="row" style={{ gap: 10 }}>
+    <div className="vault-signal-hero card">
+      <div className="vault-signal-media">
+        <Image
+          src="/baseshire-vault-signal.svg"
+          alt="Animated escrow rail visual for Baseshire Hethaway"
+          fill
+          sizes="(max-width: 1100px) 100vw, 48vw"
+          priority
+        />
+      </div>
+      <div className="vault-signal-overlay">
+        <div className="row between">
           <span className="pill funded">
             <span className="pdot" />
-            LIVE
+            LIVE ESCROW RAIL
           </span>
-          <span className="smallcaps">Dashboard · Apr 30</span>
+          <span className="smallcaps">Proof mesh</span>
         </div>
-        <div className="seg">
-          <button className="active">7d</button>
-          <button>30d</button>
-          <button>All</button>
-        </div>
-      </div>
-      <div className="grid grid-2" style={{ marginBottom: 14 }}>
-        <div className="metric">
-          <span className="lab">Open listings</span>
-          <span className="val">{totalListings}</span>
-        </div>
-        <div className="metric">
-          <span className="lab">Listed value</span>
-          <span className="val">{fmtUSDC(listedValue)} USDC</span>
-        </div>
-      </div>
-      <Sparkline />
-      <div className="col" style={{ gap: 10, marginTop: 12 }}>
-        {items.slice(0, 3).map((item, i) => (
-          <div
-            key={`${item.href}-${item.title}`}
-            className="row between"
-            style={{
-              padding: "8px 0",
-              borderTop: i ? "1px dashed var(--line)" : "none",
-            }}
-          >
-            <div className="row" style={{ gap: 10 }}>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 6,
-                  overflow: "hidden",
-                  flexShrink: 0,
-                }}
-              >
-                {item.icon}
-              </div>
-              <div className="col" style={{ gap: 1 }}>
-                <span style={{ fontSize: 13 }}>
-                  {item.title}
-                </span>
-                <span
-                  className="mono"
-                  style={{ fontSize: 11, color: "var(--ink-4)" }}
-                >
-                  {item.market} · {item.meta}
-                </span>
-              </div>
-            </div>
-            <div className="col right" style={{ gap: 1 }}>
-              <span className="mono" style={{ fontSize: 13 }}>
-                {item.value}
-              </span>
-            </div>
+        <EscrowRailMini />
+        <div className="vault-signal-stats">
+          <div>
+            <span>Open listings</span>
+            <strong>{totalListings}</strong>
           </div>
-        ))}
+          <div>
+            <span>Protected value</span>
+            <strong>{fmtUSDC(listedValue)} USDC</strong>
+          </div>
+          <div>
+            <span>Fresh proof</span>
+            <strong>{items.length || 0} feeds</strong>
+          </div>
+        </div>
+        <div className="vault-signal-ledger">
+          {items.slice(0, 3).map((item) => (
+            <Link href={item.href} key={`${item.href}-${item.title}`}>
+              <span className="vault-signal-thumb">{item.icon}</span>
+              <span>
+                <small>{item.market}</small>
+                <strong>{item.title}</strong>
+              </span>
+              <em>{item.value}</em>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -399,13 +337,12 @@ export default function LandingPage() {
       <div className="hide-mobile">
         <section className="hero">
           <div>
-            <div className="eyebrow">Lending · Escrow · BSH</div>
-            <h1 className="h1" style={{ marginTop: 24 }}>
-              The Baseshire Hethaway of <em>on-chain</em> assets.
+            <div className="eyebrow">Escrow terminal · Proof-first markets</div>
+            <h1 className="h1" style={{ marginTop: 18 }}>
+              A sharper command desk for <em>high-value</em> on-chain assets.
             </h1>
-            <p className="lede" style={{ margin: "28px 0 32px" }}>
-              Securely buy, sell, and collateralize NFTs, Mini-Apps, and social
-              handles through our marketplace.
+            <p className="lede" style={{ margin: "22px 0 28px" }}>
+              Buy, sell, and collateralize NFTs, Mini Apps, social accounts, and tokenized assets with visible custody routes, proof freshness, and release conditions.
             </p>
             <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
               <Link href="/market" className="btn primary lg">
@@ -432,8 +369,8 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
-          <div className="col" style={{ gap: 20 }}>
-            <DashboardPreview
+          <div className="col hero-visual-col" style={{ gap: 20 }}>
+            <VaultSignalHero
               items={allOpportunities}
               totalListings={totalListings}
               listedValue={totalListedValue}
@@ -584,11 +521,10 @@ export default function LandingPage() {
           </div>
 
           <h1>
-            The Baseshire Hethaway of <em>on-chain</em> assets.
+            A sharper command desk for <em>high-value</em> on-chain assets.
           </h1>
           <p>
-            Securely buy, sell, and collateralize NFTs, Mini-Apps, and social
-            handles through our marketplace.
+            Browse protected listings with visible proof, custody routes, and release terms.
           </p>
 
           <div className="mobile-command-actions">
