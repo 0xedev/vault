@@ -1,11 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import ThemeProvider from "@/components/ThemeProvider";
 import "./globals.css";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
-const instrumentSerif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-instrument-serif" });
-const jetBrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
 const siteUrl = "https://baseshirehethaway.com";
 const defaultMiniAppEmbed = JSON.stringify({
   version: "1",
@@ -32,19 +28,19 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Baseshire Hethaway — Crypto Conglomerate",
-  description: "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
+  title: "Baseshire Hethaway — Protected Escrow Terminal",
+  description: "Protected escrow marketplace for high-value on-chain assets: NFT lending, Mini App sales, social account transfers, token listings, and Farcaster FID escrow.",
   metadataBase: new URL("https://baseshirehethaway.com"),
   openGraph: {
-    title: "Baseshire Hethaway — Crypto Conglomerate",
-    description: "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
+    title: "Baseshire Hethaway — Protected Escrow Terminal",
+    description: "Protected escrow marketplace for high-value on-chain assets: NFT lending, Mini App sales, social account transfers, token listings, and Farcaster FID escrow.",
     siteName: "Baseshire Hethaway",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Baseshire Hethaway — Crypto Conglomerate",
-    description: "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
+    title: "Baseshire Hethaway — Protected Escrow Terminal",
+    description: "Protected escrow marketplace for high-value on-chain assets: NFT lending, Mini App sales, social account transfers, token listings, and Farcaster FID escrow.",
   },
   other: {
     "fc:miniapp": defaultMiniAppEmbed,
@@ -67,7 +63,7 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebApplication",
               "name": "Baseshire Hethaway",
-              "description": "Liquidity for illiquid digital assets. NFT-backed lending, mini-app sales, X handle transfers, and Farcaster FID escrow.",
+              "description": "Protected escrow marketplace for high-value on-chain assets: NFT lending, Mini App sales, social account transfers, token listings, and Farcaster FID escrow.",
               "applicationCategory": "FinanceApplication",
               "operatingSystem": "Web",
               "offers": {
@@ -78,7 +74,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geist.variable} ${instrumentSerif.variable} ${jetBrainsMono.variable}`} data-theme="light" data-card="solid" data-density="regular">
+      <body className="font-fallbacks" data-theme="light" data-card="solid" data-density="regular">
         <a className="skip-link" href="#main-content">Skip to main content</a>
         <ThemeProvider>{children}</ThemeProvider>
       </body>
