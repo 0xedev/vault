@@ -187,7 +187,6 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
       collection: string;
       tokenId: string;
       seed: number;
-      value: number;
       contractAddress: string;
       imageUrl: string;
     }[]
@@ -229,7 +228,6 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           contract: { address: string; name?: string };
           tokenId: string;
           name?: string;
-          floorPriceEth?: number;
           collection?: { name?: string };
           image?: {
             cachedUrl?: string;
@@ -255,7 +253,6 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
             collection: n.collection?.name || n.contract.name || "Unknown",
             tokenId: n.tokenId.includes("#") ? n.tokenId : `#${n.tokenId}`,
             seed: parseInt(n.tokenId) || Math.floor(Math.random() * 10000),
-            value: n.floorPriceEth || 0,
             contractAddress: n.contract.address,
             imageUrl: nftImageUrl(n),
           }));
@@ -290,7 +287,6 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
         contract: { address: string; name?: string };
         tokenId: string;
         name?: string;
-        floorPriceEth?: number;
         collection?: { name?: string };
         image?: {
           cachedUrl?: string;
@@ -316,7 +312,6 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           collection: n.collection?.name || n.contract.name || "Unknown",
           tokenId: n.tokenId.includes("#") ? n.tokenId : `#${n.tokenId}`,
           seed: parseInt(n.tokenId) || Math.floor(Math.random() * 10000),
-          value: n.floorPriceEth || 0,
           contractAddress: n.contract.address,
           imageUrl: nftImageUrl(n),
         }));
@@ -335,7 +330,6 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     Number(amount) > 0 &&
     Number(apr) > 0 &&
     Number(term) > 0;
-  const impliedLtv = 0;
   const platformFee = (Number(amount || 0) * nftPlatformFeeBps) / 10000;
 
   const verifyOwnership = async () => {
@@ -428,7 +422,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
           term: termDays,
           collection,
           tokenId,
-          ltv: impliedLtv,
+          ltv: 0,
           imageUrl: selectedNftImageUrl,
           chainId: 8453,
           contractAddress: escrowAddr,
@@ -462,7 +456,6 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
   const selectNFT = (
     c: string,
     t: string,
-    value: number,
     contractAddr: string,
     imageUrl: string,
   ) => {
@@ -470,7 +463,7 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
     setTokenId(t);
     setSelectedContract(contractAddr);
     setSelectedNftImageUrl(imageUrl);
-    setAmount(value ? (value * 0.5).toFixed(1) : "");
+    setAmount("");
   };
 
   return (
@@ -543,7 +536,6 @@ function ListNFTModal({ onClose }: { onClose: () => void }) {
                         selectNFT(
                           n.collection,
                           n.tokenId,
-                          n.value,
                           n.contractAddress,
                           n.imageUrl,
                         )
@@ -1085,7 +1077,6 @@ export default function MarketplacePage() {
     }
     if (sort === "apr") r = [...r].sort((a, b) => b.apr - a.apr);
     if (sort === "amt") r = [...r].sort((a, b) => b.amt - a.amt);
-    if (sort === "ltv") r = [...r].sort((a, b) => a.ltv - b.ltv);
     return r;
   }, [filter, sort, loans, collectionFilter, walletIdentity]);
 
@@ -1779,7 +1770,6 @@ export default function MarketplacePage() {
                   {[
                     ["apr", "APR ↓"],
                     ["amt", "Amount"],
-                    ["ltv", "LTV"],
                   ].map(([k, t]) => (
                     <button
                       key={k}

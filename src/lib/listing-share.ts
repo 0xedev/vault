@@ -175,7 +175,6 @@ function shareDataForRow(
         { label: "Principal", value: priceLabel(listing.amt) },
         { label: "APR", value: `${listing.apr}%` },
         { label: "Term", value: `${listing.term}d` },
-        { label: "LTV", value: `${listing.ltv}%` },
       ],
     };
   }

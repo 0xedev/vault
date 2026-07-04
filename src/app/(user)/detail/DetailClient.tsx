@@ -8,7 +8,7 @@ import Icon from "@/components/icons";
 import NFTArt from "@/components/NFTArt";
 import StatusPill from "@/components/StatusPill";
 import { COLLECTIONS } from "@/lib/data";
-import { fmtETH, fmtUSDC } from "@/lib/utils";
+import { fmtUSDC } from "@/lib/utils";
 import { shortAddress } from "@/lib/api";
 import { useWallet } from "@/components/WalletProvider";
 import { getPublicClient, getWalletClient, writeAcceptOffer, writeAcceptSignedLoanOffer, writeRepay, writeClaimCollateral, writeWithdrawOffer, writeCancelListing, writeRepayPartial, parseContractError, readDeadline, writeApproveUsdc, getNftAddress, readPlatformFeeBps } from "@/lib/contract";
@@ -186,9 +186,8 @@ function CounterOfferModal({ onClose, l, prefillAmt, prefillApr, prefillTerm }: 
                 <div><span className="label">Term (days)</span><input className="input mono" type="number" value={term} onChange={(e) => setTerm(+e.target.value)} /></div>
                 <div><span className="label">Expires (h)</span><input className="input mono" type="number" value={exp} onChange={(e) => setExp(+e.target.value)} /></div>
               </div>
-              <div className="card" style={{ padding: 10, marginTop: 12, background: "var(--surface-2)", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              <div className="card" style={{ padding: 10, marginTop: 12, background: "var(--surface-2)", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                 <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>Repayment</span><span className="mono" style={{ fontSize: 12 }}>{(amt * (1 + apr / 100 * term / 365)).toFixed(2)} USDC</span></div>
-                <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>LTV</span><span className="mono" style={{ fontSize: 12 }}>{l.value > 0 ? Math.round(amt / l.value * 100) : 0}%</span></div>
                 <div className="col" style={{ gap: 1 }}><span className="smallcaps" style={{ fontSize: 9 }}>Expires</span><span className="mono" style={{ fontSize: 12 }}>{exp}h</span></div>
               </div>
             </>
@@ -595,7 +594,6 @@ function LoanDetailContent() {
               <div className="row" style={{ gap: 8, marginTop: 4, flexWrap: "wrap" }}>
                 <StatusPill s={l.status} />
                 <span className="pill gold"><span className="pdot" />Verified</span>
-                <span className="pill"><span className="pdot" /><span className="nowrap">Floor {fmtETH(l.value)} Ξ</span></span>
               </div>
               <div className="row" style={{ marginTop: 14, gap: 18 }}>
                 <div className="col" style={{ gap: 1 }}><span className="smallcaps">Borrower</span><span className="mono" style={{ fontSize: 13 }}>{l.borrower}</span></div>
@@ -690,7 +688,6 @@ function LoanDetailContent() {
             <div className="kv"><span className="k">Interest ({l.apr}% APR)</span><span className="v">+ {proRatedInterest.toFixed(3)} USDC</span></div>
             <div className="kv"><span className="k">Repayment due</span><span className="v">{repaymentDue.toFixed(3)} USDC {deadlinePassed ? <span style={{ color: "var(--risk)", fontSize: 11 }}>(overdue)</span> : ""}</span></div>
             <div className="kv"><span className="k">Term</span><span className="v">{l.term} days</span></div>
-            <div className="kv"><span className="k">Loan-to-value</span><span className="v">{l.ltv}%</span></div>
             <div className="kv"><span className="k">Platform fee</span><span className="v">{platformFeeBps / 100}% · {(l.amt * platformFeeBps / 10000).toFixed(3)} USDC</span></div>
             <div className="kv"><span className="k">Escrow</span><span className="v" style={{ color: "var(--accent)" }}>baseshire.eth · EOA</span></div>
 
