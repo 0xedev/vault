@@ -187,6 +187,7 @@ async function farcasterSignIn(
       body: JSON.stringify({
         token: result.token,
         chainId: options.chainId,
+        walletAddress: options.walletAddress,
       }),
     });
     if (!sessionRes.ok) {
@@ -208,50 +209,6 @@ async function farcasterSignIn(
     logClientError("wallet:farcasterSignIn:exception", err);
     console.warn("Baseshire Hethaway Farcaster sign-in failed:", err);
     return null;
-  }
-}
-
-async function linkFarcasterWallet(
-  address: string,
-  chainId: number,
-  provider: WalletLike,
-): Promise<boolean> {
-  try {
-    const nonceRes = await fetch("/api/auth/nonce");
-    const { nonce } = await nonceRes.json();
-    if (!nonce) return false;
-
-    const siweAddr = getAddress(address);
-    const message = new SiweMessage({
-      domain: window.location.host,
-      address: siweAddr,
-      statement: "Link this wallet to your Baseshire Hethaway Farcaster session.",
-      uri: window.location.origin,
-      version: "1",
-      chainId,
-      nonce,
-    });
-
-    const signature = await provider.request({
-      method: "personal_sign",
-      params: [message.prepareMessage(), address],
-    });
-
-    const res = await fetch("/api/me/linked-wallets", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: message.prepareMessage(), signature }),
-    });
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}));
-      logClientError("wallet:linkFarcasterWallet:failed", json.error || `status ${res.status}`, { status: res.status });
-      return false;
-    }
-    return true;
-  } catch (err) {
-    logClientError("wallet:linkFarcasterWallet:exception", err);
-    return false;
   }
 }
 
@@ -343,7 +300,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (inMiniApp) {
         setIsConnecting(true);
         try {
-          const wallet = await attachWallet({ requestAccounts: true }).catch(() => null);
+          const wallet = await attachWallet().catch(() => null);
           const shouldRefreshNativeSession =
             wallet &&
             (!hasSession ||
@@ -408,7 +365,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         });
         if (!session) throw new Error("Farcaster sign-in did not complete");
 
-        await linkFarcasterWallet(wallet.address, wallet.chainId, wallet.provider);
+        // The server records the connected Mini App wallet during Farcaster
+        // sign-in, so avoid a second SIWE prompt that can hang in Warpcast.
         setSessionAddress(session.address);
         setRole(session.role === "admin" ? "admin" : "user");
         return;

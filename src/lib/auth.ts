@@ -20,6 +20,58 @@ const SESSION_COOKIE = "vault_session";
 const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const NONCE_TTL_MS = 10 * 60 * 1000;
 
+
+function isMissingTableError(err: unknown) {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { code?: string }).code === "42P01"
+  );
+}
+
+async function ensureLinkedWalletsTable(db: DbClient) {
+  await db`
+    CREATE TABLE IF NOT EXISTS linked_wallets (
+      id text PRIMARY KEY,
+      farcaster_address text NOT NULL REFERENCES users(address) ON DELETE CASCADE,
+      wallet_address text NOT NULL REFERENCES users(address) ON DELETE CASCADE,
+      chain_id integer,
+      verified_at timestamp DEFAULT now() NOT NULL,
+      created_at timestamp DEFAULT now() NOT NULL,
+      updated_at timestamp DEFAULT now() NOT NULL
+    )
+  `;
+  await db`
+    CREATE UNIQUE INDEX IF NOT EXISTS linked_wallets_farcaster_wallet_unique
+    ON linked_wallets (farcaster_address, wallet_address)
+  `;
+  await db`
+    CREATE INDEX IF NOT EXISTS linked_wallets_wallet_idx
+    ON linked_wallets (wallet_address)
+  `;
+}
+
+async function linkWalletToFarcasterAddress(
+  db: DbClient,
+  farcasterAddr: string,
+  walletAddr: string,
+  chainId?: number | null,
+) {
+  const walletAddress = walletAddr.toLowerCase();
+  if (!isFarcasterAddress(farcasterAddr) || !isEvmAddress(walletAddress)) return;
+
+  await ensureLinkedWalletsTable(db);
+  const linkId = `${farcasterAddr}:${walletAddress}`;
+  await db`INSERT INTO users (address, role) VALUES (${walletAddress}, 'user')
+    ON CONFLICT (address) DO NOTHING`;
+  await db`
+    INSERT INTO linked_wallets (id, farcaster_address, wallet_address, chain_id, verified_at, updated_at)
+    VALUES (${linkId}, ${farcasterAddr}, ${walletAddress}, ${chainId ?? null}, NOW(), NOW())
+    ON CONFLICT (farcaster_address, wallet_address)
+    DO UPDATE SET chain_id = ${chainId ?? null}, verified_at = NOW(), updated_at = NOW()
+  `;
+}
+
 function uniqueValues(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
@@ -180,7 +232,7 @@ export async function createFarcasterQuickAuthSession(req: NextRequest) {
     return createFarcasterSiwfSessionFromBody(req, db, body.message, body.signature);
   }
 
-  const { token, chainId } = body;
+  const { token, chainId, walletAddress } = body;
   if (typeof token !== "string" || !token) {
     return NextResponse.json({ error: "Farcaster SIWF message/signature or Quick Auth token is required" }, { status: 400 });
   }
@@ -216,7 +268,12 @@ export async function createFarcasterQuickAuthSession(req: NextRequest) {
     }
 
     const sessionChainId = Number.isFinite(Number(chainId)) ? Number(chainId) : undefined;
-    return createSession(db, farcasterAddress(fid), sessionChainId);
+    const sessionAddress = farcasterAddress(fid);
+    const res = await createSession(db, sessionAddress, sessionChainId);
+    if (isEvmAddress(walletAddress)) {
+      await linkWalletToFarcasterAddress(db, sessionAddress, walletAddress, sessionChainId);
+    }
+    return res;
   } catch (err) {
     console.warn("[auth/farcaster] Quick Auth sign-in failed", {
       domains,
@@ -294,15 +351,7 @@ export async function linkWalletToFarcasterSession(req: NextRequest) {
   }
 
   const chainId = Number.isFinite(Number(data.chainId)) ? Number(data.chainId) : null;
-  const linkId = `${user.address}:${walletAddress}`;
-  await db`INSERT INTO users (address, role) VALUES (${walletAddress}, 'user')
-    ON CONFLICT (address) DO NOTHING`;
-  await db`
-    INSERT INTO linked_wallets (id, farcaster_address, wallet_address, chain_id, verified_at, updated_at)
-    VALUES (${linkId}, ${user.address}, ${walletAddress}, ${chainId}, NOW(), NOW())
-    ON CONFLICT (farcaster_address, wallet_address)
-    DO UPDATE SET chain_id = ${chainId}, verified_at = NOW(), updated_at = NOW()
-  `;
+  await linkWalletToFarcasterAddress(db, user.address, walletAddress, chainId);
   await db`UPDATE auth_nonces SET consumed_at = NOW(), address = ${walletAddress} WHERE nonce = ${nonce}`;
   authLogger("wallet_linked", user.address, { wallet_address: walletAddress, chain_id: chainId });
   return NextResponse.json({ walletAddress, chainId, linked: true });
@@ -311,6 +360,7 @@ export async function linkWalletToFarcasterSession(req: NextRequest) {
 export async function listLinkedWallets(req: NextRequest) {
   const auth = await requireUser(req);
   if ("response" in auth) return auth.response;
+  await ensureLinkedWalletsTable(auth.db);
   const rows = await auth.db`
     SELECT wallet_address, chain_id, verified_at, created_at
     FROM linked_wallets
@@ -334,6 +384,7 @@ export async function unlinkWalletFromFarcasterSession(req: NextRequest) {
   if (!isEvmAddress(walletAddress)) {
     return NextResponse.json({ error: "Valid walletAddress is required" }, { status: 400 });
   }
+  await ensureLinkedWalletsTable(auth.db);
   await auth.db`
     DELETE FROM linked_wallets
     WHERE farcaster_address = ${auth.user.address} AND wallet_address = ${walletAddress.toLowerCase()}
@@ -378,10 +429,16 @@ export async function getSession(req: NextRequest): Promise<AuthUser | null> {
   const fid = isFarcasterAddress(address) ? Number(address.replace("farcaster:", "")) : undefined;
   let linkedWallets: string[] | undefined;
   if (isFarcasterAddress(address)) {
-    const linkedRows = await db`
-      SELECT wallet_address FROM linked_wallets WHERE farcaster_address = ${address}
-    ` as Record<string, unknown>[];
-    linkedWallets = linkedRows.map((row) => String(row.wallet_address).toLowerCase());
+    try {
+      await ensureLinkedWalletsTable(db);
+      const linkedRows = await db`
+        SELECT wallet_address FROM linked_wallets WHERE farcaster_address = ${address}
+      ` as Record<string, unknown>[];
+      linkedWallets = linkedRows.map((row) => String(row.wallet_address).toLowerCase());
+    } catch (err) {
+      if (!isMissingTableError(err)) throw err;
+      linkedWallets = [];
+    }
   }
   return { address, role, status, fid: Number.isFinite(fid) ? fid : undefined, linkedWallets };
 }
